@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres-goldsphere-db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_goldsphere_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+  pgadmin:
+      image: dpage/pgadmin4
+      container_name: pgadmin-goldsphere-service
+      environment:
+        PGADMIN_DEFAULT_EMAIL: marcopersi@me.com
+        PGADMIN_DEFAULT_PASSWORD: admin
+      ports:
+        - "8880:80"
+      networks:
+        - pg-network
+
+  goldsphere-server:
+    build: .
+    container_name: goldsphere-server
+    environment:
+      - PORT=${PORT}
+      - DATABASE_USER=${DB_USER}
+      - DATABASE_PASSWORD=${DB_PASSWORD}
+      - DATABASE_HOST=postgres-goldsphere-db
+      - DATABASE_PORT=${DB_PORT}
+      - DATABASE_NAME=${DB_NAME}
+    ports:
+      - "11215:11215"
+    depends_on:
+      - postgres
+
+  goldsphere-frontend:
+    build:
+      context: ../goldsphere
+      dockerfile: Dockerfile
+    container_name: goldsphere-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - goldsphere-server
+
+volumes:
+  postgres_goldsphere_data:
+
+networks:
+  pg-network:

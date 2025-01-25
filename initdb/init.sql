@@ -1,0 +1,3 @@
+CREATE DATABASE goldsphere;
+CREATE USER user WITH PASSWORD 'password';
+GRANT ALL PRIVILEGES ON DATABASE goldsphere TO user;
