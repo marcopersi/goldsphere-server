@@ -23,7 +23,7 @@ jobs:
         key: ${{ runner.os }}-buildx-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-buildx-
-          
+
     - name: Build Docker Image
       run: |
         docker buildx build \
@@ -31,6 +31,7 @@ jobs:
           --tag goldsphere-server:latest \
           --cache-from type=local,src=/tmp/.buildx-cache \
           --cache-to type=local,dest=/tmp/.buildx-cache \
+          --load \
           .
           
     - name: Test Docker image
