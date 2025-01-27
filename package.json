@@ -4,7 +4,7 @@
   "description": "The server including the business logic and integration for the goldsphere project",
   "main": "src/app.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"curently no tests...\" && exit 0"
     "start": "node dist/app.js",
     "dev": "PORT=11215 npx nodemon --exec npx ts-node src/index.ts",
     "build": "tsc",
