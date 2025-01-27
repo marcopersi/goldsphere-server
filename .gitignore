@@ -1,0 +1,15 @@
+# Ignore node_modules directory
+node_modules/
+
+# Ignore dist directory
+dist/
+
+# Ignore .idea directory (for JetBrains IDEs)
+.idea/
+
+# Ignore log files
+*.log
+
+# Ignore npm debug files
+npm-debug.log*
+
