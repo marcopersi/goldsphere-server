@@ -13,3 +13,5 @@ dist/
 # Ignore npm debug files
 npm-debug.log*
 
+# Ignore osx files
+.DS_Store
