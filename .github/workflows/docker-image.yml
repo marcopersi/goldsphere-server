@@ -24,9 +24,15 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildx-
 
-    - name: Build Docker image
+    - name: Build Docker Image
       run: |
-        docker buildx build --file Dockerfile --tag goldsphere-server:latest --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache --load .
+        docker buildx build \
+          --file Dockerfile \
+          --tag goldsphere-server:latest \
+          --cache-from type=local,src=/tmp/.buildx-cache \
+          --cache-to type=local,dest=/tmp/.buildx-cache \
+          --load \
+          .
 
     - name: Test Docker image
       run: |
