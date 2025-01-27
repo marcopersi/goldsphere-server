@@ -90,7 +90,14 @@ INSERT INTO custodians (name, location) VALUES
 ('Loomis', 'Switzerland'),
 ('Brinks', 'Germany'),
 ('Bank of Switzerland', 'Switzerland'),
-('Home Storage', NULL) -- Für Kunden, die selbst lagern
+('Home Storage', NULL), -- Für Kunden, die selbst lagern
+('Malca-Amit', 'Hong Kong'),
+('G4S Vaults', 'United Kingdom'),
+('Swiss Gold Safe', 'Liechtenstein'),
+('Via Mat International', 'Switzerland'),
+('Vault Services by Sequel', 'Singapore'),
+('Delaware Depository', 'USA'),
+('International Depository Services', 'Canada')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO manufacturers (name, created_at) VALUES
