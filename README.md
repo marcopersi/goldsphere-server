@@ -26,7 +26,7 @@ docker compose up -d pgadmin
 or whatever the current schema looks like, you ensure to initialize the database schema with running 
 
 ```bash
- psql -h localhost -U postgres -d goldsphere -f ddl/schema.sql -u user 
+ psql -h localhost -U user -d goldsphere -f ddl/schema.sql -u user 
 ```
 
 ### Testing endpoints

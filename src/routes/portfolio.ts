@@ -16,7 +16,7 @@ const pool = new Pool({
 // GET all portfolios
 router.get("/portfolio", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, user_id,product_id,purchase_date,quantity, total_value,custody_service_id FROM portfolio ORDER BY purchase_date");
+    const result = await pool.query("SELECT user_id,product_id,purchase_date,quantity, total_value,custody_service_id FROM portfolio ORDER BY purchase_date");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching portfolios:", error);
@@ -26,9 +26,9 @@ router.get("/portfolio", async (req: Request, res: Response) => {
 
 // POST new portfolio
 router.post("/portfolio", async (req: Request, res: Response) => {
-  const { name, description } = req.body;
+  const { user_id,product_id,purchase_date,quantity,total_value,custody_service_id } = req.body;
   try {
-    const result = await pool.query("INSERT INTO portfolio (name, description) VALUES ($1, $2) RETURNING *", [name, description]);
+    const result = await pool.query("INSERT INTO portfolio (user_id, product_id, purchase_date,quantity,total_value, custody_service_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", [user_id,product_id,purchase_date,quantity,total_value,custody_service_id]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding portfolio:", error);
