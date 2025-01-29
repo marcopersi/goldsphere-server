@@ -16,7 +16,7 @@ const pool = new Pool({
 // GET all custodians
 router.get("/custodians", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name, location FROM custodians ORDER BY name");
+    const result = await pool.query("SELECT id, name, location, created_at, updated_at FROM custodians ORDER BY name");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching custodians:", error);

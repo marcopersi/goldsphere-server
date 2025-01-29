@@ -7,9 +7,19 @@ import custodiansRouter from "./routes/custodians";
 import portfolioRouter from "./routes/portfolio";
 import orderRouter from "./routes/orders";
 import userRouter from "./routes/users";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
+
+// Konfigurieren Sie CORS
+const corsOptions = {
+    origin: "http://localhost:3333",
+    methods: "GET,POST,PUT,DELETE,OPTIONS",
+    allowedHeaders: "Content-Type,Authorization"
+  };
+
+app.use(cors(corsOptions));
 
 // Register routes
 console.log("1. Registering reference routes");

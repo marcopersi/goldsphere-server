@@ -16,7 +16,7 @@ const pool = new Pool({
 // GET all portfolios
 router.get("/portfolio", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name, description FROM portfolio ORDER BY name");
+    const result = await pool.query("SELECT id, user_id,product_id,purchase_date,quantity, total_value,custody_service_id FROM portfolio ORDER BY purchase_date");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching portfolios:", error);

@@ -16,7 +16,7 @@ const pool = new Pool({
 // Issuing Countries Endpoints
 router.get("/issuing-countries", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name, iso_code FROM issuing_countries ORDER BY name");
+    const result = await pool.query("SELECT id, name, iso_code, created_at, updated_at FROM issuing_countries ORDER BY name");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching issuing countries:", error);
@@ -61,7 +61,7 @@ router.delete("/issuing-countries/:id", async (req: Request, res: Response) => {
 router.get("/issuing-countries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, name, iso_code FROM issuing_countries WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, name, iso_code, created_at, updated_at FROM issuing_countries WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching issuing country:", error);
@@ -72,7 +72,7 @@ router.get("/issuing-countries/:id", async (req: Request, res: Response) => {
 // Metals Endpoints
 router.get("/metals", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name FROM metals ORDER BY name");
+    const result = await pool.query("SELECT id, name, created_at, updated_at FROM metals ORDER BY name");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching metals:", error);
@@ -117,7 +117,7 @@ router.delete("/metals/:id", async (req: Request, res: Response) => {
 router.get("/metals/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, name FROM metals WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, name, created_at, updated_at FROM metals WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching metal:", error);
@@ -128,7 +128,7 @@ router.get("/metals/:id", async (req: Request, res: Response) => {
 // Product Types Endpoints
 router.get("/product-types", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name FROM product_types ORDER BY name");
+    const result = await pool.query("SELECT id, name, created_at, updated_at FROM product_types ORDER BY name");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching product types:", error);
@@ -173,7 +173,7 @@ router.delete("/product-types/:id", async (req: Request, res: Response) => {
 router.get("/product-types/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, name FROM product_types WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, name, created_at, updated_at FROM product_types WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching product type:", error);
@@ -184,7 +184,7 @@ router.get("/product-types/:id", async (req: Request, res: Response) => {
 // Manufacturers Endpoints
 router.get("/manufacturers", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name FROM manufacturers ORDER BY name");
+    const result = await pool.query("SELECT id, name, created_at, updated_at FROM manufacturers ORDER BY name");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching manufacturers:", error);
@@ -229,7 +229,7 @@ router.delete("/manufacturers/:id", async (req: Request, res: Response) => {
 router.get("/manufacturers/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, name FROM manufacturers WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, name, created_at, updated_at FROM manufacturers WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching manufacturer:", error);

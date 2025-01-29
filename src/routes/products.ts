@@ -17,7 +17,7 @@ router.get("/products", async (req: Request, res: Response) => {
   console.log("GET /api/products");
   try {
     const result = await pool.query(
-      "SELECT products.name AS product_name, product_types.name AS product_type, metals.name AS metal, issuing_countries.name AS issuing_country, manufacturers.name AS manufacturer, products.price FROM products JOIN product_types ON product_types.id = products.product_type_id JOIN metals ON metals.id = products.metal_id JOIN issuing_countries ON issuing_countries.id = products.issuing_country_id JOIN manufacturers ON manufacturers.id = products.manufacturer_id");
+      "SELECT products.id, products.name AS product_name, product_types.name AS product_type, metals.name AS metal, issuing_countries.name AS issuing_country, manufacturers.name AS manufacturer, products.price FROM products JOIN product_types ON product_types.id = products.product_type_id JOIN metals ON metals.id = products.metal_id JOIN issuing_countries ON issuing_countries.id = products.issuing_country_id JOIN manufacturers ON manufacturers.id = products.manufacturer_id");
       res.json(result.rows);
   } catch (error) {
     console.error("Error fetching products:", error);
@@ -30,7 +30,7 @@ router.get("/products/search", async (req: Request, res: Response) => { let quer
 
   console.log("Received product_type_id:", product_type_id);
 
-  let sql = "SELECT products.name AS product_name, product_types.name AS product_type, metals.name AS metal, issuing_countries.name AS issuing_country, manufacturers.name AS manufacturer, products.price FROM products JOIN product_types ON product_types.id = products.product_type_id JOIN metals ON metals.id = products.metal_id JOIN issuing_countries ON issuing_countries.id = products.issuing_country_id JOIN manufacturers ON manufacturers.id = products.manufacturer_id WHERE 1=1";
+  let sql = "SELECT products.id, products.name AS product_name, product_types.name AS product_type, metals.name AS metal, issuing_countries.name AS issuing_country, manufacturers.name AS manufacturer, products.price FROM products JOIN product_types ON product_types.id = products.product_type_id JOIN metals ON metals.id = products.metal_id JOIN issuing_countries ON issuing_countries.id = products.issuing_country_id JOIN manufacturers ON manufacturers.id = products.manufacturer_id WHERE 1=1";
   const conditions: string[] = [];
   const params: any[] = [];
 
@@ -83,7 +83,7 @@ router.get("/products/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      "SELECT products.name AS product_name, product_types.name AS product_type, metals.name AS metal, issuing_countries.name AS issuing_country, manufacturers.name AS manufacturer, products.price FROM products JOIN product_types ON product_types.id = products.product_type_id JOIN metals ON metals.id = products.metal_id JOIN issuing_countries ON issuing_countries.id = products.issuing_country_id JOIN manufacturers ON manufacturers.id = products.manufacturer_id WHERE products.id = $1", [id]);
+      "SELECT products.id, products.name AS product_name, product_types.name AS product_type, metals.name AS metal, issuing_countries.name AS issuing_country, manufacturers.name AS manufacturer, products.price FROM products JOIN product_types ON product_types.id = products.product_type_id JOIN metals ON metals.id = products.metal_id JOIN issuing_countries ON issuing_countries.id = products.issuing_country_id JOIN manufacturers ON manufacturers.id = products.manufacturer_id WHERE products.id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching product:", error);

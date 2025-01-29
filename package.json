@@ -22,14 +22,16 @@
   },
   "homepage": "https://github.com/marcopersi/goldsphere-server#readme",
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.10",
     "@types/pg": "^8.11.11",
-    "typescript": "^5.7.3",
     "nodemon": "^2.0.15",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "typescript": "^5.7.3"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "pg": "^8.13.1"

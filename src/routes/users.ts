@@ -16,7 +16,7 @@ const pool = new Pool({
 // GET all users
 router.get("/users", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, username, email, created_at FROM users ORDER BY username");
+    const result = await pool.query("SELECT id, name, email, password_hash, created_at FROM users ORDER BY name");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -26,9 +26,10 @@ router.get("/users", async (req: Request, res: Response) => {
 
 // POST new user
 router.post("/users", async (req: Request, res: Response) => {
-  const { username, email, password } = req.body;
+  const { name, email, password } = req.body;
+  console.info("Adding user:", name, email, password);
   try {
-    const result = await pool.query("INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *", [username, email, password]);
+    const result = await pool.query("INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING *", [name, email, password]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding user:", error);
@@ -39,9 +40,9 @@ router.post("/users", async (req: Request, res: Response) => {
 // PUT update user
 router.put("/users/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { username, email, password } = req.body;
+  const { name, email, password } = req.body;
   try {
-    const result = await pool.query("UPDATE users SET username = $1, email = $2, password = $3 WHERE id = $4 RETURNING *", [username, email, password, id]);
+    const result = await pool.query("UPDATE users SET name = $1, email = $2, password = $3 WHERE id = $4 RETURNING *", [name, email, password, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating user:", error);
