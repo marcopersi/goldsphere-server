@@ -7,6 +7,10 @@ import custodiansRouter from "./routes/custodians";
 import portfolioRouter from "./routes/portfolio";
 import orderRouter from "./routes/orders";
 import userRouter from "./routes/users";
+import currencyRouter from "./routes/currency";
+import custodyServiceRouter from "./routes/custodyService";
+import positionRouter from "./routes/position";
+import portfolioPositionRouter from "./routes/portfolioPosition";
 import cors from "cors";
 
 const app = express();
@@ -34,5 +38,13 @@ console.log("5. Registering order routes");
 app.use("/api", orderRouter);
 console.log("6. Registering user routes");
 app.use("/api", userRouter);
+console.log("7. Registering currency routes");
+app.use("/api/references", currencyRouter);
+console.log("8. Registering custody service routes");
+app.use("/api", custodyServiceRouter);
+console.log("9. Registering position routes");
+app.use("/api", positionRouter);
+console.log("10. Registering portfolio position routes");
+app.use("/api", portfolioPositionRouter);
 
 export default app;

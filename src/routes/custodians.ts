@@ -1,22 +1,12 @@
 import { Router, Request, Response } from "express";
-import { Pool } from "pg";
-import dotenv from "dotenv";
-
-dotenv.config();
+import pool from "../dbConfig"; // Import the shared pool configuration
 
 const router = Router();
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: String(process.env.DB_PASSWORD), // Ensure password is a string
-  database: process.env.DB_NAME,
-});
 
 // GET all custodians
 router.get("/custodians", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name, location, created_at, updated_at FROM custodians ORDER BY name");
+    const result = await pool.query("SELECT id, custodianName, createdAt, updatedAt FROM custodian ORDER BY custodianName");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching custodians:", error);
@@ -26,9 +16,9 @@ router.get("/custodians", async (req: Request, res: Response) => {
 
 // POST new custodian
 router.post("/custodians", async (req: Request, res: Response) => {
-  const { name, location } = req.body;
+  const { custodianName } = req.body;
   try {
-    const result = await pool.query("INSERT INTO custodians (name, location) VALUES ($1, $2) RETURNING *", [name, location]);
+    const result = await pool.query("INSERT INTO custodian (custodianName) VALUES ($1) RETURNING *", [custodianName]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding custodian:", error);
@@ -39,9 +29,9 @@ router.post("/custodians", async (req: Request, res: Response) => {
 // PUT update custodian
 router.put("/custodians/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, location } = req.body;
+  const { custodianName } = req.body;
   try {
-    const result = await pool.query("UPDATE custodians SET name = $1, location = $2 WHERE id = $3 RETURNING *", [name, location, id]);
+    const result = await pool.query("UPDATE custodian SET custodianName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [custodianName, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating custodian:", error);
@@ -53,11 +43,23 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
 router.delete("/custodians/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM custodians WHERE id = $1", [id]);
+    await pool.query("DELETE FROM custodian WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting custodian:", error);
     res.status(500).json({ error: "Failed to delete custodian", details: (error as Error).message });
+  }
+});
+
+// GET custodian by id
+router.get("/custodians/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("SELECT id, custodianName, createdAt, updatedAt FROM custodian WHERE id = $1", [id]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching custodian:", error);
+    res.status(500).json({ error: "Failed to fetch custodian", details: (error as Error).message });
   }
 });
 

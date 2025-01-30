@@ -1,22 +1,12 @@
 import { Router, Request, Response } from "express";
-import { Pool } from "pg";
-import dotenv from "dotenv";
-
-dotenv.config();
+import pool from "../dbConfig"; // Import the shared pool configuration
 
 const router = Router();
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: String(process.env.DB_PASSWORD), // Ensure password is a string
-  database: process.env.DB_NAME,
-});
 
 // GET all portfolios
-router.get("/portfolio", async (req: Request, res: Response) => {
+router.get("/portfolios", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT user_id,product_id,purchase_date,quantity, total_value,custody_service_id FROM portfolio ORDER BY purchase_date");
+    const result = await pool.query("SELECT id, portfolioName, ownerId, createdAt, updatedAt FROM portfolio ORDER BY portfolioName");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching portfolios:", error);
@@ -25,10 +15,10 @@ router.get("/portfolio", async (req: Request, res: Response) => {
 });
 
 // POST new portfolio
-router.post("/portfolio", async (req: Request, res: Response) => {
-  const { user_id,product_id,purchase_date,quantity,total_value,custody_service_id } = req.body;
+router.post("/portfolios", async (req: Request, res: Response) => {
+  const { portfolioName, ownerId } = req.body;
   try {
-    const result = await pool.query("INSERT INTO portfolio (user_id, product_id, purchase_date,quantity,total_value, custody_service_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", [user_id,product_id,purchase_date,quantity,total_value,custody_service_id]);
+    const result = await pool.query("INSERT INTO portfolio (portfolioName, ownerId) VALUES ($1, $2) RETURNING *", [portfolioName, ownerId]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding portfolio:", error);
@@ -37,11 +27,11 @@ router.post("/portfolio", async (req: Request, res: Response) => {
 });
 
 // PUT update portfolio
-router.put("/portfolio/:id", async (req: Request, res: Response) => {
+router.put("/portfolios/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, description } = req.body;
+  const { portfolioName, ownerId } = req.body;
   try {
-    const result = await pool.query("UPDATE portfolio SET name = $1, description = $2 WHERE id = $3 RETURNING *", [name, description, id]);
+    const result = await pool.query("UPDATE portfolio SET portfolioName = $1, ownerId = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *", [portfolioName, ownerId, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating portfolio:", error);
@@ -50,7 +40,7 @@ router.put("/portfolio/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE portfolio
-router.delete("/portfolio/:id", async (req: Request, res: Response) => {
+router.delete("/portfolios/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     await pool.query("DELETE FROM portfolio WHERE id = $1", [id]);
@@ -58,6 +48,18 @@ router.delete("/portfolio/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error deleting portfolio:", error);
     res.status(500).json({ error: "Failed to delete portfolio", details: (error as Error).message });
+  }
+});
+
+// GET portfolio by id
+router.get("/portfolios/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("SELECT id, portfolioName, ownerId, createdAt, updatedAt FROM portfolio WHERE id = $1", [id]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching portfolio:", error);
+    res.status(500).json({ error: "Failed to fetch portfolio", details: (error as Error).message });
   }
 });
 
