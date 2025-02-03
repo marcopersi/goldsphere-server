@@ -1,12 +1,17 @@
 import { Router, Request, Response } from "express";
 import pool from "../dbConfig"; // Import the shared pool configuration
+import fs from "fs";
+import path from "path";
 
 const router = Router();
+
+// Load SQL query from file
+const queries = fs.readFileSync(path.join(__dirname, "../queries/queries.json"), "utf8");
 
 // GET all orders
 router.get("/orders", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, userId, productId, quantity, totalPrice, orderStatus, custodyServiceId, createdAt, updatedAt FROM orders ORDER BY createdAt DESC");
+    const result = await pool.query(JSON.parse(queries).getOrders);
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching orders:", error);

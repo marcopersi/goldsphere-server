@@ -63,6 +63,7 @@ router.get("/issuingCountries/:id", async (req: Request, res: Response) => {
 router.get("/metals", async (req: Request, res: Response) => {
   try {
     const result = await pool.query("SELECT id, metalName, createdAt, updatedAt FROM metal ORDER BY metalName");
+    console.info("metals returned: ", result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching metals:", error);
@@ -171,59 +172,59 @@ router.get("/productTypes/:id", async (req: Request, res: Response) => {
   }
 });
 
-// Manufacturers Endpoints
-router.get("/manufacturers", async (req: Request, res: Response) => {
+// producers Endpoints
+router.get("/producers", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, manufacturerName, createdAt, updatedAt FROM manufacturer ORDER BY manufacturerName");
+    const result = await pool.query("SELECT id, producerName, createdAt, updatedAt FROM producer ORDER BY producerName");
     res.json(result.rows);
   } catch (error) {
-    console.error("Error fetching manufacturers:", error);
-    res.status(500).json({ error: "Failed to fetch manufacturers", details: (error as Error).message });
+    console.error("Error fetching producers:", error);
+    res.status(500).json({ error: "Failed to fetch producers", details: (error as Error).message });
   }
 });
 
-router.post("/manufacturers", async (req: Request, res: Response) => {
-  const { manufacturerName } = req.body;
+router.post("/producers", async (req: Request, res: Response) => {
+  const { producerName } = req.body;
   try {
-    const result = await pool.query("INSERT INTO manufacturer (manufacturerName) VALUES ($1) RETURNING *", [manufacturerName]);
+    const result = await pool.query("INSERT INTO producer (producerName) VALUES ($1) RETURNING *", [producerName]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error("Error adding manufacturer:", error);
-    res.status(500).json({ error: "Failed to add manufacturer", details: (error as Error).message });
+    console.error("Error adding producer:", error);
+    res.status(500).json({ error: "Failed to add producer", details: (error as Error).message });
   }
 });
 
-router.put("/manufacturers/:id", async (req: Request, res: Response) => {
+router.put("/producers/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { manufacturerName } = req.body;
+  const { producerName } = req.body;
   try {
-    const result = await pool.query("UPDATE manufacturer SET manufacturerName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [manufacturerName, id]);
+    const result = await pool.query("UPDATE producer SET producerName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [producerName, id]);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error updating manufacturer:", error);
-    res.status(500).json({ error: "Failed to update manufacturer", details: (error as Error).message });
+    console.error("Error updating producer:", error);
+    res.status(500).json({ error: "Failed to update producer", details: (error as Error).message });
   }
 });
 
-router.delete("/manufacturers/:id", async (req: Request, res: Response) => {
+router.delete("/producers/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM manufacturer WHERE id = $1", [id]);
+    await pool.query("DELETE FROM producer WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
-    console.error("Error deleting manufacturer:", error);
-    res.status(500).json({ error: "Failed to delete manufacturer", details: (error as Error).message });
+    console.error("Error deleting producer:", error);
+    res.status(500).json({ error: "Failed to delete producer", details: (error as Error).message });
   }
 });
 
-router.get("/manufacturers/:id", async (req: Request, res: Response) => {
+router.get("/producers/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, manufacturerName, createdAt, updatedAt FROM manufacturer WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, producerName, createdAt, updatedAt FROM producer WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error fetching manufacturer:", error);
-    res.status(500).json({ error: "Failed to fetch manufacturer", details: (error as Error).message });
+    console.error("Error fetching producer:", error);
+    res.status(500).json({ error: "Failed to fetch producer", details: (error as Error).message });
   }
 });
 

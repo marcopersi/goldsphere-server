@@ -9,26 +9,103 @@ values(
     CURRENT_TIMESTAMP);
 
 -- Insert sample products
-INSERT INTO product (productName, productTypeId, metalId, issuingCountryId, manufacturerId,fineWeight,unitOfMeasure, price, createdAt)
+INSERT INTO product (productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price, createdAt)
 VALUES
+    -- Gold Coins
     ('Gold Maple Leaf Coin', 
      (SELECT id FROM productType WHERE productTypeName = 'Coin'), 
      (SELECT id FROM metal WHERE metalName = 'Gold'), 
      (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Canada'), 
-     (SELECT id FROM manufacturer WHERE manufacturerName = 'Royal Canadian Mint'),
+     (SELECT id FROM producer WHERE producerName = 'Royal Canadian Mint'),
         1.00, 'oz', 1500.00, CURRENT_TIMESTAMP),
+    ('Gold Krugerrand Coin', 
+     (SELECT id FROM productType WHERE productTypeName = 'Coin'), 
+     (SELECT id FROM metal WHERE metalName = 'Gold'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'South Africa'), 
+     (SELECT id FROM producer WHERE producerName = 'Rand Refinery'),
+        1.00, 'oz', 1480.00, CURRENT_TIMESTAMP),
+    ('Gold Philharmonic Coin', 
+     (SELECT id FROM productType WHERE productTypeName = 'Coin'), 
+     (SELECT id FROM metal WHERE metalName = 'Gold'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Austria'), 
+     (SELECT id FROM producer WHERE producerName = 'Austrian Mint'),
+        1.00, 'oz', 1510.00, CURRENT_TIMESTAMP),
+
+    -- Gold Bars
+    ('Gold Cast Bar 100g Valcambi', 
+     (SELECT id FROM productType WHERE productTypeName = 'Cast Bar'), 
+     (SELECT id FROM metal WHERE metalName = 'Gold'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Switzerland'), 
+     (SELECT id FROM producer WHERE producerName = 'Valcambi'),
+        100.00, 'g', 5800.00, CURRENT_TIMESTAMP),
+    ('Gold Minted Bar 1oz Degussa', 
+     (SELECT id FROM productType WHERE productTypeName = 'Minted Bar'), 
+     (SELECT id FROM metal WHERE metalName = 'Gold'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Germany'), 
+     (SELECT id FROM producer WHERE producerName = 'Degussa'),
+        1.00, 'oz', 1520.00, CURRENT_TIMESTAMP),
+    ('Gold CombiBar 50g Metalor', 
+     (SELECT id FROM productType WHERE productTypeName = 'CombiBar'), 
+     (SELECT id FROM metal WHERE metalName = 'Gold'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Switzerland'), 
+     (SELECT id FROM producer WHERE producerName = 'Metalor'),
+        50.00, 'g', 2900.00, CURRENT_TIMESTAMP),
+
+    -- Silver Coins
     ('Silver Eagle Coin', 
      (SELECT id FROM productType WHERE productTypeName = 'Coin'), 
      (SELECT id FROM metal WHERE metalName = 'Silver'), 
      (SELECT id FROM issuingCountry WHERE issuingCountryName = 'USA'), 
-     (SELECT id FROM manufacturer WHERE manufacturerName = 'United States Mint'),
+     (SELECT id FROM producer WHERE producerName = 'United States Mint'),
         1.00, 'oz', 30.00, CURRENT_TIMESTAMP),
+    ('Silver Philharmonic Coin', 
+     (SELECT id FROM productType WHERE productTypeName = 'Coin'), 
+     (SELECT id FROM metal WHERE metalName = 'Silver'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Austria'), 
+     (SELECT id FROM producer WHERE producerName = 'Austrian Mint'),
+        1.00, 'oz', 32.00, CURRENT_TIMESTAMP),
+
+    -- Silver Bars
+    ('Silver Cast Bar 1kg Valcambi', 
+     (SELECT id FROM productType WHERE productTypeName = 'Cast Bar'), 
+     (SELECT id FROM metal WHERE metalName = 'Silver'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Switzerland'), 
+     (SELECT id FROM producer WHERE producerName = 'Valcambi'),
+        1000.00, 'g', 850.00, CURRENT_TIMESTAMP),
+    ('Silver Minted Bar 250g Degussa', 
+     (SELECT id FROM productType WHERE productTypeName = 'Minted Bar'), 
+     (SELECT id FROM metal WHERE metalName = 'Silver'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Germany'), 
+     (SELECT id FROM producer WHERE producerName = 'Degussa'),
+        250.00, 'g', 215.00, CURRENT_TIMESTAMP),
+
+    -- Palladium Products
+    ('Palladium Maple Leaf Coin', 
+     (SELECT id FROM productType WHERE productTypeName = 'Coin'), 
+     (SELECT id FROM metal WHERE metalName = 'Palladium'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Canada'), 
+     (SELECT id FROM producer WHERE producerName = 'Royal Canadian Mint'),
+        1.00, 'oz', 1100.00, CURRENT_TIMESTAMP),
+    ('Palladium Cast Bar 100g Metalor', 
+     (SELECT id FROM productType WHERE productTypeName = 'Cast Bar'), 
+     (SELECT id FROM metal WHERE metalName = 'Palladium'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Switzerland'), 
+     (SELECT id FROM producer WHERE producerName = 'Metalor'),
+        100.00, 'g', 4100.00, CURRENT_TIMESTAMP),
+
+    -- Platinum Products
     ('Platinum Kangaroo Coin', 
      (SELECT id FROM productType WHERE productTypeName = 'Coin'), 
      (SELECT id FROM metal WHERE metalName = 'Platinum'), 
      (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Australia'), 
-     (SELECT id FROM manufacturer WHERE manufacturerName = 'Perth Mint'),     
-        1.00, 'oz', 1000.00, CURRENT_TIMESTAMP);
+     (SELECT id FROM producer WHERE producerName = 'Perth Mint'),
+        1.00, 'oz', 1000.00, CURRENT_TIMESTAMP),
+    ('Platinum Cast Bar 50g Valcambi', 
+     (SELECT id FROM productType WHERE productTypeName = 'Cast Bar'), 
+     (SELECT id FROM metal WHERE metalName = 'Platinum'), 
+     (SELECT id FROM issuingCountry WHERE issuingCountryName = 'Switzerland'), 
+     (SELECT id FROM producer WHERE producerName = 'Valcambi'),
+        50.00, 'g', 2600.00, CURRENT_TIMESTAMP);
 
 -- Insert sample users
 INSERT INTO users (userName, email, passwordHash, createdAt)
@@ -44,15 +121,15 @@ VALUES
     ('Jane''s Portfolio', (SELECT id FROM users WHERE email = 'jane.smith@example.com'), CURRENT_TIMESTAMP);
 
 -- Insert sample positions
-INSERT INTO position (custodyServiceId, productId, purchaseDate, quantity, createdAt)
+INSERT INTO position (custodyServiceId, productId, purchaseDate, quantity,purchasePricePerUnit, createdAt)
 VALUES(
     (SELECT id FROM custodyService WHERE custodyServiceName = 'Loomis Monthly Service'),
     (SELECT id FROM product WHERE productName = 'Gold Maple Leaf Coin'),
-    '2021-01-01', 1,
+    '2021-01-01', 1, 490.00,
     CURRENT_TIMESTAMP),
     ((SELECT id FROM custodyService WHERE custodyServiceName = 'Loomis Monthly Service'),
     (SELECT id FROM product WHERE productName = 'Silver Eagle Coin'),
-    '2021-01-01',1,
+    '2021-01-01',1, 500.00,
     CURRENT_TIMESTAMP);
 
 INSERT INTO portfolioPosition(portfolioId, positionId, createdAt)

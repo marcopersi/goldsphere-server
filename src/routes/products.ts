@@ -6,7 +6,7 @@ const router = Router();
 // GET all products
 router.get("/products", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, productName, productTypeId, metalId, issuingCountryId, manufacturerId, fineWeight, unitOfMeasure, price, createdAt, updatedAt FROM product ORDER BY productName");
+    const result = await pool.query("SELECT product.id, product.productName AS productname, productType.productTypeName AS producttype, metal.metalName AS metal, issuingCountry.issuingCountryName AS issuingcountry, producer.producername AS producer, product.fineWeight, product.unitOfMeasure, product.price FROM product JOIN productType ON productType.id = product.productTypeId JOIN metal ON metal.id = product.metalId JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId JOIN producer ON producer.id = product.producerId");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching products:", error);
@@ -15,9 +15,9 @@ router.get("/products", async (req: Request, res: Response) => {
 });
 
 router.get("/products/search", async (req: Request, res: Response) => { 
-  const { productName, productTypeId, metalId, issuingCountryId, manufacturerId, minPrice, maxPrice } = req.query;
+  const { productName, productTypeId, metalId, issuingCountryId, producerId, minPrice, maxPrice } = req.query;
 
-  let sql = "SELECT product.id, product.productName AS productName, productType.productTypeName AS productType, metal.metalName AS metal, issuingCountry.issuingCountryName AS issuingCountry, manufacturer.manufacturerName AS manufacturer, product.fineWeight, product.unitOfMeasure, product.price FROM product JOIN productType ON productType.id = product.productTypeId JOIN metal ON metal.id = product.metalId JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId JOIN manufacturer ON manufacturer.id = product.manufacturerId WHERE 1=1";
+  let sql = "SELECT product.id, product.productName AS productName, productType.productTypeName AS productType, metal.metalName AS metal, issuingCountry.issuingCountryName AS issuingCountry, producer.producerName AS producer, product.fineWeight, product.unitOfMeasure, product.price FROM product JOIN productType ON productType.id = product.productTypeId JOIN metal ON metal.id = product.metalId JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId JOIN producer ON producer.id = product.producerId WHERE 1=1";
   const conditions: string[] = [];
   const params: any[] = [];
 
@@ -37,9 +37,9 @@ router.get("/products/search", async (req: Request, res: Response) => {
     conditions.push(`product.issuingCountryId = $${params.length + 1}`);
     params.push(issuingCountryId);
   }
-  if (manufacturerId) {
-    conditions.push(`product.manufacturerId = $${params.length + 1}`);
-    params.push(manufacturerId);
+  if (producerId) {
+    conditions.push(`product.producerId = $${params.length + 1}`);
+    params.push(producerId);
   }
   if (minPrice) {
     conditions.push(`product.price >= $${params.length + 1}`);
@@ -68,11 +68,11 @@ router.get("/products/search", async (req: Request, res: Response) => {
 // PUT update product
 router.put("/products/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { productName, productTypeId, metalId, issuingCountryId, manufacturerId, fineWeight, unitOfMeasure, price } = req.body;
+  const { productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price } = req.body;
   try {
     const result = await pool.query(
-      "UPDATE product SET productName = $1, productTypeId = $2, metalId = $3, issuingCountryId = $4, manufacturerId = $5,fineWeight = $6, unitOfMeasure = $7, price = $8, updatedAt = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *", 
-      [productName, productTypeId, metalId, issuingCountryId, manufacturerId, fineWeight, unitOfMeasure,price, id]
+      "UPDATE product SET productName = $1, productTypeId = $2, metalId = $3, issuingCountryId = $4, producerId = $5,fineWeight = $6, unitOfMeasure = $7, price = $8, updatedAt = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *", 
+      [productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure,price, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -97,7 +97,7 @@ router.delete("/products/:id", async (req: Request, res: Response) => {
 router.get("/products/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, productName, productTypeId, metalId, issuingCountryId, manufacturerId,fineWeight,unitOfMeasure, price, createdAt, updatedAt FROM product WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, productName, productTypeId, metalId, issuingCountryId, producerId,fineWeight,unitOfMeasure, price, createdAt, updatedAt FROM product WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching product:", error);

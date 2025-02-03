@@ -4,7 +4,10 @@ VALUES
     ('Coin', CURRENT_TIMESTAMP),
     ('Bar', CURRENT_TIMESTAMP),
     ('Medallion', CURRENT_TIMESTAMP),
-    ('Jewelry', CURRENT_TIMESTAMP);
+    ('Jewelry', CURRENT_TIMESTAMP),
+    ('Cast Bar', CURRENT_TIMESTAMP),
+    ('Minted Bar', CURRENT_TIMESTAMP),
+    ('CombiBar', CURRENT_TIMESTAMP);
 
 INSERT INTO metal (metalName, createdAt)
 VALUES
@@ -30,7 +33,8 @@ VALUES
     ('Switzerland', CURRENT_TIMESTAMP),
     ('China', CURRENT_TIMESTAMP),
     ('Russia', CURRENT_TIMESTAMP),
-    ('Germany', CURRENT_TIMESTAMP);
+    ('Germany', CURRENT_TIMESTAMP),
+    ('Austria', CURRENT_TIMESTAMP);
 
 -- Insert sample custodians
 INSERT INTO custodian (custodianName, createdAt)
@@ -47,8 +51,8 @@ VALUES
     ('Delaware Depository', CURRENT_TIMESTAMP),
     ('International Depository Services', CURRENT_TIMESTAMP);
 
--- Beispiel für eine bestehende Tabelle (z.B. manufacturer)
-INSERT INTO manufacturer (manufacturerName, createdAt) VALUES
+-- Beispiel für eine bestehende Tabelle (z.B. producer)
+INSERT INTO producer (producerName, createdAt) VALUES
 ('Argor-Heraeus', CURRENT_TIMESTAMP),
 ('Asahi Refining', CURRENT_TIMESTAMP),
 ('Bayerisches Hauptmünzamt', CURRENT_TIMESTAMP),
@@ -77,4 +81,6 @@ INSERT INTO manufacturer (manufacturerName, createdAt) VALUES
 ('Metalor', CURRENT_TIMESTAMP),
 ('Umicore AG & Co. KG', CURRENT_TIMESTAMP),
 ('Valcambi', CURRENT_TIMESTAMP),
-('Degussa', CURRENT_TIMESTAMP);
+('Degussa', CURRENT_TIMESTAMP),
+('Austrian Mint', CURRENT_TIMESTAMP),
+('Rand Refinery', CURRENT_TIMESTAMP);

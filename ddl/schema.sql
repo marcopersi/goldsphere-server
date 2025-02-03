@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS custodyService CASCADE;
 DROP TABLE IF EXISTS custodian CASCADE;
 DROP TABLE IF EXISTS product CASCADE;
 DROP TABLE IF EXISTS portfolio CASCADE;
-DROP TABLE IF EXISTS manufacturer CASCADE;
+DROP TABLE IF EXISTS producer CASCADE;
 DROP TABLE IF EXISTS issuingCountry CASCADE;
 DROP TABLE IF EXISTS productType CASCADE;
 DROP TABLE IF EXISTS metal CASCADE;
@@ -34,9 +34,9 @@ CREATE TABLE IF NOT EXISTS custodian (
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS manufacturer (
+CREATE TABLE IF NOT EXISTS producer (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    manufacturerName TEXT NOT NULL UNIQUE,
+    producerName TEXT NOT NULL UNIQUE,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS product (
     productTypeId UUID NOT NULL REFERENCES productType(id),
     metalId UUID NOT NULL REFERENCES metal(id),
     issuingCountryId UUID NOT NULL REFERENCES issuingCountry(id),
-    manufacturerId UUID NOT NULL REFERENCES manufacturer(id),
+    producerId UUID NOT NULL REFERENCES producer(id),
     fineWeight NUMERIC(12, 4),
     unitOfMeasure unitOfMeasure not NULL,
     price NUMERIC(12, 2) NOT NULL,
@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS position (
     productId UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
     purchaseDate DATE NOT NULL,
     quantity NUMERIC(12, 2) NOT NULL,
+    purchasePricePerUnit NUMERIC(12, 2) NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
