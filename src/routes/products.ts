@@ -14,56 +14,53 @@ router.get("/products", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/products/search", async (req: Request, res: Response) => { 
-  const { productName, productTypeId, metalId, issuingCountryId, producerId, minPrice, maxPrice } = req.query;
-
-  let sql = "SELECT product.id, product.productName AS productName, productType.productTypeName AS productType, metal.metalName AS metal, issuingCountry.issuingCountryName AS issuingCountry, producer.producerName AS producer, product.fineWeight, product.unitOfMeasure, product.price FROM product JOIN productType ON productType.id = product.productTypeId JOIN metal ON metal.id = product.metalId JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId JOIN producer ON producer.id = product.producerId WHERE 1=1";
-  const conditions: string[] = [];
-  const params: any[] = [];
-
-  if (productName) {
-    conditions.push(`product.productName LIKE $${params.length + 1}`);
-    params.push(`%${productName}%`);
+// GET product by id
+router.get("/products/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("SELECT id, productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price, createdAt, updatedAt FROM product WHERE id = $1", [id]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    res.status(500).json({ error: "Failed to fetch product", details: (error as Error).message });
   }
-  if (productTypeId) {
-    conditions.push(`product.productTypeId = $${params.length + 1}`);
-    params.push(productTypeId);
-  }
-  if (metalId) {
-    conditions.push(`product.metalId = $${params.length + 1}`);
-    params.push(metalId);
-  }
-  if (issuingCountryId) {
-    conditions.push(`product.issuingCountryId = $${params.length + 1}`);
-    params.push(issuingCountryId);
-  }
-  if (producerId) {
-    conditions.push(`product.producerId = $${params.length + 1}`);
-    params.push(producerId);
-  }
-  if (minPrice) {
-    conditions.push(`product.price >= $${params.length + 1}`);
-    params.push(minPrice);
-  }
-  if (maxPrice) {
-    conditions.push(`product.price <= $${params.length + 1}`);
-    params.push(maxPrice);
-  }
-
-  if (conditions.length > 0) {
-    sql += " AND " + conditions.join(" AND ");
-  }
-
-  try { 
-    console.info("Search query:", sql); 
-    console.info("Query parameters:", params);
-    const result = await pool.query(sql, params);
-    res.json(result.rows);
-  } catch (error) { 
-    console.error("Error searching products:", error); 
-    res.status(500).json({ error: "Failed to search products", details: (error as Error).message }); 
-  } 
 });
+
+// GET product price by id
+router.get("/products/price/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("SELECT price FROM product WHERE id = $1", [id]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching product price:", error);
+    res.status(500).json({ error: "Failed to fetch product price", details: (error as Error).message });
+  }
+});
+
+// GET prices for multiple product IDs
+router.post("/products/prices", async (req: Request, res: Response) => {
+  const { productIds } = req.body;
+  
+  //fail fast if productIds is not an array or is empty
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+     res.status(400).json({ error: "Invalid product IDs" });
+  } else {
+    const placeholders = productIds.map((_: any, index: number) => `$${index + 1}`).join(", ");
+    const sql = `SELECT id, price FROM product WHERE id IN (${placeholders})`;
+
+    try {
+      const result = await pool.query(sql, productIds);
+      const priceMap = result.rows.reduce((map, row) => {
+        map[row.id] = row.price;
+        return map;
+      }, {});
+      res.json(priceMap);
+    } catch (error) {
+      console.error("Error fetching product prices:", error);
+      res.status(500).json({ error: "Failed to fetch product prices", details: (error as Error).message });
+    }}
+  })  ;
 
 // PUT update product
 router.put("/products/:id", async (req: Request, res: Response) => {
@@ -71,8 +68,8 @@ router.put("/products/:id", async (req: Request, res: Response) => {
   const { productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price } = req.body;
   try {
     const result = await pool.query(
-      "UPDATE product SET productName = $1, productTypeId = $2, metalId = $3, issuingCountryId = $4, producerId = $5,fineWeight = $6, unitOfMeasure = $7, price = $8, updatedAt = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *", 
-      [productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure,price, id]
+      "UPDATE product SET productName = $1, productTypeId = $2, metalId = $3, issuingCountryId = $4, producerId = $5, fineWeight = $6, unitOfMeasure = $7, price = $8, updatedAt = CURRENT_TIMESTAMP WHERE id = $9 RETURNING *",
+      [productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -93,15 +90,15 @@ router.delete("/products/:id", async (req: Request, res: Response) => {
   }
 });
 
-// GET product by id
-router.get("/products/:id", async (req: Request, res: Response) => {
-  const { id } = req.params;
+// POST new product
+router.post("/products", async (req: Request, res: Response) => {
+  const { productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price } = req.body;
   try {
-    const result = await pool.query("SELECT id, productName, productTypeId, metalId, issuingCountryId, producerId,fineWeight,unitOfMeasure, price, createdAt, updatedAt FROM product WHERE id = $1", [id]);
-    res.json(result.rows[0]);
+    const result = await pool.query("INSERT INTO product (productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price]);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error("Error fetching product:", error);
-    res.status(500).json({ error: "Failed to fetch product", details: (error as Error).message });
+    console.error("Error adding product:", error);
+    res.status(500).json({ error: "Failed to add product", details: (error as Error).message });
   }
 });
 
