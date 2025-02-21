@@ -24,17 +24,17 @@ VALUES
     ('GB', 'GBP', 826, CURRENT_TIMESTAMP);
 
 -- Insert sample issuing countries
-INSERT INTO issuingCountry (issuingCountryName, createdAt)
+INSERT INTO issuingCountry (issuingCountryName, isoCode2, createdAt)
 VALUES
-    ('Canada', CURRENT_TIMESTAMP),
-    ('USA', CURRENT_TIMESTAMP),
-    ('Australia', CURRENT_TIMESTAMP),
-    ('South Africa', CURRENT_TIMESTAMP),
-    ('Switzerland', CURRENT_TIMESTAMP),
-    ('China', CURRENT_TIMESTAMP),
-    ('Russia', CURRENT_TIMESTAMP),
-    ('Germany', CURRENT_TIMESTAMP),
-    ('Austria', CURRENT_TIMESTAMP);
+    ('Canada', 'CA', CURRENT_TIMESTAMP),
+    ('USA', 'US', CURRENT_TIMESTAMP),
+    ('Australia', 'AU', CURRENT_TIMESTAMP),
+    ('South Africa', 'ZA', CURRENT_TIMESTAMP),
+    ('Switzerland', 'CH', CURRENT_TIMESTAMP),
+    ('China', 'CN', CURRENT_TIMESTAMP),
+    ('Russia', 'RU', CURRENT_TIMESTAMP),
+    ('Germany', 'DE', CURRENT_TIMESTAMP),
+    ('Austria', 'AT', CURRENT_TIMESTAMP);
 
 -- Insert sample custodians
 INSERT INTO custodian (custodianName, createdAt)

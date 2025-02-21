@@ -6,7 +6,7 @@ const router = Router();
 // Issuing Countries Endpoints
 router.get("/issuingCountries", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, issuingCountryName, createdAt, updatedAt FROM issuingCountry ORDER BY issuingCountryName");
+    const result = await pool.query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry ORDER BY issuingCountryName");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching issuing countries:", error);
@@ -15,9 +15,9 @@ router.get("/issuingCountries", async (req: Request, res: Response) => {
 });
 
 router.post("/issuingCountries", async (req: Request, res: Response) => {
-  const { issuingCountryName } = req.body;
+  const { issuingCountryName,isoCode2 } = req.body;
   try {
-    const result = await pool.query("INSERT INTO issuingCountry (issuingCountryName) VALUES ($1) RETURNING *", [issuingCountryName]);
+    const result = await pool.query("INSERT INTO issuingCountry (issuingCountryName, isoCode2) VALUES ($1, $2) RETURNING *", [issuingCountryName, isoCode2]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding issuing country:", error);
@@ -28,8 +28,9 @@ router.post("/issuingCountries", async (req: Request, res: Response) => {
 router.put("/issuingCountries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { issuingCountryName } = req.body;
+  const { isoCode2 } = req.body;
   try {
-    const result = await pool.query("UPDATE issuingCountry SET issuingCountryName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [issuingCountryName, id]);
+    const result = await pool.query("UPDATE issuingCountry SET issuingCountryName = $1, isoCode2 = $2 updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [issuingCountryName, isoCode2, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating issuing country:", error);
@@ -51,7 +52,7 @@ router.delete("/issuingCountries/:id", async (req: Request, res: Response) => {
 router.get("/issuingCountries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, issuingCountryName, createdAt, updatedAt FROM issuingCountry WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching issuing country:", error);
