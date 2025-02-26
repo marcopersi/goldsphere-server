@@ -48,7 +48,7 @@ router.post("/products/prices", async (req: Request, res: Response) => {
     return;
   }
 
-  const placeholders = productIds.map((_: any, index: number) => `$${index + 1}`).join(", ");
+  const placeholders = productIds.map((_: unknown, index: number) => `$${index + 1}`).join(", ");
   const sql = `SELECT id, price FROM product WHERE id IN (${placeholders})`;
 
   try {
@@ -109,36 +109,36 @@ router.get("/products/search", async (req: Request, res: Response) => {
 
   let sql = "SELECT product.id, product.productName AS productName, productType.productTypeName AS productType, metal.metalName AS metal, issuingCountry.issuingCountryName AS issuingCountry, issuingCountry.isoCode2, producer.producerName AS producer, product.fineWeight, product.unitOfMeasure, product.price FROM product JOIN productType ON productType.id = product.productTypeId JOIN metal ON metal.id = product.metalId JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId JOIN producer ON producer.id = product.producerId WHERE 1=1";
   const conditions: string[] = [];
-  const params: any[] = [];
+  const params: (string | number)[] = [];
 
   if (productName) {
     conditions.push(`product.productName LIKE $${params.length + 1}`);
-    params.push(`%${productName}%`);
+    params.push(productName as string);
   }
   if (productTypeId) {
     conditions.push(`product.productTypeId = $${params.length + 1}`);
-    params.push(productTypeId);
+    params.push(productTypeId as string);
   }
   if (metalId) {
     conditions.push(`product.metalId = $${params.length + 1}`);
-    params.push(metalId);
+    params.push(metalId as string);
   }
   if (issuingCountryId) {
     conditions.push(`product.issuingCountryId = $${params.length + 1}`);
-    params.push(issuingCountryId);
+    params.push(issuingCountryId as string);
   }
   if (producerId) {
     conditions.push(`product.producerId = $${params.length + 1}`);
-    params.push(producerId);
+    params.push(producerId as string);
   }
   if (minPrice) {
     conditions.push(`product.price >= $${params.length + 1}`);
-    params.push(minPrice);
+    params.push(Number(minPrice));
   }
 
   if (maxPrice) {
     conditions.push(`product.price <= $${params.length + 1}`);
-    params.push(maxPrice);
+    params.push(Number(maxPrice));
   }
   
   if (conditions.length > 0) {

@@ -60,8 +60,16 @@ jobs:
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
     # or others). This is typically only required for manual builds.
-    # - name: Setup runtime (example)
-    #   uses: actions/setup-example@v1
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.18.2'
+
+    - name: Install dependencies
+      run: npm install --legacy-peer-deps
+
+    - name: Run ESLint
+      run: npm run lint
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
