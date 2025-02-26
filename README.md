@@ -1,4 +1,5 @@
-# goldsphere-server [![Docker Image CI](https://github.com/marcopersi/goldsphere-server/actions/workflows/docker-image.yml/badge.svg)](https://github.com/marcopersi/goldsphere-server/actions/workflows/docker-image.yml)
+# goldsphere-server ![Workflow Status](https://github.com/marcopersi/goldsphere-server/actions/workflows/codeql.yml/badge.svg)
+
 The server including the business logic and integration for the goldsphere project
 
 ## Run goldsphere server
