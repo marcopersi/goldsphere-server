@@ -19,24 +19,37 @@ router.get("/orders", async (req: Request, res: Response) => {
   }
 });
 
-// POST new order
+// POST new order(s)
 router.post("/orders", async (req: Request, res: Response) => {
-  const { userId, productId, quantity, totalPrice, orderStatus, custodyServiceId } = req.body;
+  const orders = Array.isArray(req.body) ? req.body : [req.body];
+  const orderStatus = 'pending'; // Default order status
+  const insertedOrders = [];
+
   try {
-    const result = await pool.query("INSERT INTO orders (userId, productId, quantity, totalPrice, orderStatus, custodyServiceId) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", [userId, productId, quantity, totalPrice, orderStatus, custodyServiceId]);
-    res.status(201).json(result.rows[0]);
+    for (const order of orders) {
+      const { userId, productId, quantity, totalPrice, custodyServiceId } = order;
+      const result = await pool.query(
+        "INSERT INTO orders (userId, productId, quantity, totalPrice, orderStatus, custodyServiceId) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+        [userId, productId, quantity, totalPrice, orderStatus, custodyServiceId]
+      );
+      insertedOrders.push(result.rows[0]);
+    }
+    res.status(201).json(insertedOrders);
   } catch (error) {
-    console.error("Error adding order:", error);
-    res.status(500).json({ error: "Failed to add order", details: (error as Error).message });
+    console.error("Error adding order(s):", error);
+    res.status(500).json({ error: "Failed to add order(s)", details: (error as Error).message });
   }
 });
 
 // PUT update order
 router.put("/orders/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { userId, productId, quantity, totalPrice, orderStatus, custodyServiceId } = req.body;
+  const { userId, productId, quantity, totalPrice, custodyServiceId } = req.body;
   try {
-    const result = await pool.query("UPDATE orders SET userId = $1, productId = $2, quantity = $3, totalPrice = $4, orderStatus = $5, custodyServiceId = $6, updatedAt = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *", [userId, productId, quantity, totalPrice, orderStatus, custodyServiceId, id]);
+    const result = await pool.query(
+      "UPDATE orders SET userId = $1, productId = $2, quantity = $3, totalPrice = $4, custodyServiceId = $5, updatedAt = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *",
+      [userId, productId, quantity, totalPrice, custodyServiceId, id]
+    );
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating order:", error);

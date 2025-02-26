@@ -229,4 +229,17 @@ router.get("/producers/:id", async (req: Request, res: Response) => {
   }
 });
 
+
+// producers Endpoints
+router.get("/orderstatus", async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query("SELECT enumlabel AS orderstatus FROM pg_enum WHERE enumtypid = 'orderstatus'::regtype;");
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching orderstatus:", error);
+    res.status(500).json({ error: "Failed to fetch orderstatus", details: (error as Error).message });
+  }
+});
+
+
 export default router;
