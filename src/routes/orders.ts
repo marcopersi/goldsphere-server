@@ -41,6 +41,49 @@ router.post("/orders", async (req: Request, res: Response) => {
   }
 });
 
+// process order
+router.put("/orders/process/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const orderResult = await pool.query("SELECT * FROM orders WHERE id = $1", [id]);
+    if (orderResult.rows.length === 0) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    const order = orderResult.rows[0];
+    let newStatus;
+
+    switch (order.orderstatus) {
+      case "pending":
+        newStatus = "confirmed";
+        break;
+      case "confirmed":
+        newStatus = "settled";
+        break;
+      case "settled":
+        newStatus = "delivered";
+        break;
+      case "delivered":
+        newStatus = "delivered";
+        break;
+      default:
+        res.status(400).json({ error: "Invalid order status" });
+        return;
+    }
+
+    const result = await pool.query(
+      "UPDATE orders SET orderstatus = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+      [newStatus, id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating order:", error);
+    res.status(500).json({ error: "Failed to update order", details: (error as Error).message });
+  }
+});
+
 // PUT update order
 router.put("/orders/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
