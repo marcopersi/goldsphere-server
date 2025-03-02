@@ -44,7 +44,7 @@ router.post("/orders", async (req: Request, res: Response) => {
 // process order
 router.put("/orders/process/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-
+  console.log("Processing order with id:", id);
   try {
     const orderResult = await pool.query("SELECT * FROM orders WHERE id = $1", [id]);
     if (orderResult.rows.length === 0) {
@@ -57,19 +57,23 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
 
     switch (order.orderstatus) {
       case "pending":
+        console.debug("Order is now pending, will be confirmed...");
         newStatus = "confirmed";
         break;
       case "confirmed":
+        console.debug("Order is now confirmed, will be settled...");
         newStatus = "settled";
         break;
       case "settled":
+        console.debug("Order is now settled, will be delivered...");
         newStatus = "delivered";
         break;
       case "delivered":
-        newStatus = "delivered";
-        break;
+        console.debug("Order is now delivered, will be closed...");
+        newStatus = "closed";
+        break;        
       default:
-        res.status(400).json({ error: "Invalid order status" });
+        res.status(400).json({ error: "Invalid order status for ruther processing" });
         return;
     }
 
