@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import pool from "../dbConfig"; // Import the shared pool configuration
 import fs from "fs";
 import path from "path";
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get("/orders", async (req: Request, res: Response) => {
 // POST new order(s)
 router.post("/orders", async (req: Request, res: Response) => {
   const orders = Array.isArray(req.body) ? req.body : [req.body];
-  const orderStatus = 'pending'; // Default order status
+  const orderStatus = 'pending'; 
   const insertedOrders = [];
 
   try {
@@ -73,7 +74,7 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
         newStatus = "closed";
         break;        
       default:
-        res.status(400).json({ error: "Invalid order status for ruther processing" });
+        res.status(400).json({ error: "Invalid order status for further processing" });
         return;
     }
 
@@ -81,7 +82,18 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
       "UPDATE orders SET orderstatus = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
       [newStatus, id]
     );
-    res.json(result.rows[0]);
+
+    const updatedOrder = result.rows[0];
+
+    if (newStatus === "delivered") {
+      const position = await insertPosition(updatedOrder);
+      const portfolioId = await findPortfolioId(updatedOrder.userid);
+      if (portfolioId) {
+        await insertPortfolioPosition(portfolioId, position.id);
+      }
+    }
+
+    res.json(updatedOrder);
   } catch (error) {
     console.error("Error updating order:", error);
     res.status(500).json({ error: "Failed to update order", details: (error as Error).message });
@@ -127,5 +139,51 @@ router.get("/orders/:id", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to fetch order", details: (error as Error).message });
   }
 });
+
+const insertPosition = async (order: any) => {
+  const positionId = uuidv4();
+  const purchaseDate = new Date();
+  const createdAt = new Date();
+  const updatedAt = new Date();
+
+  const result = await pool.query(
+    `INSERT INTO public."position"(
+      id, custodyserviceid, productid, purchasedate, quantity, purchasepriceperunit, createdat, updatedat)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [
+      positionId,
+      order.custodyserviceid,
+      order.productid,
+      purchaseDate,
+      order.quantity,
+      order.totalprice / order.quantity,
+      createdAt,
+      updatedAt
+    ]
+  );
+
+  return result.rows[0];
+};
+
+// Insert into portfolio position
+const insertPortfolioPosition = async (portfolioId: string, positionId: string) => {
+  const createdAt = new Date();
+  const updatedAt = new Date();
+
+  await pool.query(
+    `INSERT INTO public.portfolioposition(
+      portfolioid, positionid, createdat, updatedat)
+      VALUES ($1, $2, $3, $4)`,
+    [portfolioId, positionId, createdAt, updatedAt]
+  );
+};
+
+const findPortfolioId = async (userId: string) => {
+  const result = await pool.query(
+    `SELECT id FROM public.portfolio WHERE ownerid = $1`, [userId]
+  );
+
+  return result.rows.length > 0 ? result.rows[0].id : null;
+}
 
 export default router;

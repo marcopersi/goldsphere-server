@@ -16,6 +16,13 @@ DROP TABLE IF EXISTS users CASCADE;
 DROP TYPE IF EXISTS paymentFrequency;
 DROP TYPE IF EXISTS orderStatus;
 DROP TYPE IF EXISTS unitOfMeasure;
+DROP TYPE IF EXISTS portfolioPositionStatus;
+
+-- Create types
+CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
+CREATE TYPE orderStatus AS ENUM ('pending', 'confirmed', 'settled', 'delivered', 'closed');
+CREATE TYPE unitOfMeasure as ENUM ('oz', 'g', 'kg', 'lb', 'troy oz', 'tola', 'grain', 'gram', 'kilogram', 'metric ton', 'pennyweight', 'ton');
+CREATE TYPE portfolioPositionStatus AS ENUM ('ordered', 'settled', 'active', 'closed', 'lended');
 
 -- Create tables without foreign key references first
 CREATE TABLE IF NOT EXISTS currency (
@@ -72,11 +79,6 @@ CREATE TABLE IF NOT EXISTS users (
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create types
-CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
-CREATE TYPE orderStatus AS ENUM ('pending', 'confirmed', 'settled', 'delivered', 'closed');
-CREATE TYPE unitOfMeasure as ENUM ('oz', 'g', 'kg', 'lb', 'troy oz', 'tola', 'grain', 'gram', 'kilogram', 'metric ton', 'pennyweight', 'ton');
-
 -- Create tables with foreign key references
 CREATE TABLE IF NOT EXISTS custodyService (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -126,6 +128,7 @@ CREATE TABLE IF NOT EXISTS portfolio (
 CREATE TABLE IF NOT EXISTS portfolioPosition (
     portfolioId UUID NOT NULL REFERENCES portfolio(id) ON DELETE CASCADE,
     positionId UUID NOT NULL REFERENCES position(id) ON DELETE CASCADE,
+    status portfolioPositionStatus NOT NULL DEFAULT 'active',
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
