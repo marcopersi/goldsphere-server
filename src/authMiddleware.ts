@@ -13,9 +13,10 @@ export default function authMiddleware(req: Request, res: Response, next: NextFu
   }
 
   try {
-    jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    (req as any).user = decoded;
     next();
   } catch {
-    res.status(403).json({ error: "Invalid token" });
+    res.status(401).json({ error: "Invalid token" });
   }
 }

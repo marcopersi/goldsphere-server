@@ -76,7 +76,7 @@ describe('CORS Configuration', () => {
       .options('/api/products')
       .set('Origin', 'http://localhost:3333')
       .set('Access-Control-Request-Method', 'GET')
-      .expect(200);
+      .expect(204);
   });
 
   it('should allow requests from allowed origins', async () => {

@@ -37,7 +37,7 @@ const router = Router();
  *               $ref: '#/components/schemas/Error'
  */
 // GET all products
-router.get("/products", optionalAuth, async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -169,7 +169,7 @@ function mapMetalType(dbValue: string): MetalType {
  *               $ref: '#/components/schemas/Error'
  */
 // GET product by id
-router.get("/products/:id", async (req: Request, res: Response) => {
+router.get("/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const result = await pool.query(`
@@ -252,7 +252,7 @@ router.get("/products/:id", async (req: Request, res: Response) => {
 });
 
 // GET product price by id
-router.get("/products/price/:id", async (req: Request, res: Response) => {
+router.get("/price/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const result = await pool.query("SELECT price FROM product WHERE id = $1", [id]);
@@ -264,7 +264,7 @@ router.get("/products/price/:id", async (req: Request, res: Response) => {
 });
 
 // GET prices for multiple product IDs
-router.post("/products/prices", async (req: Request, res: Response) => {
+router.post("/prices", async (req: Request, res: Response) => {
   const { productIds } = req.body;
   
   // Fail fast if productIds is not an array or is empty
@@ -287,7 +287,7 @@ router.post("/products/prices", async (req: Request, res: Response) => {
 });
 
 // PUT update product
-router.put("/products/:id", async (req: Request, res: Response) => {
+router.put("/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price } = req.body;
   try {
@@ -303,7 +303,7 @@ router.put("/products/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE product
-router.delete("/products/:id", async (req: Request, res: Response) => {
+router.delete("/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     await pool.query("DELETE FROM product WHERE id = $1", [id]);
@@ -315,7 +315,7 @@ router.delete("/products/:id", async (req: Request, res: Response) => {
 });
 
 // add new product
-router.post("/products", async (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response) => {
   const { productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price } = req.body;
   try {
     const result = await pool.query("INSERT INTO product (productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price]);
@@ -327,7 +327,7 @@ router.post("/products", async (req: Request, res: Response) => {
 });
 
 // search products
-router.get("/products/search", async (req: Request, res: Response) => { 
+router.get("/search", async (req: Request, res: Response) => { 
   const { productName, productTypeId, metalId, issuingCountryId, producerId, minPrice, maxPrice } = req.query;
 
   console.info("Search query:", req.query); 
@@ -424,7 +424,7 @@ router.get("/products/search", async (req: Request, res: Response) => {
  *               $ref: '#/components/schemas/Error'
  */
 // POST endpoint to validate product data using shared schema
-router.post("/products/validate", async (req: Request, res: Response) => {
+router.post("/validate", async (req: Request, res: Response) => {
   try {
     // Validate the request body against the shared ProductSchema
     const validatedProduct = ProductSchema.parse(req.body);
@@ -482,7 +482,7 @@ router.post("/products/validate", async (req: Request, res: Response) => {
  *       500:
  *         description: Server error
  */
-router.get("/products/:id/image", async (req: Request, res: Response) => {
+router.get("/:id/image", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
