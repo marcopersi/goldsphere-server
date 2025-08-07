@@ -7,13 +7,13 @@ describe('Products API', () => {
   let adminToken: string;
 
   beforeAll(() => {
-    userToken = generateToken({
+    generateToken({
       id: 'user-1',
       email: 'user@goldsphere.vault',
       role: 'user'
     });
 
-    adminToken = generateToken({
+    generateToken({
       id: 'admin-1',
       email: 'admin@goldsphere.vault',
       role: 'admin'

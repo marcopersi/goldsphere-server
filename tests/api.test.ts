@@ -124,7 +124,7 @@ describe('Error Handling', () => {
   });
 
   it('should handle malformed JSON gracefully', async () => {
-    const response = await request(app)
+    await request(app)
       .post('/api/products/validate')
       .set('Content-Type', 'application/json')
       .send('{"invalid": json}')

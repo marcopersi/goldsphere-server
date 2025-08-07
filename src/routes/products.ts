@@ -9,7 +9,6 @@ import {
   WeightUnit,
   z 
 } from "@goldsphere/shared";
-import { optionalAuth } from "../middleware/auth";
 
 const router = Router();
 

@@ -9,6 +9,7 @@ router.get("/positions", async (req: Request, res: Response) => {
     const result = await pool.query("SELECT * FROM positions ORDER BY createdAt DESC");
     res.json(result.rows);
   } catch (error) {
+    console.error("Error fetching positions:", error);
     res.status(500).json({ error: "Failed to fetch positions" });
   }
 });
@@ -19,6 +20,7 @@ router.get("/portfolios/:portfolioId/positions", async (req: Request, res: Respo
     const result = await pool.query("SELECT * FROM positions WHERE portfolioid = $1 ORDER BY createdAt DESC", [req.params.portfolioId]);
     res.json(result.rows);
   } catch (error) {
+    console.error("Error fetching portfolio positions:", error);
     res.status(500).json({ error: "Failed to fetch portfolio positions" });
   }
 });
@@ -32,6 +34,7 @@ router.post("/positions", async (req: Request, res: Response) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error("Error adding position:", error);
     res.status(500).json({ error: "Failed to add position" });
   }
 });
@@ -45,6 +48,7 @@ router.put("/positions/:id", async (req: Request, res: Response) => {
     );
     res.json(result.rows[0]);
   } catch (error) {
+    console.error("Error updating position:", error);
     res.status(500).json({ error: "Failed to update position" });
   }
 });
@@ -55,6 +59,7 @@ router.delete("/positions/:id", async (req: Request, res: Response) => {
     await pool.query("DELETE FROM positions WHERE id = $1", [req.params.id]);
     res.status(204).send();
   } catch (error) {
+    console.error("Error deleting position:", error);
     res.status(500).json({ error: "Failed to delete position" });
   }
 });
@@ -65,6 +70,7 @@ router.get("/positions/:id", async (req: Request, res: Response) => {
     const result = await pool.query("SELECT * FROM positions WHERE id = $1", [req.params.id]);
     res.json(result.rows[0]);
   } catch (error) {
+    console.error("Error fetching position:", error);
     res.status(500).json({ error: "Failed to fetch position" });
   }
 });

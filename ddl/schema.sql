@@ -24,6 +24,7 @@ DROP TYPE IF EXISTS portfolioPositionStatus;
 
 -- Create types
 CREATE TYPE transactionType AS ENUM ('buy', 'sell');
+-- Define positionStatus as ENUM to avoid duplicating 'active' and 'closed' literals
 CREATE TYPE positionStatus AS ENUM ('active', 'closed');
 CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
 CREATE TYPE orderStatus AS ENUM ('pending', 'processing', 'shipped', 'delivered', 'cancelled');
