@@ -1,25 +1,250 @@
 import { Router, Request, Response } from "express";
 import pool from "../dbConfig"; // Import the shared pool configuration
+import { 
+  Product, 
+  ProductSchema,
+  ProductType,
+  MetalType,
+  Currency,
+  WeightUnit,
+  z 
+} from "@goldsphere/shared";
+import { optionalAuth } from "../middleware/auth";
 
 const router = Router();
 
+/**
+ * @swagger
+ * /products:
+ *   get:
+ *     summary: Get all products
+ *     tags: [Products]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: List of all products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // GET all products
-router.get("/products", async (req: Request, res: Response) => {
+router.get("/products", optionalAuth, async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT product.id, product.productName AS productname, productType.productTypeName AS producttype, metal.metalName AS metal, issuingCountry.issuingCountryName AS issuingcountry, issuingCountry.isoCode2, producer.producername AS producer, product.fineWeight, product.unitOfMeasure, product.price FROM product JOIN productType ON productType.id = product.productTypeId JOIN metal ON metal.id = product.metalId JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId JOIN producer ON producer.id = product.producerId");
-    res.json(result.rows);
+    const result = await pool.query(`
+      SELECT 
+        product.id, 
+        product.productName AS productname, 
+        productType.productTypeName AS producttype, 
+        metal.metalName AS metal, 
+        issuingCountry.issuingCountryName AS issuingcountry, 
+        issuingCountry.isoCode2, 
+        producer.producerName AS producer, 
+        product.fineWeight, 
+        product.unitOfMeasure, 
+        product.purity,
+        product.price,
+        product.currency,
+        product.productYear,
+        product.description,
+        product.imageFilename AS imageurl,
+        product.inStock,
+        product.stockQuantity,
+        product.minimumOrderQuantity,
+        product.premiumPercentage,
+        product.diameter,
+        product.thickness,
+        product.mintage,
+        product.certification,
+        product.tags,
+        product.createdAt,
+        product.updatedAt
+      FROM product 
+      JOIN productType ON productType.id = product.productTypeId 
+      JOIN metal ON metal.id = product.metalId 
+      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
+      JOIN producer ON producer.id = product.producerId
+    `);
+    
+    // Transform database results to match shared Product type
+    const products: Partial<Product>[] = result.rows.map(row => ({
+      id: row.id,
+      name: row.productname,
+      type: mapProductType(row.producttype),
+      metal: mapMetalType(row.metal),
+      weight: parseFloat(row.fineweight) || 0,
+      weightUnit: row.unitofmeasure as WeightUnit,
+      purity: parseFloat(row.purity) || 0.999,
+      price: parseFloat(row.price) || 0,
+      currency: row.currency as Currency,
+      producer: row.producer,
+      country: row.issuingcountry || '',
+      year: row.productyear || undefined,
+      description: row.description || '',
+      imageUrl: row.imageurl || '',
+      inStock: row.instock ?? true,
+      stockQuantity: row.stockquantity || 0,
+      minimumOrderQuantity: row.minimumorderquantity || 1,
+      premiumPercentage: parseFloat(row.premiumpercentage) || undefined,
+      specifications: {
+        diameter: parseFloat(row.diameter) || undefined,
+        thickness: parseFloat(row.thickness) || undefined,
+        mintage: row.mintage || undefined,
+        certification: row.certification || undefined
+      },
+      tags: row.tags || [],
+      createdAt: row.createdat || new Date().toISOString(),
+      updatedAt: row.updatedat || new Date().toISOString()
+    }));
+    
+    res.json(products);
   } catch (error) {
     console.error("Error fetching products:", error);
     res.status(500).json({ error: "Failed to fetch products", details: (error as Error).message });
   }
 });
 
+// Helper functions to map database values to shared types
+function mapProductType(dbValue: string): ProductType {
+  const normalized = dbValue?.toLowerCase();
+  switch (normalized) {
+    case 'coin': return 'coin';
+    case 'bar': return 'bar';
+    case 'round': return 'round';
+    default: return 'coin'; // Default fallback
+  }
+}
+
+function mapMetalType(dbValue: string): MetalType {
+  const normalized = dbValue?.toLowerCase();
+  switch (normalized) {
+    case 'gold': return 'gold';
+    case 'silver': return 'silver';
+    case 'platinum': return 'platinum';
+    case 'palladium': return 'palladium';
+    default: return 'gold'; // Default fallback
+  }
+}
+
+/**
+ * @swagger
+ * /products/{id}:
+ *   get:
+ *     summary: Get product by ID
+ *     tags: [Products]
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product ID
+ *     responses:
+ *       200:
+ *         description: Product details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
+ *       404:
+ *         description: Product not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // GET product by id
 router.get("/products/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, productName, productTypeId, metalId, issuingCountryId, producerId, fineWeight, unitOfMeasure, price, createdAt, updatedAt FROM product WHERE id = $1", [id]);
-    res.json(result.rows[0]);
+    const result = await pool.query(`
+      SELECT 
+        product.id, 
+        product.productName AS productname, 
+        productType.productTypeName AS producttype, 
+        metal.metalName AS metal, 
+        issuingCountry.issuingCountryName AS issuingcountry, 
+        issuingCountry.isoCode2, 
+        producer.producerName AS producer, 
+        product.fineWeight, 
+        product.unitOfMeasure, 
+        product.purity,
+        product.price,
+        product.currency,
+        product.productYear,
+        product.description,
+        product.imageFilename AS imageurl,
+        product.inStock,
+        product.stockQuantity,
+        product.minimumOrderQuantity,
+        product.premiumPercentage,
+        product.diameter,
+        product.thickness,
+        product.mintage,
+        product.certification,
+        product.tags,
+        product.createdAt,
+        product.updatedAt
+      FROM product 
+      JOIN productType ON productType.id = product.productTypeId 
+      JOIN metal ON metal.id = product.metalId 
+      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
+      JOIN producer ON producer.id = product.producerId
+      WHERE product.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    
+    const row = result.rows[0];
+    const product: Partial<Product> = {
+      id: row.id,
+      name: row.productname,
+      type: mapProductType(row.producttype),
+      metal: mapMetalType(row.metal),
+      weight: parseFloat(row.fineweight) || 0,
+      weightUnit: row.unitofmeasure as WeightUnit,
+      purity: parseFloat(row.purity) || 0.999,
+      price: parseFloat(row.price) || 0,
+      currency: row.currency as Currency,
+      producer: row.producer,
+      country: row.issuingcountry || '',
+      year: row.productyear || undefined,
+      description: row.description || '',
+      imageUrl: row.imageurl || '',
+      inStock: row.instock ?? true,
+      stockQuantity: row.stockquantity || 0,
+      minimumOrderQuantity: row.minimumorderquantity || 1,
+      premiumPercentage: parseFloat(row.premiumpercentage) || undefined,
+      specifications: {
+        diameter: parseFloat(row.diameter) || undefined,
+        thickness: parseFloat(row.thickness) || undefined,
+        mintage: row.mintage || undefined,
+        certification: row.certification || undefined
+      },
+      tags: row.tags || [],
+      createdAt: row.createdat || new Date().toISOString(),
+      updatedAt: row.updatedat || new Date().toISOString()
+    };
+    
+    res.json(product);
   } catch (error) {
     console.error("Error fetching product:", error);
     res.status(500).json({ error: "Failed to fetch product", details: (error as Error).message });
@@ -153,6 +378,138 @@ router.get("/products/search", async (req: Request, res: Response) => {
   } catch (error) { 
     console.error("Error searching products:", error); 
     res.status(500).json({ error: "Failed to search products", details: (error as Error).message }); 
+  }
+});
+
+/**
+ * @swagger
+ * /products/validate:
+ *   post:
+ *     summary: Validate product data against shared schema
+ *     tags: [Products]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Product'
+ *     responses:
+ *       200:
+ *         description: Product data is valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Product data is valid"
+ *                 product:
+ *                   $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+// POST endpoint to validate product data using shared schema
+router.post("/products/validate", async (req: Request, res: Response) => {
+  try {
+    // Validate the request body against the shared ProductSchema
+    const validatedProduct = ProductSchema.parse(req.body);
+    
+    // If validation passes, you could save to database or just return success
+    res.json({ 
+      success: true, 
+      message: "Product data is valid",
+      product: validatedProduct 
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      // Return validation errors in a user-friendly format
+      res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          code: err.code
+        }))
+      });
+    } else {
+      console.error("Error validating product:", error);
+      res.status(500).json({ error: "Failed to validate product", details: (error as Error).message });
+    }
+  }
+});
+
+/**
+ * @swagger
+ * /products/{id}/image:
+ *   get:
+ *     summary: Get product image
+ *     tags: [Products]
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Product ID
+ *     responses:
+ *       200:
+ *         description: Product image
+ *         content:
+ *           image/*:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Product or image not found
+ *       500:
+ *         description: Server error
+ */
+router.get("/products/:id/image", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      "SELECT imageData, imageContentType, imageFilename FROM product WHERE id = $1 AND imageData IS NOT NULL",
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "Product image not found" });
+      return;
+    }
+
+    const { imagedata, imagecontenttype, imagefilename } = result.rows[0];
+
+    // Set appropriate headers
+    res.set({
+      'Content-Type': imagecontenttype,
+      'Content-Disposition': `inline; filename="${imagefilename}"`,
+      'Cache-Control': 'public, max-age=86400' // Cache for 24 hours
+    });
+
+    res.send(imagedata);
+
+  } catch (error) {
+    console.error("Error serving image:", error);
+    res.status(500).json({ error: "Failed to serve image", details: (error as Error).message });
   }
 });      
 

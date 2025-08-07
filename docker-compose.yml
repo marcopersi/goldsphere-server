@@ -11,6 +11,8 @@ services:
     volumes:
       - postgres_goldsphere_data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - pg-network
   pgadmin:
       image: dpage/pgadmin4
       container_name: pgadmin-goldsphere-service
@@ -39,7 +41,7 @@ services:
 
   goldsphere-frontend:
     build:
-      context: ../goldsphere
+      context: ../goldsphere-server
       dockerfile: Dockerfile
     container_name: goldsphere-frontend
     ports:

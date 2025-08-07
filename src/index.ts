@@ -1,21 +1,16 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import app from "./app";
 
 dotenv.config();
 
-const PORT = process.env.PORT || 11215;
+const PORT = process.env.PORT || 8080;
 
-// Log all incoming requests
-app.use((req: Request, res: Response, next) => {
-  console.log(`Received ${req.method} request for ${req.url}`);
-  next();
-});
-
-app.get("/", (req: Request, res: Response) => {
-  res.send("Welcome to GoldSphere Backend!");
+// Basic error handling
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.status(404).json({ error: "Route not found" });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 GoldSphere Server running on port ${PORT}`);
 });
