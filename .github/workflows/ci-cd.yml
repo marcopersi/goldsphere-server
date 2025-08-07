@@ -42,6 +42,24 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Wait for Postgres to be ready
+      run: |
+        until pg_isready -h localhost -p 5432 -U postgres; do 
+          echo "Waiting for PostgreSQL to be ready..."
+          sleep 2
+        done
+        echo "PostgreSQL is ready!"
+
+    - name: Create database schema
+      run: psql -h localhost -U postgres -d goldsphere_test -f ddl/schema.sql
+      env:
+        PGPASSWORD: test_password
+
+    - name: Load initial data
+      run: psql -h localhost -U postgres -d goldsphere_test -f ddl/sampleData.sql
+      env:
+        PGPASSWORD: test_password
+
     - name: Run linting
       run: npm run lint
 
