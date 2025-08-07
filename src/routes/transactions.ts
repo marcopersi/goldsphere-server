@@ -1,77 +1,119 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig"; // Import the shared pool configuration
+import { Transaction, TransactionCreateRequest, TransactionHistoryItem } from "@goldsphere/shared";
+import pool from "../dbConfig";
 
 const router = Router();
 
-// GET all transactions
-router.get("/transactions", async (req: Request, res: Response) => {
+// GET /api/transactions - Get transaction history
+router.get("/", async (req: Request, res: Response): Promise<void> => {
+  const { page = 1, limit = 50 } = req.query;
+  const offset = (Number(page) - 1) * Number(limit);
+
   try {
-    const result = await pool.query("SELECT id, positionId, userId, type, date, quantity, price, fees, notes, createdAt FROM transactions ORDER BY date DESC");
-    res.json(result.rows);
+    const query = `
+      SELECT 
+        t.id,
+        t.positionId,
+        t.userId, 
+        t.type,
+        t.date::text,
+        t.quantity,
+        t.price,
+        t.fees,
+        t.notes,
+        t.createdAt::text,
+        p.productname AS "productName",
+        (t.quantity * t.price + COALESCE(t.fees, 0)) AS total
+      FROM transactions t
+      JOIN positions pos ON t.positionId = pos.id
+      JOIN product p ON pos.product_id = p.id
+      ORDER BY t.date DESC
+      LIMIT $1 OFFSET $2
+    `;
+
+    const result = await pool.query(query, [Number(limit), offset]);
+    const transactions: TransactionHistoryItem[] = result.rows;
+
+    res.json({ transactions });
   } catch (error) {
-    console.error("Error fetching transactions:", error);
-    res.status(500).json({ error: "Failed to fetch transactions", details: (error as Error).message });
+    console.error("Failed to fetch transactions:", error);
+    res.status(500).json({ error: "Failed to fetch transactions" });
   }
 });
 
-// GET transactions by position ID
-router.get("/transactions/position/:positionId", async (req: Request, res: Response) => {
-  const { positionId } = req.params;
+// POST /api/transactions - Create transaction
+router.post("/", async (req: Request, res: Response): Promise<void> => {
+  const { positionId, type, date, quantity, price, fees = 0, notes }: TransactionCreateRequest = req.body;
+
   try {
-    const result = await pool.query("SELECT id, positionId, userId, type, date, quantity, price, fees, notes, createdAt FROM transactions WHERE positionId = $1 ORDER BY date DESC", [positionId]);
-    res.json(result.rows);
+    // Verify position exists
+    const positionCheck = await pool.query("SELECT user_id FROM positions WHERE id = $1", [positionId]);
+    if (positionCheck.rows.length === 0) {
+      res.status(404).json({ error: "Position not found" });
+      return;
+    }
+
+    const userId = positionCheck.rows[0].user_id;
+
+    const query = `
+      INSERT INTO transactions (positionId, userId, type, date, quantity, price, fees, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING 
+        id,
+        positionId,
+        userId,
+        type,
+        date::text,
+        quantity,
+        price,
+        fees,
+        notes,
+        createdAt::text
+    `;
+
+    const result = await pool.query(query, [positionId, userId, type, date, quantity, price, fees, notes]);
+    const transaction: Transaction = result.rows[0];
+
+    res.status(201).json(transaction);
   } catch (error) {
-    console.error("Error fetching transactions for position:", error);
-    res.status(500).json({ error: "Failed to fetch transactions for position", details: (error as Error).message });
+    console.error("Failed to create transaction:", error);
+    res.status(500).json({ error: "Failed to create transaction" });
   }
 });
 
-// GET transactions by user ID
-router.get("/transactions/user/:userId", async (req: Request, res: Response) => {
-  const { userId } = req.params;
-  try {
-    const result = await pool.query("SELECT id, positionId, userId, type, date, quantity, price, fees, notes, createdAt FROM transactions WHERE userId = $1 ORDER BY date DESC", [userId]);
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error fetching transactions for user:", error);
-    res.status(500).json({ error: "Failed to fetch transactions for user", details: (error as Error).message });
-  }
-});
-
-// POST new transaction
-router.post("/transactions", async (req: Request, res: Response) => {
-  const { positionId, userId, type, date, quantity, price, fees, notes } = req.body;
-  try {
-    const result = await pool.query("INSERT INTO transactions (positionId, userId, type, date, quantity, price, fees, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [positionId, userId, type, date, quantity, price, fees, notes]);
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error("Error adding transaction:", error);
-    res.status(500).json({ error: "Failed to add transaction", details: (error as Error).message });
-  }
-});
-
-// PUT update transaction
-router.put("/transactions/:id", async (req: Request, res: Response) => {
+// GET /api/transactions/:id - Get transaction by ID
+router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
-  const { positionId, userId, type, date, quantity, price, fees, notes } = req.body;
-  try {
-    const result = await pool.query("UPDATE transactions SET positionId = $1, userId = $2, type = $3, date = $4, quantity = $5, price = $6, fees = $7, notes = $8 WHERE id = $9 RETURNING *", [positionId, userId, type, date, quantity, price, fees, notes, id]);
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error("Error updating transaction:", error);
-    res.status(500).json({ error: "Failed to update transaction", details: (error as Error).message });
-  }
-});
 
-// DELETE transaction
-router.delete("/transactions/:id", async (req: Request, res: Response) => {
-  const { id } = req.params;
   try {
-    await pool.query("DELETE FROM transactions WHERE id = $1", [id]);
-    res.status(204).send();
+    const query = `
+      SELECT 
+        id,
+        positionId,
+        userId,
+        type,
+        date::text,
+        quantity,
+        price,
+        fees,
+        notes,
+        createdAt::text
+      FROM transactions 
+      WHERE id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "Transaction not found" });
+      return;
+    }
+
+    const transaction: Transaction = result.rows[0];
+    res.json(transaction);
   } catch (error) {
-    console.error("Error deleting transaction:", error);
-    res.status(500).json({ error: "Failed to delete transaction", details: (error as Error).message });
+    console.error("Failed to fetch transaction:", error);
+    res.status(500).json({ error: "Failed to fetch transaction" });
   }
 });
 
