@@ -61,7 +61,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@goldsphere/shared": "file:../goldsphere-shared",
+    "@marcopersi/shared": "^1.0.2",
     "@types/stripe": "^8.0.416",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",

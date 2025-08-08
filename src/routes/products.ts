@@ -8,7 +8,7 @@ import {
   Currency,
   WeightUnit,
   z 
-} from "@goldsphere/shared";
+} from "@marcopersi/shared";
 
 const router = Router();
 

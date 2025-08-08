@@ -1,5 +1,5 @@
 /**
- * Example file demonstrating how to use the @goldsphere/shared package
+ * Example file demonstrating how to use the @marcopersi/shared package
  * This file shows various ways to import and use types, schemas, and validation
  */
 
@@ -21,9 +21,9 @@ import {
   
   // Version info
   GOLDSPHERE_SHARED_VERSION
-} from "@goldsphere/shared";
+} from "@marcopersi/shared";
 
-console.log(`Using @goldsphere/shared version: ${GOLDSPHERE_SHARED_VERSION}`);
+console.log(`Using @marcopersi/shared version: ${GOLDSPHERE_SHARED_VERSION}`);
 
 // Example 1: Using types for type safety
 function createProduct(data: Partial<Product>): Product {
@@ -131,7 +131,7 @@ function validateProductUpdate(data: unknown): ProductUpdate | null {
 
 // Example usage
 export function demonstrateSharedUsage() {
-  console.log('\n=== @goldsphere/shared Usage Examples ===\n');
+  console.log('\n=== @marcopersi/shared Usage Examples ===\n');
   
   // Test 1: Valid product
   console.log('1. Testing valid product data:');

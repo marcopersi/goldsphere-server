@@ -12,7 +12,7 @@ import {
   PaymentIntent as PaymentIntentType,
   PaymentMethod,
   PaymentError
-} from '@goldsphere/shared';
+} from '@marcopersi/shared';
 
 export class PaymentService {
   private readonly stripe: Stripe;

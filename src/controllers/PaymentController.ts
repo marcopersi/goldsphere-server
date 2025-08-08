@@ -1,15 +1,12 @@
 import { Request, Response } from 'express';
+import {
+  PaymentMethod,
+  PaymentIntent,
+  PaymentMethodSchema,
+  PaymentIntentCreateSchema,
+  PaymentIntentConfirmSchema
+} from '@marcopersi/shared';
 import { PaymentService } from '../services/PaymentService';
-import { 
-  CreatePaymentIntentRequest,
-  ConfirmPaymentRequest,
-  ListPaymentMethodsRequest,
-  RefundRequest,
-  PaymentError,
-  validateCreatePaymentIntent,
-  validateConfirmPayment,
-  validateListPaymentMethods
-} from '@goldsphere/shared';
 import { z } from 'zod';
 
 export class PaymentController {

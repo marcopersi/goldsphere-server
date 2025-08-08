@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { Transaction, TransactionCreateRequest, TransactionHistoryItem } from "@goldsphere/shared";
+import { Transaction, TransactionCreateRequest, TransactionHistoryItem } from "@marcopersi/shared";
 import pool from "../dbConfig";
 
 const router = Router();
