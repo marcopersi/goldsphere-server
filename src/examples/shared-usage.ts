@@ -15,7 +15,6 @@ import {
   ProductSchema,
   ProductTypeSchema,
   MetalTypeSchema,
-  CurrencySchema,
   
   // Zod for additional validation
   z,
@@ -94,7 +93,12 @@ function validateMetal(metal: unknown): MetalType | null {
 
 function validateCurrency(currency: unknown): Currency | null {
   try {
-    return CurrencySchema.parse(currency);
+    // Currency doesn't have a separate schema, validate manually
+    const validCurrencies: Currency[] = ['USD', 'EUR', 'GBP', 'CHF'];
+    if (typeof currency === 'string' && validCurrencies.includes(currency as Currency)) {
+      return currency as Currency;
+    }
+    throw new Error('Invalid currency');
   } catch {
     console.error(`❌ Invalid currency: ${currency}`);
     return null;

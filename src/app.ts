@@ -12,8 +12,10 @@ import custodiansRoutes from "./routes/custodians";
 import custodyServiceRoutes from "./routes/custodyService";
 import ordersRoutes from "./routes/orders";
 import transactionRoutes from "./routes/transactions";
+import paymentsRoutes from "./routes/payments";
 import adminRoutes from "./routes/admin";
 import authMiddleware from "./authMiddleware";
+import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
 
 // Load environment variables first
 dotenv.config();
@@ -35,6 +37,9 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Use raw body middleware for webhook endpoints before JSON parsing
+app.use(rawBodyMiddleware);
 app.use(express.json({ limit: "5mb" }));
 
 // Temporary login endpoint for testing
@@ -121,6 +126,14 @@ app.get("/api-spec.yaml", (req: any, res: any) => {
 app.use("/api/products", productRoutes);
 app.use("/api", referencesRoutes);
 
+// Webhook routes (no auth required)
+app.use("/api/payments/webhook", (req, res, next) => {
+  // Import webhook controller here to avoid circular dependencies
+  const { WebhookController } = require("./controllers/WebhookController");
+  const webhookController = new WebhookController();
+  webhookController.stripeWebhook(req, res);
+});
+
 // Protected routes
 app.use("/api", authMiddleware, portfolioRoutes);
 app.use("/api", authMiddleware, positionRoutes);
@@ -129,6 +142,7 @@ app.use("/api", authMiddleware, custodiansRoutes);
 app.use("/api", authMiddleware, custodyServiceRoutes);
 app.use("/api", authMiddleware, ordersRoutes);
 app.use("/api", authMiddleware, transactionRoutes);
+app.use("/api/payments", authMiddleware, paymentsRoutes);
 app.use("/api/admin", authMiddleware, adminRoutes);
 
 // 404 handler - must be AFTER all routes

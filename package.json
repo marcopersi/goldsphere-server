@@ -8,6 +8,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
+    "test:payment-integration": "jest tests/integration/payment.integration.test.ts --testTimeout=60000",
+    "test:payment-quick": "node scripts/test-payment-api.js",
     "start": "node dist/index.js",
     "dev": "PORT=8080 npx nodemon --exec npx ts-node src/index.ts",
     "build": "tsc && cp -r src/queries dist/",
@@ -48,6 +50,8 @@
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "axios": "^1.11.0",
+    "chalk": "^5.5.0",
     "eslint": "^8.0.0",
     "jest": "^30.0.5",
     "nodemon": "^3.1.10",
@@ -57,16 +61,20 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@goldsphere/shared": "github:marcopersi/goldsphere-shared",
+    "@goldsphere/shared": "file:../goldsphere-shared",
+    "@types/stripe": "^8.0.416",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "pg": "^8.13.1",
+    "stripe": "^18.4.0",
     "swagger-jsdoc": "^6.2.8",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.0.15"
   }
 }
