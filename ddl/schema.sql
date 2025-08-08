@@ -179,8 +179,14 @@ CREATE TABLE IF NOT EXISTS orders (
     totalPrice NUMERIC(12, 2) NOT NULL,
     orderStatus orderStatus NOT NULL,
     custodyServiceId UUID,
+    payment_intent_id VARCHAR(255),
+    payment_status VARCHAR(50) DEFAULT 'pending', -- pending, paid, failed, refunded
+    paid_at TIMESTAMP;
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Index for payment lookups
+CREATE INDEX IF NOT EXISTS idx_orders_payment_intent_id ON orders(payment_intent_id);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
 
