@@ -4,7 +4,6 @@
   "description": "The server including the business logic and integration for the goldsphere project",
   "main": "src/app.ts",
   "scripts": {
-    "preinstall": "[ -f .env.dev ] && export $(grep -v '^#' .env.dev | xargs) || true",
     "test": "jest --testPathIgnorePatterns='tests/integration'",
     "test:unit": "jest --testPathIgnorePatterns='tests/integration'",
     "test:integration": "jest tests/integration --testTimeout=60000",

@@ -6,15 +6,10 @@ dist/
 
 # Environment files (sensitive data)
 .env
-.env.local
-# Environment variables
-.env*.local
+.env.prod
+.env.test
+.env.dev
 
-# Environment templates are safe to commit:
-# .env.example
-# .env.dev
-# .env.prod  
-# .env.test
 
 # IDE files
 .idea/
