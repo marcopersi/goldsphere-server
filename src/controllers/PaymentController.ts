@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import {
-  PaymentMethod,
-  PaymentIntent,
-  PaymentMethodSchema,
-  PaymentIntentCreateSchema,
-  PaymentIntentConfirmSchema
+  PaymentError,
+  CreatePaymentIntentRequest,
+  ConfirmPaymentRequest,
+  ListPaymentMethodsRequest,
+  RefundRequest,
+  validateCreatePaymentIntent,
+  validateConfirmPayment,
+  validateListPaymentMethods
 } from '@marcopersi/shared';
 import { PaymentService } from '../services/PaymentService';
 import { z } from 'zod';

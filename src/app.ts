@@ -16,6 +16,7 @@ import paymentsRoutes from "./routes/payments";
 import adminRoutes from "./routes/admin";
 import authMiddleware from "./authMiddleware";
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
+import { WebhookController } from "./controllers/WebhookController";
 
 // Load environment variables first
 dotenv.config();
@@ -127,9 +128,7 @@ app.use("/api/products", productRoutes);
 app.use("/api", referencesRoutes);
 
 // Webhook routes (no auth required)
-app.use("/api/payments/webhook", (req, res, next) => {
-  // Import webhook controller here to avoid circular dependencies
-  const { WebhookController } = require("./controllers/WebhookController");
+app.use("/api/payments/webhook", (req, res) => {
   const webhookController = new WebhookController();
   webhookController.stripeWebhook(req, res);
 });

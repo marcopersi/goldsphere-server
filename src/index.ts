@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import dotenv from "dotenv";
 import app from "./app";
 
@@ -7,7 +7,7 @@ dotenv.config();
 const PORT = process.env.PORT || 8080;
 
 // Basic error handling
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Route not found" });
 });
 
