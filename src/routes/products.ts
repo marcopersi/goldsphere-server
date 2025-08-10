@@ -1,11 +1,39 @@
 import { Router, Request, Response } from "express";
 import pool from "../dbConfig";
 import { 
-  ProductsQuerySchema, 
-  ProductResponse, 
-  ProductsResponse,
-  Pagination
-} from "../schemas/products";
+  ProductSchema,
+  ProductsResponseSchema,
+  PaginationSchema
+} from "@marcopersi/shared";
+import { z } from 'zod';
+
+// Server-specific query parameters schema for products endpoint
+const ProductsQuerySchema = z.object({
+  page: z.string().optional().transform(val => val ? parseInt(val) : 1),
+  limit: z.string().optional().transform(val => val ? parseInt(val) : 10),
+  search: z.string().optional(),
+  metal: z.string().optional(),
+  type: z.string().optional(),
+  inStock: z.string().optional().transform(val => {
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+    return undefined;
+  }),
+  minPrice: z.string().optional().transform(val => val ? parseFloat(val) : undefined),
+  maxPrice: z.string().optional().transform(val => val ? parseFloat(val) : undefined)
+});
+
+// Server-specific error response schema
+const ErrorResponseSchema = z.object({
+  success: z.literal(false),
+  error: z.string(),
+  details: z.string().optional()
+});
+
+// Types inferred from shared schemas
+type ProductResponse = z.infer<typeof ProductSchema>;
+type ProductsResponse = z.infer<typeof ProductsResponseSchema>;
+type Pagination = z.infer<typeof PaginationSchema>;
 
 const router = Router();
 
