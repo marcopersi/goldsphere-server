@@ -1,11 +1,14 @@
-name: CI/CD Workflow
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch: {} # Enables manual workflow runs
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
 
 jobs:
   build:
@@ -14,23 +17,19 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
       - name: Install Dependencies
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
       - name: Build
         run: npm run build
         env:
-          CI: false # Prevents build from failing on warnings
-
+          CI: false
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -43,40 +42,95 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
       - name: Install Dependencies
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
       - name: Run ESLint
         run: npm run lint || echo "Linting completed with warnings"
 
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: goldsphere_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
       - name: Install Dependencies
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
-      - name: Run Tests
-        run: npm run test:ci || echo "Tests completed with warnings"
+      - name: Wait for Postgres to be ready
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+          echo "PostgreSQL is ready!"
+      - name: Setup database schema
+        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
         env:
-          CI: true
+          PGPASSWORD: postgres
+      - name: Database Initial Load
+        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Load sample data
+        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Run linting
+        run: npm run lint
+      - name: Run type checking
+        run: npx tsc --noEmit
+      - name: Run tests
+        run: npm run test:ci
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: goldsphere_test
+          DB_USER: postgres
+          DB_PASSWORD: test_password
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+      - name: Upload coverage to Codecov
+        if: success()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+      - name: Build application
+        run: npm run build
+      - name: Test build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Build failed - dist directory not found"
+            exit 1
+          fi
+          echo "Build successful"
+
+# ... other jobs (security-scan, deploy, etc.) can be appended here in the same clean style
