@@ -1,13 +1,5 @@
--- Drop tables if they exist
-DROP-- Create tables without foreign key references first
-CREATE TABLE IF NOT EXISTS currency (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    isocode2 CHAR(2) NOT NULL COMMENT 'ISO 3166-1 alpha-2 country code',
-    isocode3 CHAR(3) NOT NULL UNIQUE COMMENT 'ISO 4217 currency code',
-    isonumericcode INT NOT NULL UNIQUE COMMENT 'ISO 4217 numeric code',
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-); EXISTS transactions CASCADE;
+-- Drop tables if they exist (in correct order to avoid foreign key conflicts)
+DROP TABLE IF EXISTS transactions CASCADE;
 DROP TABLE IF EXISTS positions CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS portfolioPosition CASCADE;
@@ -32,7 +24,6 @@ DROP TYPE IF EXISTS portfolioPositionStatus;
 
 -- Create types
 CREATE TYPE transactionType AS ENUM ('buy', 'sell');
--- Define positionStatus as ENUM to avoid duplicating 'active' and 'closed' literals
 CREATE TYPE positionStatus AS ENUM ('active', 'closed');
 CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
 CREATE TYPE orderStatus AS ENUM ('pending', 'processing', 'shipped', 'delivered', 'cancelled');
@@ -43,8 +34,8 @@ CREATE TYPE portfolioPositionStatus AS ENUM ('ordered', 'settled', 'active', 'cl
 CREATE TABLE IF NOT EXISTS currency (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     isoCode2 CHAR(2) NOT NULL,
-    isoCode3 CHAR(3) NOT NULL,
-    isoNumericCode INT NOT NULL,
+    isoCode3 CHAR(3) NOT NULL UNIQUE,
+    isoNumericCode INT NOT NULL UNIQUE,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -65,8 +56,8 @@ CREATE TABLE IF NOT EXISTS producer (
 
 CREATE TABLE IF NOT EXISTS metal (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    metalName TEXT NOT NULL,
-    metalSymbol CHAR(2) NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    symbol CHAR(2) NOT NULL UNIQUE,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -110,17 +101,17 @@ CREATE TABLE IF NOT EXISTS custodyService (
 
 CREATE TABLE IF NOT EXISTS product (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    productName TEXT NOT NULL,
+    name TEXT NOT NULL,
     productTypeId UUID NOT NULL REFERENCES productType(id),
     metalId UUID NOT NULL REFERENCES metal(id),
     issuingCountryId UUID REFERENCES issuingCountry(id),
     producerId UUID NOT NULL REFERENCES producer(id),
-    fineWeight NUMERIC(12, 4) NOT NULL,
-    unitOfMeasure unitOfMeasure NOT NULL,
+    weight NUMERIC(12, 4) NOT NULL,
+    weightUnit unitOfMeasure NOT NULL DEFAULT 'troy_ounces',
     purity NUMERIC(5, 4) NOT NULL DEFAULT 0.999 CHECK (purity >= 0 AND purity <= 1),
     price NUMERIC(12, 2) NOT NULL,
-    currency TEXT NOT NULL DEFAULT 'USD' CHECK (currency IN ('USD', 'EUR', 'GBP', 'CHF')),
-    productYear INTEGER,
+    currency TEXT NOT NULL DEFAULT 'USD' CHECK (currency IN ('USD', 'EUR', 'GBP', 'CHF', 'CAD', 'AUD')),
+    year INTEGER,
     description TEXT,
     imageUrl TEXT NOT NULL DEFAULT '',
     imageData BYTEA,

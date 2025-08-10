@@ -1,5 +1,6 @@
 
-INSERT INTO productType (productTypeName, createdAt)
+-- Insert core reference data
+INSERT INTO productType (productTypeName, createdat)
 VALUES
     ('Coin', CURRENT_TIMESTAMP),
     ('Bar', CURRENT_TIMESTAMP),
@@ -9,22 +10,24 @@ VALUES
     ('Minted Bar', CURRENT_TIMESTAMP),
     ('CombiBar', CURRENT_TIMESTAMP);
 
-INSERT INTO metal (metalName, metalSymbol, createdAt)
+INSERT INTO metal (name, symbol, createdat)
 VALUES
     ('Gold', 'AU', CURRENT_TIMESTAMP),
     ('Silver', 'AG', CURRENT_TIMESTAMP),
     ('Palladium', 'PD', CURRENT_TIMESTAMP),
     ('Platinum', 'PT', CURRENT_TIMESTAMP);
 
-INSERT INTO currency (isoCode2, isoCode3, isoNumericCode, createdAt)
+INSERT INTO currency (isoCode2, isoCode3, isoNumericCode, createdat)
 VALUES
     ('US', 'USD', 840, CURRENT_TIMESTAMP),
     ('EU', 'EUR', 978, CURRENT_TIMESTAMP),
     ('CH', 'CHF', 756, CURRENT_TIMESTAMP),
-    ('GB', 'GBP', 826, CURRENT_TIMESTAMP);
+    ('GB', 'GBP', 826, CURRENT_TIMESTAMP),
+    ('CA', 'CAD', 124, CURRENT_TIMESTAMP),
+    ('AU', 'AUD', 036, CURRENT_TIMESTAMP);
 
 -- Insert sample issuing countries
-INSERT INTO issuingCountry (issuingCountryName, isoCode2, createdAt)
+INSERT INTO issuingCountry (issuingCountryName, isoCode2, createdat)
 VALUES
     ('Canada', 'CA', CURRENT_TIMESTAMP),
     ('USA', 'US', CURRENT_TIMESTAMP),
@@ -37,12 +40,12 @@ VALUES
     ('Austria', 'AT', CURRENT_TIMESTAMP);
 
 -- Insert sample custodians
-INSERT INTO custodian (custodianName, createdAt)
+INSERT INTO custodian (custodianName, createdat)
 VALUES
     ('Loomis', CURRENT_TIMESTAMP),
     ('Brinks', CURRENT_TIMESTAMP),
     ('Bank of Switzerland', CURRENT_TIMESTAMP),
-    ('Home Storage', CURRENT_TIMESTAMP), -- Für Kunden, die selbst lagern
+    ('Home Storage', CURRENT_TIMESTAMP),
     ('Malca-Amit', CURRENT_TIMESTAMP),
     ('G4S Vaults', CURRENT_TIMESTAMP),
     ('Swiss Gold Safe', CURRENT_TIMESTAMP),
@@ -51,8 +54,8 @@ VALUES
     ('Delaware Depository', CURRENT_TIMESTAMP),
     ('International Depository Services', CURRENT_TIMESTAMP);
 
--- Beispiel für eine bestehende Tabelle (z.B. producer)
-INSERT INTO producer (producerName, createdAt) VALUES
+-- Insert sample producers
+INSERT INTO producer (producerName, createdat) VALUES
 ('Argor-Heraeus', CURRENT_TIMESTAMP),
 ('Asahi Refining', CURRENT_TIMESTAMP),
 ('Bayerisches Hauptmünzamt', CURRENT_TIMESTAMP),
@@ -85,8 +88,9 @@ INSERT INTO producer (producerName, createdAt) VALUES
 ('Austrian Mint', CURRENT_TIMESTAMP),
 ('Rand Refinery', CURRENT_TIMESTAMP);
 
--- Insert technical user for system operations
--- Password: bank_tech_secure_2024 (hashed with bcrypt)
-INSERT INTO users (userName, email, passwordHash, createdAt)
+-- Insert users for testing and system operations
+INSERT INTO users (userName, email, passwordHash, createdat)
 VALUES
-    ('Bank Technical User', 'bank.technical@goldsphere.vault', '$2b$10$.06T8FlnlaUi3AxhUQ3xiuI7X/YG0KzkAKx7FfQyCKxXgH2zdK.8G', CURRENT_TIMESTAMP);
+    ('Bank Technical User', 'bank.technical@goldsphere.vault', '$2b$10$.06T8FlnlaUi3AxhUQ3xiuI7X/YG0KzkAKx7FfQyCKxXgH2zdK.8G', CURRENT_TIMESTAMP),
+    ('Admin User', 'admin@goldsphere.vault', '$2b$10$oWWBsW3k27.FHsrPkSp4quWD.hqcdk917aHcA9R4ITeU04uImejA2', CURRENT_TIMESTAMP),
+    ('Test User', 'test@example.com', '$2b$10$JnY0rEXKbSy7CIhRKMQt0u7NjAK9WahB6vkmQnOKzIIui5Js4GYrS', CURRENT_TIMESTAMP);

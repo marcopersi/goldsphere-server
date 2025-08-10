@@ -76,13 +76,13 @@ router.get("/", async (req: Request, res: Response) => {
     let paramIndex = 1;
     
     if (search) {
-      whereConditions.push(`(product.productName ILIKE $${paramIndex} OR product.description ILIKE $${paramIndex})`);
+      whereConditions.push(`(product.name ILIKE $${paramIndex} OR product.description ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
     
     if (metal) {
-      whereConditions.push(`metal.metalName ILIKE $${paramIndex}`);
+      whereConditions.push(`metal.name ILIKE $${paramIndex}`);
       queryParams.push(metal);
       paramIndex++;
     }
@@ -131,32 +131,32 @@ router.get("/", async (req: Request, res: Response) => {
     const dataQuery = `
       SELECT 
         product.id, 
-        product.productName AS productname, 
+        product.name AS productname, 
         productType.productTypeName AS producttype, 
         metal.id AS metalid,
-        metal.metalName AS metalname, 
-        metal.metalSymbol AS metalsymbol,
+        metal.name AS metalname, 
+        metal.symbol AS metalsymbol,
         issuingCountry.isoCode2 AS countrycode, 
         producer.producerName AS producer, 
-        product.fineWeight, 
-        product.unitOfMeasure, 
+        product.weight AS fineweight, 
+        product.weightUnit AS unitofmeasure, 
         product.purity,
         product.price,
         product.currency,
-        product.productYear,
+        product.year AS productyear,
         product.description,
         product.imageFilename AS imageurl,
         product.inStock,
         product.minimumOrderQuantity,
-        product.createdAt,
-        product.updatedAt
+        product.createdat,
+        product.updatedat
       FROM product 
       JOIN productType ON productType.id = product.productTypeId 
       JOIN metal ON metal.id = product.metalId 
       LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
       JOIN producer ON producer.id = product.producerId
       ${whereClause}
-      ORDER BY product.createdAt DESC
+      ORDER BY product.createdat DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     
