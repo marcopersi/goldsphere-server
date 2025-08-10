@@ -108,11 +108,12 @@ VALUES
         50.00, 'grams', 0.9995, 2600.00, 'USD', 2024, '50g Platinum cast bar from Valcambi', '', '1-oz-platinum-bar-royal-canadian-mint.png', true, 20, 1, 4.8, CURRENT_TIMESTAMP);
 
 -- Insert sample users
-INSERT INTO users (userName, email, passwordHash, createdAt)
+INSERT INTO users (email, username, passwordhash, createdat, updatedat)
 VALUES
-    ('John Doe', 'john.doe@example.com', 'hashed_password_1', CURRENT_TIMESTAMP),
-    ('Jane Smith', 'jane.smith@example.com', 'hashed_password_2', CURRENT_TIMESTAMP)
-    ON CONFLICT (email) DO NOTHING;
+    ('admin@goldsphere.vault', 'Admin User', '$2b$10$dummy.hash.for.admin.user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('bank.technical@goldsphere.vault', 'Bank Technical User', '$2b$10$dummy.hash.for.bank.technical.user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('john.doe@example.com', 'John Doe', '$2b$10$dummy.hash.for.john.doe', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('jane.smith@example.com', 'Jane Smith', '$2b$10$dummy.hash.for.jane.smith', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Insert sample portfolios for backward compatibility
 INSERT INTO portfolio (portfolioName, ownerId, createdAt)

@@ -10,9 +10,9 @@ process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
 process.env.PORT = '0'; // Use random port for testing
 process.env.DB_HOST = 'localhost';
 process.env.DB_PORT = '5432';
-process.env.DB_NAME = 'goldsphere_test';
+process.env.DB_NAME = 'goldsphere';
 process.env.DB_USER = 'postgres';
-process.env.DB_PASSWORD = 'test_password';
+process.env.DB_PASSWORD = 'postgres';
 
 // Increase timeout for async operations
 jest.setTimeout(30000);

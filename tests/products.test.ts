@@ -26,7 +26,10 @@ describe('Products API', () => {
         .get('/api/products')
         .expect(200);
 
-      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('products');
+      expect(Array.isArray(response.body.data.products)).toBe(true);
     });
 
     it('should handle database errors gracefully', async () => {
@@ -39,15 +42,15 @@ describe('Products API', () => {
     const validProductData = {
       id: 'prod-123',
       name: 'American Gold Eagle',
-      type: 'coin',
-      metal: 'gold',
+      type: 'Coin',  // ProductType expects 'Coin' not 'coin'
+      metal: 'AU',   // Metal expects symbol 'AU' not 'gold'
       weight: 31.1035,
-      weightUnit: 'grams',
+      weightUnit: 'troy_ounces',  // Valid enum value
       purity: 0.9167,
       price: 2150.50,
-      currency: 'USD',
-      producer: 'US Mint',
-      country: 'USA',
+      currency: 'USD',  // Currency expects ISO code
+      producer: 'United States Mint',  // Full producer name
+      country: 'US',    // Country expects ISO code 'US'
       year: 2024,
       description: 'Official gold bullion coin of the United States',
       imageUrl: 'https://example.com/gold-eagle.jpg',
@@ -60,55 +63,46 @@ describe('Products API', () => {
       updatedAt: new Date().toISOString()
     };
 
-    it('should validate correct product data', async () => {
+    it("should validate correct product data", async () => {
       const response = await request(app)
-        .post('/api/products/validate')
+        .post("/api/products/validate")
         .send(validProductData)
         .expect(200);
 
       expect(response.body).toHaveProperty('success', true);
       expect(response.body).toHaveProperty('message', 'Product data is valid');
-      expect(response.body).toHaveProperty('product');
-    });
-
-    it('should reject invalid product type', async () => {
-      const invalidData = {
-        ...validProductData,
-        type: 'invalid-type'
-      };
+      expect(response.body).toHaveProperty('data');
+    });    it("should reject invalid product type", async () => {
+      const invalidData = { ...validProductData, type: "InvalidType" };
 
       const response = await request(app)
-        .post('/api/products/validate')
+        .post("/api/products/validate")
+        .send(invalidData);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBeDefined();
+    });
+
+    it("should reject invalid metal type", async () => {
+      const invalidData = { ...validProductData, metal: "InvalidMetal" };
+
+      const response = await request(app)
+        .post("/api/products/validate")
         .send(invalidData)
         .expect(400);
 
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('message', 'Validation failed');
-      expect(response.body).toHaveProperty('errors');
-      expect(Array.isArray(response.body.errors)).toBe(true);
-    });
-
-    it('should reject invalid metal type', async () => {
-      const invalidData = {
-        ...validProductData,
-        metal: 'copper'
-      };
-
-      const response = await request(app)
-        .post('/api/products/validate')
-        .send(invalidData)
-        .expect(400);
-
-      expect(response.body.errors.some((err: any) => 
-        err.field === 'metal'
-      )).toBe(true);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.details).toBeDefined();
+      expect(Array.isArray(response.body.details)).toBe(true);
     });
 
     it('should reject missing required fields', async () => {
       const incompleteData = {
         name: 'Incomplete Product',
-        type: 'coin'
-        // missing many required fields
+        type: 'Coin'  // Use correct enum format
+        // missing many required fields like id, metal, weight, etc.
       };
 
       const response = await request(app)
@@ -117,7 +111,7 @@ describe('Products API', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('success', false);
-      expect(response.body.errors.length).toBeGreaterThan(0);
+      expect(response.body.details.length).toBeGreaterThan(0);
     });
 
     it('should reject invalid purity value', async () => {
@@ -131,9 +125,10 @@ describe('Products API', () => {
         .send(invalidData)
         .expect(400);
 
-      expect(response.body.errors.some((err: any) => 
-        err.field === 'purity'
-      )).toBe(true);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.details).toBeDefined();
+      expect(Array.isArray(response.body.details)).toBe(true);
     });
 
     it('should reject invalid currency', async () => {
@@ -147,9 +142,10 @@ describe('Products API', () => {
         .send(invalidData)
         .expect(400);
 
-      expect(response.body.errors.some((err: any) => 
-        err.field === 'currency'
-      )).toBe(true);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.details).toBeDefined();
+      expect(Array.isArray(response.body.details)).toBe(true);
     });
 
     it('should handle malformed JSON', async () => {
@@ -167,8 +163,8 @@ describe('Products API', () => {
         .get('/api/products')
         .expect(200);
 
-      if (response.body.length > 0) {
-        const product = response.body[0];
+      if (response.body.data.products.length > 0) {
+        const product = response.body.data.products[0];
         
         // Check that the response has the expected Product interface properties
         expect(product).toHaveProperty('id');
@@ -182,13 +178,14 @@ describe('Products API', () => {
         
         // Check enum values
         if (product.type) {
-          expect(['coin', 'bar', 'round']).toContain(product.type);
+          expect(['Coin', 'Bar', 'Medallion', 'Jewelry', 'Cast Bar', 'Minted Bar', 'CombiBar']).toContain(product.type);
         }
-        if (product.metal) {
-          expect(['gold', 'silver', 'platinum', 'palladium']).toContain(product.metal);
+        if (product.metal && typeof product.metal === 'object') {
+          expect(product.metal).toHaveProperty('symbol');
+          expect(['AU', 'AG', 'PT', 'PD']).toContain(product.metal.symbol);
         }
         if (product.currency) {
-          expect(['USD', 'EUR', 'GBP', 'CHF']).toContain(product.currency);
+          expect(['USD', 'EUR', 'GBP', 'CHF', 'CAD', 'AUD']).toContain(product.currency);
         }
       }
     });

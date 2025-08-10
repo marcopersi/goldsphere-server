@@ -562,6 +562,40 @@ router.get("/:id/image", async (req: Request, res: Response) => {
     console.error("Error serving image:", error);
     res.status(500).json({ error: "Failed to serve image", details: (error as Error).message });
   }
-});      
+});
+
+// Validate product data endpoint
+router.post("/validate", async (req: Request, res: Response) => {
+  try {
+    // Validate the request body against ProductSchema
+    const validatedProduct = ProductSchema.parse(req.body);
+    
+    res.json({
+      success: true,
+      message: "Product data is valid",
+      data: validatedProduct
+    });
+  } catch (error) {
+    // Check if it's a ZodError using duck typing (to handle cross-package issues)
+    if (error && typeof error === 'object' && 'issues' in error && Array.isArray((error as any).issues)) {
+      const zodError = error as any;
+      res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        details: zodError.issues.map((issue: any) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+          code: issue.code
+        }))
+      });
+    } else {
+      console.error("Product validation error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Internal server error"
+      });
+    }
+  }
+});
 
 export default router;

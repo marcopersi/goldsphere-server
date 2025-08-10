@@ -2,11 +2,19 @@
  * Orders Unit Tests
  * 
  * Tests order logic without database dependencies.
- * For integration tests that require database access,
- * see orders.integration.test.ts
+ * For integration         taxes: 370.00,
+        totalAmount: 4970.00,
+        currency: CurrencyEnum.USD,
+        shippingAddress: {s that require database access,
+ * see tests/integration/orders.integration.test.ts
  */
 
-import { Order } from '@marcopersi/shared';
+import { 
+  Order,
+  OrderType,
+  OrderStatus,
+  CurrencyEnum
+} from "@marcopersi/shared";
 
 describe('Orders Unit Tests', () => {
   describe('Order Type Validation', () => {
@@ -14,8 +22,8 @@ describe('Orders Unit Tests', () => {
       const validOrder: Order = {
         id: '12345678-1234-1234-1234-123456789abc',
         userId: '87654321-4321-4321-4321-cba987654321',
-        type: 'buy',
-        status: 'pending',
+        type: OrderType.BUY,
+        status: OrderStatus.PENDING,
         items: [
           {
             productId: 'prod-123',
@@ -34,7 +42,7 @@ describe('Orders Unit Tests', () => {
         },
         taxes: 320.00,
         totalAmount: 4410.00,
-        currency: 'USD',
+        currency: CurrencyEnum.USD,
         shippingAddress: {
           type: 'shipping',
           firstName: 'John',
@@ -56,19 +64,19 @@ describe('Orders Unit Tests', () => {
       // Test that the order has all required properties
       expect(validOrder.id).toBeDefined();
       expect(validOrder.userId).toBeDefined();
-      expect(validOrder.type).toBe('buy');
-      expect(validOrder.status).toBe('pending');
+      expect(validOrder.type).toBe(OrderType.BUY);
+      expect(validOrder.status).toBe(OrderStatus.PENDING);
       expect(validOrder.items).toHaveLength(1);
       expect(validOrder.totalAmount).toBe(4410.00);
-      expect(validOrder.currency).toBe('USD');
+      expect(validOrder.currency).toBe(CurrencyEnum.USD);
     });
 
     it('should handle orders with multiple items', () => {
-      const multiItemOrder: Order = {
-        id: '12345678-1234-1234-1234-123456789abc',
-        userId: '87654321-4321-4321-4321-cba987654321',
-        type: 'buy',
-        status: 'pending',
+      const anotherValidOrder: Order = {
+        id: '87654321-4321-4321-4321-cba987654321',
+        userId: '12345678-1234-1234-1234-123456789abc',
+        type: OrderType.BUY,
+        status: OrderStatus.PENDING,
         items: [
           {
             productId: 'prod-123',
@@ -95,7 +103,7 @@ describe('Orders Unit Tests', () => {
         },
         taxes: 360.00,
         totalAmount: 4970.00,
-        currency: 'USD',
+        currency: CurrencyEnum.USD,
         shippingAddress: {
           type: 'shipping',
           firstName: 'Jane',
@@ -113,9 +121,9 @@ describe('Orders Unit Tests', () => {
         updatedAt: new Date().toISOString()
       };
 
-      expect(multiItemOrder.items).toHaveLength(2);
-      expect(multiItemOrder.subtotal).toBe(4500.00);
-      expect(multiItemOrder.totalAmount).toBe(4970.00);
+      expect(anotherValidOrder.items).toHaveLength(2);
+      expect(anotherValidOrder.subtotal).toBe(4500.00);
+      expect(anotherValidOrder.totalAmount).toBe(4970.00);
     });
   });
 

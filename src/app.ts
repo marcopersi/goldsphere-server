@@ -57,7 +57,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
   try {
     // Check database for user
-    const result = await pool.query("SELECT id, userName, email, passwordHash FROM users WHERE email = $1", [email]);
+    const result = await pool.query("SELECT id, username, email, passwordhash FROM users WHERE email = $1", [email]);
     
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Invalid credentials" });
@@ -83,7 +83,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       user: { 
         id: user.id, 
         email: user.email, 
-        userName: user.username 
+        userName: user.username,
+        role: user.email.includes('admin') ? 'admin' : 'user'  // Simple role assignment based on email
       } 
     });
   } catch (error) {

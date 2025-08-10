@@ -224,7 +224,6 @@ router.post("/orders", async (req: Request, res: Response) => {
 // process order
 router.put("/orders/process/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  console.log("Processing order with id:", id);
   try {
     const orderResult = await pool.query("SELECT * FROM orders WHERE id = $1", [id]);
     if (orderResult.rows.length === 0) {
