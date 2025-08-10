@@ -48,7 +48,9 @@ describe("Orders API", () => {
       expect([200, 500].includes(response.status)).toBe(true);
       
       if (response.status === 200) {
-        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.success).toBe(true);
+        expect(Array.isArray(response.body.data.orders)).toBe(true);
+        expect(typeof response.body.data.pagination).toBe('object');
       }
     });
   });
