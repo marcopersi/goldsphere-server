@@ -5,14 +5,9 @@ import {
   Order,
   OrderType,
   OrderStatus,
-  CurrencyEnum
+  CurrencyEnum,
+  OrderQueryParamsSchema
 } from "@marcopersi/shared";
-import { 
-  OrdersQuerySchema, 
-  OrderResponse, 
-  OrdersResponse
-} from "../schemas/orders";
-import { Pagination } from "../schemas/products";
 
 const router = Router();
 
@@ -77,7 +72,7 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
 router.get("/orders", async (req: Request, res: Response) => {
   try {
     // Parse query parameters
-    const query = OrdersQuerySchema.parse(req.query);
+    const query = OrderQueryParamsSchema.parse(req.query);
     const { page, limit, status, type, userId } = query;
     
     // Calculate offset
@@ -138,11 +133,11 @@ router.get("/orders", async (req: Request, res: Response) => {
       ordersMap.get(row.id)!.push(row);
     });
     
-    const orders = Array.from(ordersMap.values()).map(rows => mapDatabaseRowsToOrder(rows)) as OrderResponse[];
+    const orders = Array.from(ordersMap.values()).map(rows => mapDatabaseRowsToOrder(rows));
     
     // Calculate pagination
     const totalPages = Math.ceil(total / limit);
-    const pagination: Pagination = {
+    const pagination = {
       page,
       limit,
       total,
@@ -152,7 +147,7 @@ router.get("/orders", async (req: Request, res: Response) => {
     };
     
     // Return standardized response
-    const response: OrdersResponse = {
+    const response = {
       success: true,
       data: {
         orders,

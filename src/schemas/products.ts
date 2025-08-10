@@ -15,14 +15,7 @@ export type ProductResponse = z.infer<typeof ProductSchema>;
 export type ProductsResponse = z.infer<typeof ProductsResponseSchema>;
 export type Pagination = z.infer<typeof PaginationSchema>;
 
-// Legacy Metal schema for backwards compatibility (if needed)
-export const MetalSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  symbol: z.string().describe('Chemical symbol, e.g. "AU", "AG", "PT", "PD"')
-});
-
-export type Metal = z.infer<typeof MetalSchema>;
+// Legacy Metal schema removed - now using Metal enum from shared package
 
 // Query parameters schema for products endpoint
 export const ProductsQuerySchema = z.object({

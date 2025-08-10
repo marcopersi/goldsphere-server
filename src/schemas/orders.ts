@@ -1,71 +1,40 @@
-import { z } from 'zod';
 import { 
-  PaginationSchema,
-  OrderTypeEnumSchema,
-  OrderStatusEnumSchema,
-  CurrencyEnumSchema
+  // Re-export shared schemas - NO MORE LOCAL SCHEMAS!
+  OrderSchema as SharedOrderSchema,
+  CreateOrderRequestSchema as SharedCreateOrderRequestSchema,
+  UpdateOrderRequestSchema as SharedUpdateOrderRequestSchema,
+  UpdateOrderStatusRequestSchema as SharedUpdateOrderStatusRequestSchema,
+  OrderApiResponseSchema as SharedOrderResponseSchema,
+  OrderApiListResponseSchema as SharedOrdersResponseSchema,
+  OrderQueryParamsSchema as SharedOrderQueryParamsSchema,
+  OrderItemSchema as SharedOrderItemSchema,
+  OrderFeesSchema as SharedOrderFeesSchema,
+  OrderTrackingSchema as SharedOrderTrackingSchema,
+  // Validation utilities
+  validateOrderTotals,
+  validateOrderItems,
+  calculateOrderTotals
 } from '@marcopersi/shared';
 
-// Order schema to match expected frontend structure with new enums
-export const OrderSchema = z.object({
-  id: z.string(),
-  userId: z.string(),
-  type: OrderTypeEnumSchema, // Now uses enum validation
-  status: OrderStatusEnumSchema, // Now uses enum validation  
-  items: z.array(z.object({
-    productId: z.string(),
-    productName: z.string(),
-    quantity: z.number(),
-    unitPrice: z.number(),
-    totalPrice: z.number(),
-    specifications: z.record(z.string(), z.any())
-  })),
-  subtotal: z.number(),
-  fees: z.object({
-    processing: z.number().optional(),
-    shipping: z.number().optional(),
-    insurance: z.number().optional()
-  }),
-  taxes: z.number(),
-  totalAmount: z.number(),
-  currency: CurrencyEnumSchema, // Now uses enum validation
-  shippingAddress: z.object({
-    type: z.string(),
-    firstName: z.string(),
-    lastName: z.string(),
-    street: z.string(),
-    city: z.string(),
-    state: z.string(),
-    zipCode: z.string(),
-    country: z.string()
-  }).optional(),
-  paymentMethod: z.object({
-    type: z.string()
-  }).optional(),
-  createdAt: z.string(),
-  updatedAt: z.string()
-});
+// Re-export shared schemas for local use
+export const OrderSchema = SharedOrderSchema;
+export const CreateOrderRequestSchema = SharedCreateOrderRequestSchema;
+export const UpdateOrderRequestSchema = SharedUpdateOrderRequestSchema;
+export const UpdateOrderStatusRequestSchema = SharedUpdateOrderStatusRequestSchema;
+export const OrderResponseSchema = SharedOrderResponseSchema;
+export const OrdersResponseSchema = SharedOrdersResponseSchema;
+export const OrderQueryParamsSchema = SharedOrderQueryParamsSchema;
+export const OrderItemSchema = SharedOrderItemSchema;
+export const OrderFeesSchema = SharedOrderFeesSchema;
+export const OrderTrackingSchema = SharedOrderTrackingSchema;
 
-export type OrderResponse = z.infer<typeof OrderSchema>;
+// Re-export types
+export type OrderResponse = typeof OrderResponseSchema._type;
+export type OrdersResponse = typeof OrdersResponseSchema._type;
+export type OrderQueryParams = typeof OrderQueryParamsSchema._type;
+export type CreateOrderRequest = typeof CreateOrderRequestSchema._type;
+export type UpdateOrderRequest = typeof UpdateOrderRequestSchema._type;
+export type UpdateOrderStatusRequest = typeof UpdateOrderStatusRequestSchema._type;
 
-// Orders API Response schema
-export const OrdersResponseSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
-    orders: z.array(OrderSchema),
-    pagination: PaginationSchema
-  })
-});
-
-export type OrdersResponse = z.infer<typeof OrdersResponseSchema>;
-
-// Query parameters schema for orders endpoint
-export const OrdersQuerySchema = z.object({
-  page: z.string().optional().transform(val => val ? parseInt(val) : 1),
-  limit: z.string().optional().transform(val => val ? parseInt(val) : 20),
-  status: z.string().optional(),
-  type: z.string().optional(),
-  userId: z.string().optional()
-});
-
-export type OrdersQuery = z.infer<typeof OrdersQuerySchema>;
+// Re-export validation utilities
+export { validateOrderTotals, validateOrderItems, calculateOrderTotals };
