@@ -12,198 +12,275 @@ env:
   POSTGRES_VERSION: '14'
 
 jobs:
-  test:
+  build:
+      name: Build
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+  
+        - name: Set up Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '18'
+            cache: 'npm'
+  
+        - name: Install Dependencies
+          run: npm ci
+          env:
+            NODE_AUTH_TOKEN: ${{ secrets.IDE_TOKEN }}
+  
+        - name: Build
+          run: npm run build
+          env:
+            CI: false # Prevents build from failing on warnings
+  
+        - name: Upload Build Artifacts
+          uses: actions/upload-artifact@v4
+          with:
+            name: build-artifacts
+            path: dist
+build:
+    name: Build
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
         env:
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_USER: postgres
-          POSTGRES_DB: goldsphere_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        
-    - name: Show npm config list
-      run: npm config list
-    - run: '[ -z "$NODE_AUTH_TOKEN" ] && echo "Token missing" || echo "Token present"'
-    - run: 'echo "Token length: ${#NODE_AUTH_TOKEN}"'
-    - name: Show npm config locations
-      run: npm config get userconfig && npm config get globalconfig
-    - name: List .npmrc files
-      run: |
-        ls -al $HOME/.npmrc || echo "No .npmrc in home"
-        ls -al .npmrc || echo "No .npmrc in repo"
-    
-    - name: Install Dependencies
-      run: npm ci
-      env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+      - name: Build
+        run: npm run build
+        env:
+          CI: false # Prevents build from failing on warnings
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist
+
+    lint:
+      name: Lint
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+  
+        - name: Set up Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '18'
+            cache: 'npm'
+  
+        - name: Install Dependencies
+          run: npm ci
+          env:
+            NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+  
+        - name: Run ESLint
+          run: npm run lint || echo "Linting completed with warnings"            
+    test:
+      runs-on: ubuntu-latest
+      
+      services:
+        postgres:
+          image: postgres:14
+          env:
+            POSTGRES_PASSWORD: test_password
+            POSTGRES_USER: postgres
+            POSTGRES_DB: goldsphere_test
+          options: >-
+            --health-cmd pg_isready
+            --health-interval 10s
+            --health-timeout 5s
+            --health-retries 5
+          ports:
+            - 5432:5432
+  
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+  
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
           
-    - name: Wait for Postgres to be ready
-      run: |
-        until pg_isready -h localhost -p 5432 -U postgres; do 
-          echo "Waiting for PostgreSQL to be ready..."
-          sleep 2
-        done
-        echo "PostgreSQL is ready!"
-
-    - name: Setup database schema
-      run: psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
-      env:
-        PGPASSWORD: postgres
-
-    - name: Database Initial Load
-      run: psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
-      env:
-        PGPASSWORD: postgres
-
-    - name: Load sample data
-      run: psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
-      env:
-        PGPASSWORD: postgres
-
-    - name: Run linting
-      run: npm run lint
-
-    - name: Run type checking
-      run: npx tsc --noEmit
-
-    - name: Run tests
-      run: npm run test:ci
-      env:
-        NODE_ENV: test
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: goldsphere_test
-        DB_USER: postgres
-        DB_PASSWORD: test_password
-        JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
-
-    - name: Upload coverage to Codecov
-      if: success()
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage/lcov.info
-        flags: unittests
-        name: codecov-umbrella
-
-    - name: Build application
-      run: npm run build
-
-    - name: Test build output
-      run: |
-        if [ ! -d "dist" ]; then
-          echo "Build failed - dist directory not found"
-          exit 1
-        fi
-        echo "Build successful"
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-
-    - name: Install Dependencies
-      run: npm ci
-      env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
-    - name: Run security audit
-      run: npm audit --audit-level moderate
-
-    - name: Run Snyk to check for vulnerabilities
-      uses: snyk/actions/node@master
-      continue-on-error: true
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-  deploy-staging:
-    needs: [test, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Show npm config list
+        run: npm config list
+      - run: '[ -z "$NODE_AUTH_TOKEN" ] && echo "Token missing" || echo "Token present"'
+      - run: 'echo "Token length: ${#NODE_AUTH_TOKEN}"'
+      - name: Show npm config locations
+        run: npm config get userconfig && npm config get globalconfig
+      - name: List .npmrc files
+        run: |
+          ls -al $HOME/.npmrc || echo "No .npmrc in home"
+          ls -al .npmrc || echo "No .npmrc in repo"
       
-    - name: Deploy to staging
-      run: |
-        echo "Deploying to staging environment..."
-        # Add your staging deployment commands here
-        # Example: docker build, push to registry, deploy to k8s, etc.
-
-  deploy-production:
-    needs: [test, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: npm ci
+        env:
+            NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+            
+      - name: Wait for Postgres to be ready
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do 
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+          echo "PostgreSQL is ready!"
+  
+      - name: Setup database schema
+        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
+        env:
+          PGPASSWORD: postgres
+  
+      - name: Database Initial Load
+        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
+        env:
+          PGPASSWORD: postgres
+  
+      - name: Load sample data
+        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
+        env:
+          PGPASSWORD: postgres
+  
+      - name: Run linting
+        run: npm run lint
+  
+      - name: Run type checking
+        run: npx tsc --noEmit
+  
+      - name: Run tests
+        run: npm run test:ci
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: goldsphere_test
+          DB_USER: postgres
+          DB_PASSWORD: test_password
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+  
+      - name: Upload coverage to Codecov
+        if: success()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+  
+      - name: Build application
+        run: npm run build
+  
+      - name: Test build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Build failed - dist directory not found"
+            exit 1
+          fi
+          echo "Build successful"
+  
+    security-scan:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+  
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+  
+      - name: Install Dependencies
+        run: npm ci
+        env:
+            NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+  
+      - name: Run security audit
+        run: npm audit --audit-level moderate
+  
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  
+    deploy-staging:
+      needs: [test, security-scan]
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
       
-    - name: Deploy to production
-      run: |
-        echo "Deploying to production environment..."
-        # Add your production deployment commands here
-        # Example: docker build, push to registry, deploy to k8s, etc.
-
-  api-docs:
-    needs: [test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-
-    - name: Install Dependencies
-      run: npm ci
-      env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
-    - name: Generate API documentation
-      run: |
-        npm run build
-        node -e "
-        const app = require('./dist/app.js').default;
-        const { swaggerSpec } = require('./dist/config/swagger.js');
-        const fs = require('fs');
-        fs.writeFileSync('api-spec.json', JSON.stringify(swaggerSpec, null, 2));
-        console.log('API spec generated');
-        "
-
-    - name: Upload API spec as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: api-specification
-        path: api-spec.json
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your staging deployment commands here
+          # Example: docker build, push to registry, deploy to k8s, etc.
+  
+    deploy-production:
+      needs: [test, security-scan]
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          # Add your production deployment commands here
+          # Example: docker build, push to registry, deploy to k8s, etc.
+  
+    api-docs:
+      needs: [test]
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+  
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+  
+      - name: Install Dependencies
+        run: npm ci
+        env:
+            NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+  
+      - name: Generate API documentation
+        run: |
+          npm run build
+          node -e "
+          const app = require('./dist/app.js').default;
+          const { swaggerSpec } = require('./dist/config/swagger.js');
+          const fs = require('fs');
+          fs.writeFileSync('api-spec.json', JSON.stringify(swaggerSpec, null, 2));
+          console.log('API spec generated');
+          "
+  
+      - name: Upload API spec as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-specification
+          path: api-spec.json
