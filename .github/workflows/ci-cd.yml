@@ -81,48 +81,6 @@ jobs:
         env:
           CI: true
 
-  deploy:
-    name: Deploy
-    needs: [build] # Only require build to succeed, not lint/test
-    if: |
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: dist
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Deploy to S3
-        run: |
-          if [ -n "${{ secrets.AWS_S3_BUCKET }}" ]; then
-            aws s3 sync dist/ s3://${{ secrets.AWS_S3_BUCKET }}/ --delete
-            echo "Deployed to S3"
-          else
-            echo "AWS_S3_BUCKET not configured. Skipping S3 deployment."
-          fi
-
-      - name: Invalidate CloudFront Cache
-        run: |
-          if [ -n "${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
-            aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
-            echo "Invalidated CloudFront cache"
-          else
-            echo "AWS_CLOUDFRONT_DISTRIBUTION_ID not configured. Skipping CloudFront invalidation."
-          fi
-
   tag-release:
     name: Tag Release
     needs: [deploy]
