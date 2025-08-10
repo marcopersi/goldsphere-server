@@ -72,7 +72,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@marcopersi/shared": "^1.0.9",
+    "@marcopersi/shared": "^1.0.11",
     "@types/bcrypt": "^6.0.0",
     "@types/stripe": "^8.0.416",
     "bcrypt": "^6.0.0",

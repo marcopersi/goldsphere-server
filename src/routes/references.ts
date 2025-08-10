@@ -4,7 +4,10 @@ import {
   Metal,
   ProductTypeEnum,
   CountryEnum,
-  Producer
+  Producer,
+  Custodian,
+  PaymentFrequency,
+  CustodyServiceType
 } from "@marcopersi/shared";
 
 const router = Router();
@@ -16,6 +19,9 @@ interface ReferenceData {
   countries: Array<{ code: string; name: string }>;
   producers: Array<{ id: string; name: string }>;
   currencies: Array<{ isoCode2: string; isoCode3: string; isoNumericCode: number }>;
+  custodians: Array<{ value: string; name: string }>;
+  paymentFrequencies: Array<{ value: string; displayName: string; description: string }>;
+  custodyServiceTypes: Array<{ value: string; displayName: string; description: string }>;
 }
 
 interface ReferenceDataResponse {
@@ -104,7 +110,8 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     // Get dynamic producers from database
     const producersResult = await pool.query("SELECT id, producerName as name FROM producer ORDER BY producerName");
-    const currenciesResult = await pool.query("SELECT countryCode as isoCode2, isoCode3, isoNumericCode, currencyName FROM currency ORDER BY isoCode3");
+    // Get currencies from database with correct column names
+    const currenciesResult = await pool.query('SELECT isocode2, isocode3, isonumericcode FROM currency ORDER BY isocode3');
 
     // Combine database producers with enum producers for comprehensive list
     const databaseProducers = producersResult.rows.map(row => ({
@@ -143,6 +150,20 @@ router.get("/", async (req: Request, res: Response) => {
         isoCode2: row.isocode2,
         isoCode3: row.isocode3,
         isoNumericCode: row.isonumericcode
+      })),
+      custodians: Custodian.values().map(custodian => ({
+        value: custodian.value,
+        name: custodian.name
+      })),
+      paymentFrequencies: PaymentFrequency.values().map(frequency => ({
+        value: frequency.value,
+        displayName: frequency.displayName,
+        description: frequency.description
+      })),
+      custodyServiceTypes: CustodyServiceType.values().map(serviceType => ({
+        value: serviceType.value,
+        displayName: serviceType.displayName,
+        description: serviceType.description
       }))
     };
 

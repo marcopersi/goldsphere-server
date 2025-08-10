@@ -34,12 +34,11 @@ CREATE TYPE portfolioPositionStatus AS ENUM ('ordered', 'settled', 'active', 'cl
 -- Create tables without foreign key references first
 CREATE TABLE IF NOT EXISTS currency (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    countryCode CHAR(2) NOT NULL COMMENT 'ISO 3166-1 alpha-2 country code',
-    isoCode3 CHAR(3) NOT NULL UNIQUE COMMENT 'ISO 4217 currency code',
-    isoNumericCode INT NOT NULL UNIQUE COMMENT 'ISO 4217 numeric code',
-    currencyName VARCHAR(100) NOT NULL COMMENT 'Full currency name',
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    isocode2 CHAR(2) NOT NULL COMMENT 'ISO 3166-1 alpha-2 country code',
+    isocode3 CHAR(3) NOT NULL UNIQUE COMMENT 'ISO 4217 currency code',
+    isonumericcode INT NOT NULL UNIQUE COMMENT 'ISO 4217 numeric code',
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS custodian (
