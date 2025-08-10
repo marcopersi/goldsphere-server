@@ -3,23 +3,18 @@ import pool from "../dbConfig"; // Import the shared pool configuration
 import { 
   Metal,
   ProductTypeEnum,
-  CountryEnum
+  CountryEnum,
+  Producer
 } from "@marcopersi/shared";
 
 const router = Router();
-
-// Producer interface for dynamic data
-interface Producer {
-  id: string;
-  name: string;
-}
 
 // Response interfaces
 interface ReferenceData {
   metals: Array<{ symbol: string; name: string }>;
   productTypes: Array<{ name: string }>;
   countries: Array<{ code: string; name: string }>;
-  producers: Producer[];
+  producers: Array<{ id: string; name: string }>;
   currencies: Array<{ isoCode2: string; isoCode3: string; isoNumericCode: number }>;
 }
 
@@ -107,11 +102,28 @@ interface ReferenceDataResponse {
  */
 router.get("/", async (req: Request, res: Response) => {
   try {
-    // Get producers from database (dynamic data)  
-    const [producersResult, currenciesResult] = await Promise.all([
-      pool.query("SELECT id, producerName as name FROM producer ORDER BY producerName"),
-      pool.query("SELECT countryCode as isoCode2, isoCode3, isoNumericCode, currencyName FROM currency ORDER BY isoCode3")
-    ]);
+    // Get dynamic producers from database
+    const producersResult = await pool.query("SELECT id, producerName as name FROM producer ORDER BY producerName");
+    const currenciesResult = await pool.query("SELECT countryCode as isoCode2, isoCode3, isoNumericCode, currencyName FROM currency ORDER BY isoCode3");
+
+    // Combine database producers with enum producers for comprehensive list
+    const databaseProducers = producersResult.rows.map(row => ({
+      id: row.id,
+      name: row.name
+    }));
+
+    const enumProducers = Producer.values().map(producer => ({
+      id: `enum-${producer.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: producer.name
+    }));
+
+    // Merge and deduplicate by name
+    const allProducers = [...databaseProducers];
+    enumProducers.forEach(enumProducer => {
+      if (!databaseProducers.some(dbProducer => dbProducer.name === enumProducer.name)) {
+        allProducers.push(enumProducer);
+      }
+    });
 
     // Use class-based enums for static reference data
     const referenceData: ReferenceData = {
@@ -126,7 +138,7 @@ router.get("/", async (req: Request, res: Response) => {
         code: country.code, // lowercase ISO code
         name: country.name
       })),
-      producers: producersResult.rows as Producer[],
+      producers: allProducers,
       currencies: currenciesResult.rows.map(row => ({
         isoCode2: row.isocode2,
         isoCode3: row.isocode3,

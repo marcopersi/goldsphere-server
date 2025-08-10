@@ -9,6 +9,7 @@ import portfolioRoutes from "./routes/portfolio";
 import positionRoutes from "./routes/position";
 import productRoutes from "./routes/products";
 import referencesRoutes from "./routes/references";
+import enumsDemoRoutes from "./routes/enumsDemo";
 import usersRoutes from "./routes/users";
 import custodiansRoutes from "./routes/custodians";
 import custodyServiceRoutes from "./routes/custodyService";
@@ -149,6 +150,7 @@ app.get("/api-spec.yaml", (req: any, res: any) => {
 // Public routes
 app.use("/api/products", productRoutes);
 app.use("/api", referencesRoutes);
+app.use("/api/enums", enumsDemoRoutes);
 
 // Webhook routes (no auth required)
 app.use("/api/payments/webhook", (req, res) => {

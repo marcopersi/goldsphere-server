@@ -1,7 +1,12 @@
 import { Router, Request, Response } from "express";
 import pool from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
-import { Order } from "@marcopersi/shared";
+import { 
+  Order,
+  OrderType,
+  OrderStatus,
+  CurrencyEnum
+} from "@marcopersi/shared";
 import { 
   OrdersQuerySchema, 
   OrderResponse, 
@@ -27,11 +32,16 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
     specifications: {}
   }));
 
+  // Map database values to enum instances
+  const orderType = OrderType.fromValue(firstRow.ordertype) || OrderType.BUY;
+  const orderStatus = OrderStatus.fromValue(firstRow.orderstatus) || OrderStatus.PENDING;
+  const currency = CurrencyEnum.fromIsoCode3('USD') || CurrencyEnum.USD;
+
   return {
     id: firstRow.id,
     userId: firstRow.userid,
-    type: 'buy' as const,
-    status: firstRow.orderstatus,
+    type: orderType,  // Use enum instance
+    status: orderStatus,  // Use enum instance
     items: items,
     subtotal: items.reduce((sum, item) => sum + item.totalPrice, 0),
     fees: {
@@ -41,9 +51,9 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
     },
     taxes: 0,
     totalAmount: items.reduce((sum, item) => sum + item.totalPrice, 0),
-    currency: 'USD' as const,
+    currency: currency,  // Use enum instance
     shippingAddress: {
-      type: 'shipping' as const,
+      type: 'shipping',
       firstName: '',
       lastName: '',
       street: '',

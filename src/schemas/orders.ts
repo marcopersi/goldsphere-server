@@ -1,12 +1,17 @@
 import { z } from 'zod';
-import { PaginationSchema } from './products';
+import { 
+  PaginationSchema,
+  OrderTypeEnumSchema,
+  OrderStatusEnumSchema,
+  CurrencyEnumSchema
+} from '@marcopersi/shared';
 
-// Order schema to match expected frontend structure
+// Order schema to match expected frontend structure with new enums
 export const OrderSchema = z.object({
   id: z.string(),
   userId: z.string(),
-  type: z.enum(['buy', 'sell']),
-  status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']),
+  type: OrderTypeEnumSchema, // Now uses enum validation
+  status: OrderStatusEnumSchema, // Now uses enum validation  
   items: z.array(z.object({
     productId: z.string(),
     productName: z.string(),
@@ -23,7 +28,7 @@ export const OrderSchema = z.object({
   }),
   taxes: z.number(),
   totalAmount: z.number(),
-  currency: z.enum(['USD', 'EUR', 'GBP']),
+  currency: CurrencyEnumSchema, // Now uses enum validation
   shippingAddress: z.object({
     type: z.string(),
     firstName: z.string(),
