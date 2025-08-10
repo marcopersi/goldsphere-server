@@ -93,15 +93,15 @@ jobs:
       - name: Setup database schema
         run: psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
         env:
-          PGPASSWORD: postgres
+          PGPASSWORD: test_password
       - name: Database Initial Load
         run: psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
         env:
-          PGPASSWORD: postgres
+          PGPASSWORD: test_password
       - name: Load sample data
         run: psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
         env:
-          PGPASSWORD: postgres
+          PGPASSWORD: test_password
       - name: Run linting
         run: npm run lint
       - name: Run type checking
