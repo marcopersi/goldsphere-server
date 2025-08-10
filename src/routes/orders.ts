@@ -1,9 +1,13 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig"; // Import the shared pool configuration
-import fs from "fs";
-import path from "path";
+import pool from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
-import { Order } from "@marcopersi/shared"
+import { Order } from "@marcopersi/shared";
+import { 
+  OrdersQuerySchema, 
+  OrderResponse, 
+  OrdersResponse
+} from "../schemas/orders";
+import { Pagination } from "../schemas/products";
 
 const router = Router();
 
@@ -56,13 +60,64 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
   };
 };
 
-// Load SQL query from file
-const queries = fs.readFileSync(path.join(__dirname, "../queries/queries.json"), "utf8");
+// Load SQL query from file (for future use if needed)
+// const queries = fs.readFileSync(path.join(__dirname, "../queries/queries.json"), "utf8");
 
 // GET all orders
 router.get("/orders", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(JSON.parse(queries).getOrders);
+    // Parse query parameters
+    const query = OrdersQuerySchema.parse(req.query);
+    const { page, limit, status, type, userId } = query;
+    
+    // Calculate offset
+    const offset = (page - 1) * limit;
+    
+    // Build WHERE clause
+    let whereConditions: string[] = [];
+    let queryParams: any[] = [];
+    let paramIndex = 1;
+    
+    if (status) {
+      whereConditions.push(`orderStatus = $${paramIndex}`);
+      queryParams.push(status);
+      paramIndex++;
+    }
+    
+    if (type) {
+      whereConditions.push(`orderType = $${paramIndex}`);
+      queryParams.push(type);
+      paramIndex++;
+    }
+    
+    if (userId) {
+      whereConditions.push(`userId = $${paramIndex}`);
+      queryParams.push(userId);
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(DISTINCT id) as total
+      FROM orders 
+      ${whereClause}
+    `;
+    
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+    
+    // Get orders with pagination
+    const dataQuery = `
+      SELECT * FROM orders 
+      ${whereClause}
+      ORDER BY createdAt DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    
+    queryParams.push(limit, offset);
+    const result = await pool.query(dataQuery, queryParams);
     
     // Group database rows by order ID and convert to Order objects
     const ordersMap = new Map<string, any[]>();
@@ -73,11 +128,36 @@ router.get("/orders", async (req: Request, res: Response) => {
       ordersMap.get(row.id)!.push(row);
     });
     
-    const orders = Array.from(ordersMap.values()).map(rows => mapDatabaseRowsToOrder(rows));
-    res.json(orders);
+    const orders = Array.from(ordersMap.values()).map(rows => mapDatabaseRowsToOrder(rows)) as OrderResponse[];
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(total / limit);
+    const pagination: Pagination = {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
+    };
+    
+    // Return standardized response
+    const response: OrdersResponse = {
+      success: true,
+      data: {
+        orders,
+        pagination
+      }
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error("Error fetching orders:", error);
-    res.status(500).json({ error: "Failed to fetch orders", details: (error as Error).message });
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch orders", 
+      details: (error as Error).message 
+    });
   }
 });
 

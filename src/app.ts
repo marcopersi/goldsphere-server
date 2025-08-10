@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import pool from "./dbConfig";
 import portfolioRoutes from "./routes/portfolio";
 import positionRoutes from "./routes/position";
 import productRoutes from "./routes/products";
@@ -43,28 +45,49 @@ app.use(cors({
 app.use(rawBodyMiddleware);
 app.use(express.json({ limit: "5mb" }));
 
-// Temporary login endpoint for testing
-app.post("/api/auth/login", (req: any, res: any) => {
+// Login endpoint with database authentication
+app.post("/api/auth/login", async (req: any, res: any) => {
   const { email, password } = req.body;
   
   // Validate required fields
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
   }
-  
-  if (email === "admin@goldsphere.vault" && password === "admin123") {
+
+  try {
+    // Check database for user
+    const result = await pool.query("SELECT id, userName, email, passwordHash FROM users WHERE email = $1", [email]);
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const user = result.rows[0];
+    const isValidPassword = await bcrypt.compare(password, user.passwordhash);
+
+    if (!isValidPassword) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Generate JWT token
     const token = jwt.sign(
-      { id: "admin-id", email, role: "admin" },
+      { id: user.id, email: user.email, userName: user.username },
       process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "24h" }
     );
+
     res.json({ 
       success: true,
       token, 
-      user: { id: "admin-id", email, role: "admin" } 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        userName: user.username 
+      } 
     });
-  } else {
-    res.status(401).json({ error: "Invalid credentials" });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

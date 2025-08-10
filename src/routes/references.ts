@@ -1,7 +1,154 @@
 import { Router, Request, Response } from "express";
 import pool from "../dbConfig"; // Import the shared pool configuration
+import { 
+  Metal,
+  ProductTypeEnum,
+  CountryEnum
+} from "@marcopersi/shared";
 
 const router = Router();
+
+// Producer interface for dynamic data
+interface Producer {
+  id: string;
+  name: string;
+}
+
+// Response interfaces
+interface ReferenceData {
+  metals: Array<{ symbol: string; name: string }>;
+  productTypes: Array<{ name: string }>;
+  countries: Array<{ code: string; name: string }>;
+  producers: Producer[];
+  currencies: Array<{ isoCode2: string; isoCode3: string; isoNumericCode: number }>;
+}
+
+interface ReferenceDataResponse {
+  success: boolean;
+  data: ReferenceData;
+}
+
+/**
+ * @swagger
+ * /references:
+ *   get:
+ *     summary: Get all reference data
+ *     tags: [References]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Reference data including metals, product types, countries, producers, and currencies
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     metals:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           symbol:
+ *                             type: string
+ *                             description: Chemical symbol (e.g. AU, AG, PT, PD)
+ *                     productTypes:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                     countries:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           code:
+ *                             type: string
+ *                             description: ISO 3166-1 alpha-2 country code (lowercase)
+ *                           name:
+ *                             type: string
+ *                     producers:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                     currencies:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           isoCode2:
+ *                             type: string
+ *                           isoCode3:
+ *                             type: string
+ *                           isoNumericCode:
+ *                             type: number
+ *       500:
+ *         description: Server error
+ */
+router.get("/", async (req: Request, res: Response) => {
+  try {
+    // Get producers from database (dynamic data)  
+    const [producersResult, currenciesResult] = await Promise.all([
+      pool.query("SELECT id, producerName as name FROM producer ORDER BY producerName"),
+      pool.query("SELECT countryCode as isoCode2, isoCode3, isoNumericCode, currencyName FROM currency ORDER BY isoCode3")
+    ]);
+
+    // Use class-based enums for static reference data
+    const referenceData: ReferenceData = {
+      metals: Metal.values().map(metal => ({
+        symbol: metal.symbol,
+        name: metal.name
+      })),
+      productTypes: ProductTypeEnum.values().map(productType => ({
+        name: productType.name
+      })),
+      countries: CountryEnum.values().map(country => ({
+        code: country.code, // lowercase ISO code
+        name: country.name
+      })),
+      producers: producersResult.rows as Producer[],
+      currencies: currenciesResult.rows.map(row => ({
+        isoCode2: row.isocode2,
+        isoCode3: row.isocode3,
+        isoNumericCode: row.isonumericcode
+      }))
+    };
+
+    const response: ReferenceDataResponse = {
+      success: true,
+      data: referenceData
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching reference data:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch reference data",
+      details: (error as Error).message
+    });
+  }
+});
 
 // Issuing Countries Endpoints
 router.get("/issuingCountries", async (req: Request, res: Response) => {

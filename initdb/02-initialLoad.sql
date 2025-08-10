@@ -16,14 +16,12 @@ VALUES
     ('Palladium', 'PD', CURRENT_TIMESTAMP),
     ('Platinum', 'PT', CURRENT_TIMESTAMP);
 
-INSERT INTO currency (countryCode, isoCode3, isoNumericCode, currencyName, createdAt)
+INSERT INTO currency (isoCode2, isoCode3, isoNumericCode, createdAt)
 VALUES
-    ('US', 'USD', 840, 'US Dollar', CURRENT_TIMESTAMP),
-    ('DE', 'EUR', 978, 'Euro', CURRENT_TIMESTAMP),  -- Using DE as representative for EUR
-    ('CH', 'CHF', 756, 'Swiss Franc', CURRENT_TIMESTAMP),
-    ('GB', 'GBP', 826, 'British Pound', CURRENT_TIMESTAMP),
-    ('CA', 'CAD', 124, 'Canadian Dollar', CURRENT_TIMESTAMP),
-    ('AU', 'AUD', 036, 'Australian Dollar', CURRENT_TIMESTAMP);
+    ('US', 'USD', 840, CURRENT_TIMESTAMP),
+    ('EU', 'EUR', 978, CURRENT_TIMESTAMP),
+    ('CH', 'CHF', 756, CURRENT_TIMESTAMP),
+    ('GB', 'GBP', 826, CURRENT_TIMESTAMP);
 
 -- Insert sample issuing countries
 INSERT INTO issuingCountry (issuingCountryName, isoCode2, createdAt)

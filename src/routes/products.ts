@@ -1,14 +1,11 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig"; // Import the shared pool configuration
+import pool from "../dbConfig";
 import { 
-  Product, 
-  ProductSchema,
-  ProductType,
-  MetalType,
-  Currency,
-  WeightUnit,
-  z 
-} from "@marcopersi/shared";
+  ProductsQuerySchema, 
+  ProductResponse, 
+  ProductsResponse,
+  Pagination
+} from "../schemas/products";
 
 const router = Router();
 
@@ -35,17 +32,83 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-// GET all products
+// GET all products with pagination
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(`
+    // Parse query parameters
+    const query = ProductsQuerySchema.parse(req.query);
+    const { page, limit, search, metal, type, inStock, minPrice, maxPrice } = query;
+    
+    // Calculate offset
+    const offset = (page - 1) * limit;
+    
+    // Build WHERE clause
+    let whereConditions: string[] = [];
+    let queryParams: any[] = [];
+    let paramIndex = 1;
+    
+    if (search) {
+      whereConditions.push(`(product.productName ILIKE $${paramIndex} OR product.description ILIKE $${paramIndex})`);
+      queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+    
+    if (metal) {
+      whereConditions.push(`metal.metalName ILIKE $${paramIndex}`);
+      queryParams.push(metal);
+      paramIndex++;
+    }
+    
+    if (type) {
+      whereConditions.push(`productType.productTypeName ILIKE $${paramIndex}`);
+      queryParams.push(type);
+      paramIndex++;
+    }
+    
+    if (inStock !== undefined) {
+      whereConditions.push(`product.inStock = $${paramIndex}`);
+      queryParams.push(inStock);
+      paramIndex++;
+    }
+    
+    if (minPrice !== undefined) {
+      whereConditions.push(`product.price >= $${paramIndex}`);
+      queryParams.push(minPrice);
+      paramIndex++;
+    }
+    
+    if (maxPrice !== undefined) {
+      whereConditions.push(`product.price <= $${paramIndex}`);
+      queryParams.push(maxPrice);
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM product 
+      JOIN productType ON productType.id = product.productTypeId 
+      JOIN metal ON metal.id = product.metalId 
+      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
+      JOIN producer ON producer.id = product.producerId
+      ${whereClause}
+    `;
+    
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+    
+    // Get products with pagination
+    const dataQuery = `
       SELECT 
         product.id, 
         product.productName AS productname, 
         productType.productTypeName AS producttype, 
-        metal.metalName AS metal, 
-        issuingCountry.issuingCountryName AS issuingcountry, 
-        issuingCountry.isoCode2, 
+        metal.id AS metalid,
+        metal.metalName AS metalname, 
+        metal.metalSymbol AS metalsymbol,
+        issuingCountry.isoCode2 AS countrycode, 
         producer.producerName AS producer, 
         product.fineWeight, 
         product.unitOfMeasure, 
@@ -56,14 +119,7 @@ router.get("/", async (req: Request, res: Response) => {
         product.description,
         product.imageFilename AS imageurl,
         product.inStock,
-        product.stockQuantity,
         product.minimumOrderQuantity,
-        product.premiumPercentage,
-        product.diameter,
-        product.thickness,
-        product.mintage,
-        product.certification,
-        product.tags,
         product.createdAt,
         product.updatedAt
       FROM product 
@@ -71,67 +127,70 @@ router.get("/", async (req: Request, res: Response) => {
       JOIN metal ON metal.id = product.metalId 
       LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
       JOIN producer ON producer.id = product.producerId
-    `);
+      ${whereClause}
+      ORDER BY product.createdAt DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
     
-    // Transform database results to match shared Product type
-    const products: Partial<Product>[] = result.rows.map(row => ({
+    queryParams.push(limit, offset);
+    const result = await pool.query(dataQuery, queryParams);
+    
+    // Transform database results to match expected structure
+    const products: ProductResponse[] = result.rows.map(row => ({
       id: row.id,
       name: row.productname,
-      type: mapProductType(row.producttype),
-      metal: mapMetalType(row.metal),
+      type: row.producttype,
+      metal: {
+        id: row.metalid,
+        name: row.metalname,
+        symbol: row.metalsymbol
+      },
       weight: parseFloat(row.fineweight) || 0,
-      weightUnit: row.unitofmeasure as WeightUnit,
+      weightUnit: row.unitofmeasure,
       purity: parseFloat(row.purity) || 0.999,
       price: parseFloat(row.price) || 0,
-      currency: row.currency as Currency,
+      currency: row.currency,
       producer: row.producer,
-      country: row.issuingcountry || '',
+      country: (row.countrycode || '').toLowerCase(),
       year: row.productyear || undefined,
       description: row.description || '',
-      imageUrl: row.imageurl || '',
       inStock: row.instock ?? true,
-      stockQuantity: row.stockquantity || 0,
       minimumOrderQuantity: row.minimumorderquantity || 1,
-      premiumPercentage: parseFloat(row.premiumpercentage) || undefined,
-      specifications: {
-        diameter: parseFloat(row.diameter) || undefined,
-        thickness: parseFloat(row.thickness) || undefined,
-        mintage: row.mintage || undefined,
-        certification: row.certification || undefined
-      },
-      tags: row.tags || [],
+      imageUrl: row.imageurl || '',
       createdAt: row.createdat || new Date().toISOString(),
       updatedAt: row.updatedat || new Date().toISOString()
     }));
     
-    res.json(products);
+    // Calculate pagination
+    const totalPages = Math.ceil(total / limit);
+    const pagination: Pagination = {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
+    };
+    
+    // Return standardized response
+    const response: ProductsResponse = {
+      success: true,
+      data: {
+        products,
+        pagination
+      }
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error("Error fetching products:", error);
-    res.status(500).json({ error: "Failed to fetch products", details: (error as Error).message });
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch products", 
+      details: (error as Error).message 
+    });
   }
 });
-
-// Helper functions to map database values to shared types
-function mapProductType(dbValue: string): ProductType {
-  const normalized = dbValue?.toLowerCase();
-  switch (normalized) {
-    case 'coin': return 'coin';
-    case 'bar': return 'bar';
-    case 'round': return 'round';
-    default: return 'coin'; // Default fallback
-  }
-}
-
-function mapMetalType(dbValue: string): MetalType {
-  const normalized = dbValue?.toLowerCase();
-  switch (normalized) {
-    case 'gold': return 'gold';
-    case 'silver': return 'silver';
-    case 'platinum': return 'platinum';
-    case 'palladium': return 'palladium';
-    default: return 'gold'; // Default fallback
-  }
-}
 
 /**
  * @swagger
@@ -176,9 +235,10 @@ router.get("/:id", async (req: Request, res: Response) => {
         product.id, 
         product.productName AS productname, 
         productType.productTypeName AS producttype, 
-        metal.metalName AS metal, 
-        issuingCountry.issuingCountryName AS issuingcountry, 
-        issuingCountry.isoCode2, 
+        metal.id AS metalid,
+        metal.metalName AS metalname, 
+        metal.metalSymbol AS metalsymbol,
+        issuingCountry.isoCode2 AS countrycode, 
         producer.producerName AS producer, 
         product.fineWeight, 
         product.unitOfMeasure, 
@@ -213,32 +273,27 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
     
     const row = result.rows[0];
-    const product: Partial<Product> = {
+    const product: ProductResponse = {
       id: row.id,
       name: row.productname,
-      type: mapProductType(row.producttype),
-      metal: mapMetalType(row.metal),
+      type: row.producttype,
+      metal: {
+        id: row.metalid,
+        name: row.metalname,
+        symbol: row.metalsymbol
+      } as any,
       weight: parseFloat(row.fineweight) || 0,
-      weightUnit: row.unitofmeasure as WeightUnit,
+      weightUnit: row.unitofmeasure,
       purity: parseFloat(row.purity) || 0.999,
       price: parseFloat(row.price) || 0,
-      currency: row.currency as Currency,
+      currency: row.currency,
       producer: row.producer,
-      country: row.issuingcountry || '',
+      country: (row.countrycode || '').toLowerCase(),
       year: row.productyear || undefined,
       description: row.description || '',
       imageUrl: row.imageurl || '',
       inStock: row.instock ?? true,
-      stockQuantity: row.stockquantity || 0,
       minimumOrderQuantity: row.minimumorderquantity || 1,
-      premiumPercentage: parseFloat(row.premiumpercentage) || undefined,
-      specifications: {
-        diameter: parseFloat(row.diameter) || undefined,
-        thickness: parseFloat(row.thickness) || undefined,
-        mintage: row.mintage || undefined,
-        certification: row.certification || undefined
-      },
-      tags: row.tags || [],
       createdAt: row.createdat || new Date().toISOString(),
       updatedAt: row.updatedat || new Date().toISOString()
     };
@@ -422,37 +477,6 @@ router.get("/search", async (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-// POST endpoint to validate product data using shared schema
-router.post("/validate", async (req: Request, res: Response) => {
-  try {
-    // Validate the request body against the shared ProductSchema
-    const validatedProduct = ProductSchema.parse(req.body);
-    
-    // If validation passes, you could save to database or just return success
-    res.json({ 
-      success: true, 
-      message: "Product data is valid",
-      product: validatedProduct 
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      // Return validation errors in a user-friendly format
-      res.status(400).json({
-        success: false,
-        message: "Validation failed",
-        errors: error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code
-        }))
-      });
-    } else {
-      console.error("Error validating product:", error);
-      res.status(500).json({ error: "Failed to validate product", details: (error as Error).message });
-    }
-  }
-});
-
 /**
  * @swagger
  * /products/{id}/image:

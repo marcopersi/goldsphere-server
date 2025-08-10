@@ -72,8 +72,10 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@marcopersi/shared": "^1.0.7",
+    "@marcopersi/shared": "^1.0.8",
+    "@types/bcrypt": "^6.0.0",
     "@types/stripe": "^8.0.416",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "dotenv": "^16.6.1",
