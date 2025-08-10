@@ -50,15 +50,13 @@ jobs:
         done
         echo "PostgreSQL is ready!"
 
-    - name: Create database schema
-      run: psql -h localhost -U postgres -d goldsphere_test -f ddl/schema.sql
+        - name: Setup database schema
+      run: psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
       env:
-        PGPASSWORD: test_password
+        PGPASSWORD: postgres
 
-    - name: Load initial data
-      run: psql -h localhost -U postgres -d goldsphere_test -f ddl/sampleData.sql
-      env:
-        PGPASSWORD: test_password
+    - name: Load sample data
+      run: psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
 
     - name: Run linting
       run: npm run lint

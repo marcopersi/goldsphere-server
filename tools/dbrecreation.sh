@@ -50,10 +50,10 @@ print_info "Port: $DB_PORT"
 print_info "Database: $DB_NAME"
 print_info "User: $DB_USER"
 
-# Check if schema.sql exists
-if [ ! -f "ddl/schema.sql" ]; then
-    print_error "ddl/schema.sql file not found"
-    exit 1
+# Check if schema file exists
+if [ ! -f "initdb/01-schema.sql" ]; then
+    print_error "initdb/01-schema.sql file not found"
+    return 1
 fi
 
 # Set PGPASSWORD environment variable to avoid password prompt
@@ -71,7 +71,7 @@ print_success "Database connection successful"
 
 # Run schema.sql
 print_info "Running schema.sql..."
-if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "ddl/schema.sql"; then
+if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "initdb/01-schema.sql"; then
     print_success "Schema applied successfully"
 else
     print_error "Failed to apply schema"
@@ -79,12 +79,12 @@ else
 fi
 
 # Optionally run sample data
-if [ -f "ddl/sampleData.sql" ]; then
+if [ -f "initdb/03-sampleData.sql" ]; then
     read -p "Do you want to load sample data? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_info "Loading sample data..."
-        if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "ddl/sampleData.sql"; then
+        if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "initdb/03-sampleData.sql"; then
             print_success "Sample data loaded successfully"
         else
             print_warning "Failed to load sample data"
