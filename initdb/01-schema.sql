@@ -1,8 +1,6 @@
 -- Drop tables if they exist (in correct order to avoid foreign key conflicts)
 DROP TABLE IF EXISTS transactions CASCADE;
-DROP TABLE IF EXISTS positions CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
-DROP TABLE IF EXISTS portfolioPosition CASCADE;
 DROP TABLE IF EXISTS position CASCADE;
 DROP TABLE IF EXISTS custodyService CASCADE;
 DROP TABLE IF EXISTS custodian CASCADE;
@@ -20,7 +18,6 @@ DROP TYPE IF EXISTS positionStatus;
 DROP TYPE IF EXISTS paymentFrequency;
 DROP TYPE IF EXISTS orderStatus;
 DROP TYPE IF EXISTS unitOfMeasure;
-DROP TYPE IF EXISTS portfolioPositionStatus;
 
 -- Create types
 CREATE TYPE transactionType AS ENUM ('buy', 'sell');
@@ -28,7 +25,6 @@ CREATE TYPE positionStatus AS ENUM ('active', 'closed');
 CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
 CREATE TYPE orderStatus AS ENUM ('pending', 'processing', 'shipped', 'delivered', 'cancelled');
 CREATE TYPE unitOfMeasure as ENUM ('grams', 'troy_ounces', 'kilograms');
-CREATE TYPE portfolioPositionStatus AS ENUM ('ordered', 'settled', 'active', 'closed', 'lended');
 
 -- Create tables without foreign key references first
 CREATE TABLE IF NOT EXISTS currency (
@@ -113,6 +109,7 @@ CREATE TABLE IF NOT EXISTS product (
     currency TEXT NOT NULL DEFAULT 'USD' CHECK (currency IN ('USD', 'EUR', 'GBP', 'CHF', 'CAD', 'AUD')),
     year INTEGER,
     description TEXT,
+    certifiedProvenance BOOLEAN NOT NULL DEFAULT FALSE,
     imageUrl TEXT NOT NULL DEFAULT '',
     imageData BYTEA,
     imageContentType VARCHAR(100),
@@ -131,17 +128,25 @@ CREATE TABLE IF NOT EXISTS product (
 );
 
 -- New Portfolio Management Tables (matching @goldsphere/shared types)
-CREATE TABLE IF NOT EXISTS positions (
+
+-- Legacy tables for backward compatibility (optional)
+CREATE TABLE IF NOT EXISTS portfolio (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    portfolioName TEXT NOT NULL,
+    ownerId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS position (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     userId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     productId UUID NOT NULL REFERENCES product(id),
+    portfolioId UUID NOT NULL REFERENCES portfolio(id) ON DELETE CASCADE,
     purchaseDate TIMESTAMP NOT NULL,
     purchasePrice NUMERIC(10,2) NOT NULL,
     marketPrice NUMERIC(10,2) NOT NULL,
     quantity NUMERIC(10,4) NOT NULL,
-    issuingCountry VARCHAR(100) NOT NULL,
-    producer VARCHAR(100) NOT NULL,
-    certifiedProvenance BOOLEAN NOT NULL DEFAULT FALSE,
     status positionStatus NOT NULL DEFAULT 'active',
     closedDate TIMESTAMP,
     notes TEXT,
@@ -151,7 +156,7 @@ CREATE TABLE IF NOT EXISTS positions (
 
 CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    positionId UUID NOT NULL REFERENCES positions(id) ON DELETE CASCADE,
+    positionId UUID NOT NULL REFERENCES position(id) ON DELETE CASCADE,
     userId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type transactionType NOT NULL,
     date TIMESTAMP NOT NULL,
@@ -160,15 +165,6 @@ CREATE TABLE IF NOT EXISTS transactions (
     fees NUMERIC(10,2) DEFAULT 0,
     notes TEXT,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Legacy tables for backward compatibility (optional)
-CREATE TABLE IF NOT EXISTS portfolio (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    portfolioName TEXT NOT NULL,
-    ownerId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS orders (

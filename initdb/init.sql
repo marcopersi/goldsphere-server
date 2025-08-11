@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_product_type ON product(productTypeId);
 CREATE INDEX IF NOT EXISTS idx_product_producer ON product(producerId);
 CREATE INDEX IF NOT EXISTS idx_product_country ON product(issuingCountryId);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(userId);
-CREATE INDEX IF NOT EXISTS idx_positions_user ON positions(userId);
+CREATE INDEX IF NOT EXISTS idx_position_user ON position(userId);
 CREATE INDEX IF NOT EXISTS idx_transactions_position ON transactions(positionId);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 

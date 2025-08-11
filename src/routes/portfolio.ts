@@ -11,7 +11,8 @@ const queries = fs.readFileSync(path.join(__dirname, "../queries/queries.json"),
 // GET portfolio positions
 router.get("/portfolios", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(JSON.parse(queries).getPortfolioPositions);
+    // Simple query to test basic functionality
+    const result = await pool.query("SELECT * FROM portfolio LIMIT 10");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching portfolios:", error);

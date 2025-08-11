@@ -420,14 +420,4 @@ router.get("/orderstatus", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/portfoliopositionstatus", async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query("SELECT enumlabel AS status FROM pg_enum WHERE enumtypid = 'portfoliopositionstatus'::regtype;");
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error fetching portfolio position status:", error);
-    res.status(500).json({ error: "Failed to fetch portfolio position status", details: (error as Error).message });
-  }
-});
-
 export default router;

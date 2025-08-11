@@ -166,58 +166,145 @@ router.get("/orders", async (req: Request, res: Response) => {
   }
 });
 
-// POST new order(s)
+// POST new order - Frontend sends minimal request, backend enriches
 router.post("/orders", async (req: Request, res: Response) => {
-  const orders: Order[] = Array.isArray(req.body) ? req.body : [req.body];
-  const insertedOrders = [];
-
   try {
-    for (const order of orders) {
-      // For each order, create separate database entries for each item
-      // This maps the modern Order structure to the legacy database
-      const orderResults = [];
+    // Extract userId from JWT token (set by authMiddleware)
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    // Validate that we have the minimal required fields from frontend
+    const { type, items, shippingAddress, paymentMethod, notes } = req.body;
+    
+    if (!type || !items) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields: type, items"
+      });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Items must be a non-empty array"
+      });
+    }
+
+    // Validate each item has the minimal required fields
+    for (const item of items) {
+      if (!item.productId || !item.quantity) {
+        return res.status(400).json({
+          success: false,
+          error: "Each item must have productId and quantity"
+        });
+      }
+    }
+    
+    // Generate backend-enriched fields
+    const orderId = uuidv4();
+    const now = new Date();
+    
+    // Enrich items with product details and calculate totals
+    const enrichedItems = [];
+    let subtotal = 0;
+    
+    for (const item of items) {
+      // Fetch product details to enrich the item
+      const productResult = await pool.query(
+        "SELECT name, price, currency FROM product WHERE id = $1",
+        [item.productId]
+      );
       
-      for (const item of order.items) {
-        const result = await pool.query(
-          "INSERT INTO orders (userId, productId, quantity, totalPrice, orderStatus, custodyServiceId) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-          [
-            order.userId,
-            item.productId,
-            item.quantity,
-            item.totalPrice,
-            order.status,
-            null // custodyServiceId - will be determined during order processing
-          ]
-        );
-        orderResults.push(result.rows[0]);
+      if (productResult.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Product not found: ${item.productId}`
+        });
       }
       
-      // Convert back to modern Order structure for response
-      const responseOrder: Order = {
-        id: orderResults[0].id, // Use first item's ID as order ID
-        userId: order.userId,
-        type: order.type,
-        status: order.status,
-        items: order.items,
-        subtotal: order.subtotal,
-        fees: order.fees,
-        taxes: order.taxes,
-        totalAmount: order.totalAmount,
-        currency: order.currency,
-        shippingAddress: order.shippingAddress,
-        paymentMethod: order.paymentMethod,
-        tracking: order.tracking,
-        notes: order.notes,
-        createdAt: orderResults[0].createdat,
-        updatedAt: orderResults[0].updatedat
-      };
+      const product = productResult.rows[0];
+      const unitPrice = parseFloat(product.price);
+      const totalPrice = unitPrice * item.quantity;
       
-      insertedOrders.push(responseOrder);
+      enrichedItems.push({
+        productId: item.productId,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice: unitPrice,
+        totalPrice: totalPrice,
+        specifications: item.specifications || {}
+      });
+      
+      subtotal += totalPrice;
     }
-    res.status(201).json(insertedOrders);
+
+    // Calculate fees and taxes (simplified for now)
+    const fees = {
+      processing: subtotal * 0.02, // 2% processing fee
+      shipping: 25.00, // Flat shipping
+      insurance: subtotal * 0.005 // 0.5% insurance
+    };
+    
+    const taxes = subtotal * 0.08; // 8% tax
+    const totalAmount = subtotal + fees.processing + fees.shipping + fees.insurance + taxes;
+    
+    // Create the enriched order object
+    const enrichedOrder: Order = {
+      id: orderId,
+      userId: userId, // Extracted from JWT token
+      type: type as OrderType,
+      status: OrderStatus.PENDING,
+      items: enrichedItems,
+      subtotal: subtotal,
+      fees: fees,
+      taxes: taxes,
+      totalAmount: totalAmount,
+      currency: CurrencyEnum.USD, // Default currency, could be extracted from user preferences
+      shippingAddress: shippingAddress,
+      paymentMethod: paymentMethod || { type: 'card' as const },
+      tracking: undefined,
+      notes: notes,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    // Store in legacy database format (each item as separate row)
+    for (const item of enrichedItems) {
+      await pool.query(
+        "INSERT INTO orders (id, userId, productId, quantity, totalPrice, orderStatus, custodyServiceId, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        [
+          orderId, // Use same orderId for all items in this order
+          enrichedOrder.userId,
+          item.productId,
+          item.quantity,
+          item.totalPrice,
+          enrichedOrder.status.value || "pending", // Use the string value for database
+          null, // custodyServiceId - will be determined during order processing
+          enrichedOrder.createdAt,
+          enrichedOrder.updatedAt
+        ]
+      );
+    }
+
+    // Return the enriched order structure
+    res.status(201).json({
+      success: true,
+      data: enrichedOrder,
+      message: "Order created successfully. Backend enriched the order with product details and calculations."
+    });
   } catch (error) {
-    console.error("Error adding order(s):", error);
-    res.status(500).json({ error: "Failed to add order(s)", details: (error as Error).message });
+    console.error("Error creating order:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to create order", 
+      details: (error as Error).message 
+    });
   }
 });
 
@@ -236,15 +323,15 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
 
     switch (order.orderstatus) {
       case "pending":
-        console.debug("Order is now pending, will be confirmed...");
-        newStatus = "confirmed";
+        console.debug("Order is now pending, will be processing...");
+        newStatus = "processing";
         break;
-      case "confirmed":
-        console.debug("Order is now confirmed, will be settled...");
-        newStatus = "settled";
+      case "processing":
+        console.debug("Order is now processing, will be shipped...");
+        newStatus = "shipped";
         break;
-      case "settled":
-        console.debug("Order is now settled, will be delivered...");
+      case "shipped":
+        console.debug("Order is now shipped, will be delivered...");
         newStatus = "delivered";
         break;
       case "delivered":
@@ -263,14 +350,21 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
 
     const updatedOrder = result.rows[0];
 
-    if (newStatus === "delivered") {
-      const positions = await insertPosition(updatedOrder);
-      const portfolioId = await findPortfolioId(updatedOrder.userid);
+    // Create portfolio and positions when order is shipped
+    if (newStatus === "shipped") {
+      let portfolioId = await findPortfolioId(updatedOrder.userid);
+      
+      // If user doesn't have a portfolio, create one
+      if (!portfolioId) {
+        portfolioId = await createPortfolioForUser(updatedOrder.userid);
+      }
+      
+      // Create positions for the shipped order
       if (portfolioId) {
-        // Create portfolio positions for each position created
-        for (const position of positions) {
-          await insertPortfolioPosition(portfolioId, position.id);
-        }
+        await insertPositionFromOrder(updatedOrder, portfolioId);
+        console.log(`Created positions for order ${updatedOrder.id} in portfolio ${portfolioId}`);
+      } else {
+        console.error(`Failed to create or find portfolio for user ${updatedOrder.userid}`);
       }
     }
 
@@ -321,7 +415,7 @@ router.get("/orders/:id", async (req: Request, res: Response) => {
   }
 });
 
-const insertPosition = async (order: Order) => {
+const insertPosition = async (order: Order, portfolioId: string) => {
   const positions = [];
   
   // Create a position for each order item
@@ -332,16 +426,18 @@ const insertPosition = async (order: Order) => {
     const updatedAt = new Date();
 
     const result = await pool.query(
-      `INSERT INTO public."position"(
-        id, custodyserviceid, productid, purchasedate, quantity, purchasepriceperunit, createdat, updatedat)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO public.position(
+        id, userId, productId, portfolioId, purchaseDate, quantity, purchasePrice, marketPrice, createdat, updatedat)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
         positionId,
-        null, // custodyserviceid - will be assigned when custody service is selected
+        order.userId,
         item.productId,
+        portfolioId,
         purchaseDate,
         item.quantity,
         item.unitPrice,
+        item.unitPrice, // Set marketPrice same as purchasePrice initially
         createdAt,
         updatedAt
       ]
@@ -353,25 +449,81 @@ const insertPosition = async (order: Order) => {
   return positions;
 };
 
-// Insert into portfolio position
-const insertPortfolioPosition = async (portfolioId: string, positionId: string) => {
-  const createdAt = new Date();
-  const updatedAt = new Date();
+// Create position from a database order row (simpler version for shipped orders)
+const insertPositionFromOrder = async (orderRow: any, portfolioId: string) => {
+  try {
+    const positionId = uuidv4();
+    const purchaseDate = new Date();
+    const createdAt = new Date();
+    const updatedAt = new Date();
 
-  await pool.query(
-    `INSERT INTO public.portfolioposition(
-      portfolioid, positionid, createdat, updatedat)
-      VALUES ($1, $2, $3, $4)`,
-    [portfolioId, positionId, createdAt, updatedAt]
-  );
+    const result = await pool.query(
+      `INSERT INTO public.position(
+        id, userId, productId, portfolioId, purchaseDate, quantity, purchasePrice, marketPrice, createdat, updatedat)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [
+        positionId,
+        orderRow.userid,  // Database row uses lowercase column names
+        orderRow.productid,
+        portfolioId,
+        purchaseDate,
+        parseFloat(orderRow.quantity),
+        parseFloat(orderRow.totalprice),
+        parseFloat(orderRow.totalprice), // Set marketPrice same as purchasePrice initially
+        createdAt,
+        updatedAt
+      ]
+    );
+
+    console.log(`Created position ${positionId} for product ${orderRow.productid}, quantity: ${orderRow.quantity}`);
+    return result.rows[0];
+  } catch (error) {
+    console.error(`Error creating position from order ${orderRow.id}:`, error);
+    throw error;
+  }
 };
 
+// Find portfolio for user
 const findPortfolioId = async (userId: string) => {
   const result = await pool.query(
     `SELECT id FROM public.portfolio WHERE ownerid = $1`, [userId]
   );
 
   return result.rows.length > 0 ? result.rows[0].id : null;
+}
+
+// Create a new portfolio for user if they don't have one
+const createPortfolioForUser = async (userId: string): Promise<string | null> => {
+  try {
+    // Get user information to create a meaningful portfolio name
+    const userResult = await pool.query(
+      `SELECT username, email FROM public.users WHERE id = $1`, [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      console.error(`User not found: ${userId}`);
+      return null;
+    }
+    
+    const user = userResult.rows[0];
+    const portfolioName = `${user.username}'s Portfolio`;
+    
+    // Create the portfolio
+    const portfolioResult = await pool.query(
+      `INSERT INTO public.portfolio (portfolioName, ownerId, createdAt, updatedAt) 
+       VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
+       RETURNING id`,
+      [portfolioName, userId]
+    );
+    
+    const portfolioId = portfolioResult.rows[0].id;
+    console.log(`Created new portfolio "${portfolioName}" (${portfolioId}) for user ${userId}`);
+    
+    return portfolioId;
+  } catch (error) {
+    console.error(`Error creating portfolio for user ${userId}:`, error);
+    return null;
+  }
 }
 
 export default router;

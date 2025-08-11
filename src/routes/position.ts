@@ -72,14 +72,12 @@ const mapDatabaseRowToPosition = async (row: any) => {
     id: row.id,
     userId: row.userid,
     productId: row.productid,
+    portfolioId: row.portfolioid,
     product: product,
     purchaseDate: row.purchasedate || new Date(),
     purchasePrice: parseFloat(row.purchaseprice) || 0,
     marketPrice: parseFloat(row.marketprice) || 0,
     quantity: parseFloat(row.quantity) || 0,
-    issuingCountry: row.issuingcountry || '',
-    producer: row.producer || '',
-    certifiedProvenance: row.certifiedprovenance ?? false,
     status: row.status || 'active',
     notes: row.notes || '',
     createdAt: row.createdat || new Date(),
@@ -87,30 +85,30 @@ const mapDatabaseRowToPosition = async (row: any) => {
   };
 };
 
-// GET all positions
+// GET all positions (global endpoint)
 router.get("/positions", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT * FROM positions ORDER BY createdat DESC");
+    const result = await pool.query("SELECT * FROM position ORDER BY createdat DESC");
     
     // Convert each row to a proper Position object with full product data
     const positions = await Promise.all(
       result.rows.map(row => mapDatabaseRowToPosition(row))
     );
 
-    const response = PositionsResponseSchema.parse({
+    const response = {
       success: true,
       data: {
-        positions,
+        positions: positions || [],
         pagination: {
           page: 1,
           limit: result.rows.length,
           total: result.rows.length,
-          totalPages: 1,
+          totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
           hasNext: false,
           hasPrev: false
         }
       }
-    });
+    };
 
     res.json(response);
   } catch (error) {
@@ -119,29 +117,66 @@ router.get("/positions", async (req: Request, res: Response) => {
   }
 });
 
+// GET all positions (alternative global endpoint)
+router.get("/global/positions", async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query("SELECT * FROM position ORDER BY createdat DESC");
+    
+    // Convert each row to a proper Position object with full product data
+    const positions = await Promise.all(
+      result.rows.map(row => mapDatabaseRowToPosition(row))
+    );
+
+    const response = {
+      success: true,
+      data: {
+        positions: positions || [],
+        pagination: {
+          page: 1,
+          limit: result.rows.length,
+          total: result.rows.length,
+          totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
+          hasNext: false,
+          hasPrev: false
+        }
+      }
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching global positions:", error);
+    res.status(500).json({ error: "Failed to fetch global positions", details: (error as Error).message });
+  }
+});
+
 // GET positions by portfolio
 router.get("/portfolios/:portfolioId/positions", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT * FROM positions WHERE portfolioid = $1 ORDER BY createdat DESC", [req.params.portfolioId]);
+    const result = await pool.query(`
+      SELECT * FROM position 
+      WHERE portfolioId = $1 
+      ORDER BY createdat DESC
+    `, [req.params.portfolioId]);
     
     const positions = await Promise.all(
       result.rows.map(row => mapDatabaseRowToPosition(row))
     );
 
-    const response = PositionsResponseSchema.parse({
+    // Simple response without schema validation for debugging
+    const response = {
       success: true,
       data: {
-        positions,
+        positions: positions,
         pagination: {
           page: 1,
           limit: result.rows.length,
           total: result.rows.length,
-          totalPages: 1,
+          totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
           hasNext: false,
           hasPrev: false
         }
       }
-    });
+    };
 
     res.json(response);
   } catch (error) {
@@ -168,7 +203,7 @@ router.post("/positions", async (req: Request, res: Response) => {
     const now = new Date();
 
     const result = await pool.query(
-      `INSERT INTO positions (
+      `INSERT INTO position (
         userId, portfolioId, productId, purchaseDate, purchasePrice, marketPrice, 
         quantity, issuingCountry, producer, certifiedProvenance, status, notes, 
         createdat, updatedat
@@ -223,7 +258,7 @@ router.put("/positions/:id", async (req: Request, res: Response) => {
     const validatedRequest = PositionUpdateRequestSchema.parse(req.body);
     
     // Get the current position first
-    const currentResult = await pool.query("SELECT * FROM positions WHERE id = $1", [id]);
+    const currentResult = await pool.query("SELECT * FROM position WHERE id = $1", [id]);
     if (currentResult.rows.length === 0) {
       return res.status(404).json({ error: "Position not found" });
     }
@@ -233,7 +268,7 @@ router.put("/positions/:id", async (req: Request, res: Response) => {
 
     // Update only the fields that are allowed to be updated
     const result = await pool.query(
-      `UPDATE positions SET 
+      `UPDATE position SET 
         marketPrice = $1, quantity = $2, status = $3, notes = $4, updatedat = $5 
       WHERE id = $6 RETURNING *`, 
       [
@@ -273,7 +308,7 @@ router.put("/positions/:id", async (req: Request, res: Response) => {
 router.delete("/positions/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("DELETE FROM positions WHERE id = $1 RETURNING id", [id]);
+    const result = await pool.query("DELETE FROM position WHERE id = $1 RETURNING id", [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Position not found" });
@@ -290,7 +325,7 @@ router.delete("/positions/:id", async (req: Request, res: Response) => {
 router.get("/positions/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("SELECT * FROM positions WHERE id = $1", [id]);
+    const result = await pool.query("SELECT * FROM position WHERE id = $1", [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Position not found" });

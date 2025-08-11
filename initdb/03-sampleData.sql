@@ -126,41 +126,45 @@ VALUES
     ('Jane''s Portfolio', (SELECT id FROM users WHERE email = 'jane.smith@example.com'), CURRENT_TIMESTAMP);
 
 -- Insert sample positions
-INSERT INTO positions (userId, productId, purchaseDate, purchasePrice, marketPrice, quantity, issuingCountry, producer, certifiedProvenance, status, notes, createdat)
+INSERT INTO position (userId, productId, portfolioId, purchaseDate, purchasePrice, marketPrice, quantity, status, notes, createdat)
 VALUES
     ((SELECT id FROM users WHERE email = 'john.doe@example.com'),
      (SELECT id FROM product WHERE name = 'Canadian Gold Maple Leaf'),
-     '2024-01-15T10:30:00Z', 1450.00, 1500.00, 5.0000, 'Canada', 'Royal Canadian Mint', true, 'active', 'Initial gold investment', CURRENT_TIMESTAMP),
+     (SELECT id FROM portfolio WHERE portfolioName = 'John''s Portfolio'),
+     '2024-01-15T10:30:00Z', 1450.00, 1500.00, 5.0000, 'active', 'Initial gold investment', CURRENT_TIMESTAMP),
      
     ((SELECT id FROM users WHERE email = 'jane.smith@example.com'),
      (SELECT id FROM product WHERE name = 'Silver Eagle Coin'),
-     '2024-02-20T14:15:00Z', 28.50, 30.00, 100.0000, 'USA', 'United States Mint', true, 'active', 'Silver portfolio diversification', CURRENT_TIMESTAMP),
+     (SELECT id FROM portfolio WHERE portfolioName = 'Jane''s Portfolio'),
+     '2024-02-20T14:15:00Z', 28.50, 30.00, 100.0000, 'active', 'Silver portfolio diversification', CURRENT_TIMESTAMP),
      
     ((SELECT id FROM users WHERE email = 'john.doe@example.com'),
      (SELECT id FROM product WHERE name = 'Gold Cast Bar 100g Valcambi'),
-     '2024-03-10T09:45:00Z', 5750.00, 5800.00, 2.0000, 'Switzerland', 'Valcambi', true, 'active', 'Physical gold bars', CURRENT_TIMESTAMP),
+     (SELECT id FROM portfolio WHERE portfolioName = 'John''s Portfolio'),
+     '2024-03-10T09:45:00Z', 5750.00, 5800.00, 2.0000, 'active', 'Physical gold bars', CURRENT_TIMESTAMP),
      
     ((SELECT id FROM users WHERE email = 'jane.smith@example.com'),
      (SELECT id FROM product WHERE name = 'Platinum Kangaroo Coin'),
-     '2024-01-25T16:20:00Z', 980.00, 1000.00, 3.0000, 'Australia', 'Perth Mint', true, 'closed', 'Sold for profit', CURRENT_TIMESTAMP);-- Insert sample transactions
+     (SELECT id FROM portfolio WHERE portfolioName = 'Jane''s Portfolio'),
+     '2024-01-25T16:20:00Z', 980.00, 1000.00, 3.0000, 'closed', 'Sold for profit', CURRENT_TIMESTAMP);
 INSERT INTO transactions (positionId, userId, type, date, quantity, price, fees, notes, createdat)
 VALUES
-    ((SELECT id FROM positions WHERE userId = (SELECT id FROM users WHERE email = 'john.doe@example.com') AND productId = (SELECT id FROM product WHERE name = 'Canadian Gold Maple Leaf')),
+    ((SELECT id FROM position WHERE userId = (SELECT id FROM users WHERE email = 'john.doe@example.com') AND productId = (SELECT id FROM product WHERE name = 'Canadian Gold Maple Leaf')),
      (SELECT id FROM users WHERE email = 'john.doe@example.com'),
      'buy', '2024-01-15T10:30:00Z', 5.0000, 1450.00, 25.00, 'Initial purchase of 5 Gold Maple Leaf coins', CURRENT_TIMESTAMP),
      
-    ((SELECT id FROM positions WHERE userId = (SELECT id FROM users WHERE email = 'jane.smith@example.com') AND productId = (SELECT id FROM product WHERE name = 'Silver Eagle Coin')),
+    ((SELECT id FROM position WHERE userId = (SELECT id FROM users WHERE email = 'jane.smith@example.com') AND productId = (SELECT id FROM product WHERE name = 'Silver Eagle Coin')),
      (SELECT id FROM users WHERE email = 'jane.smith@example.com'),
      'buy', '2024-02-20T14:15:00Z', 100.0000, 28.50, 15.00, 'Bulk purchase of Silver Eagles', CURRENT_TIMESTAMP),
      
-    ((SELECT id FROM positions WHERE userId = (SELECT id FROM users WHERE email = 'john.doe@example.com') AND productId = (SELECT id FROM product WHERE name = 'Gold Cast Bar 100g Valcambi')),
+    ((SELECT id FROM position WHERE userId = (SELECT id FROM users WHERE email = 'john.doe@example.com') AND productId = (SELECT id FROM product WHERE name = 'Gold Cast Bar 100g Valcambi')),
      (SELECT id FROM users WHERE email = 'john.doe@example.com'),
      'buy', '2024-03-10T09:45:00Z', 2.0000, 5750.00, 35.00, 'Purchase of 2x 100g gold bars', CURRENT_TIMESTAMP),
      
-    ((SELECT id FROM positions WHERE userId = (SELECT id FROM users WHERE email = 'jane.smith@example.com') AND productId = (SELECT id FROM product WHERE name = 'Platinum Kangaroo Coin')),
+    ((SELECT id FROM position WHERE userId = (SELECT id FROM users WHERE email = 'jane.smith@example.com') AND productId = (SELECT id FROM product WHERE name = 'Platinum Kangaroo Coin')),
      (SELECT id FROM users WHERE email = 'jane.smith@example.com'),
      'buy', '2024-01-25T16:20:00Z', 3.0000, 980.00, 20.00, 'Initial platinum investment', CURRENT_TIMESTAMP),
      
-    ((SELECT id FROM positions WHERE userId = (SELECT id FROM users WHERE email = 'jane.smith@example.com') AND productId = (SELECT id FROM product WHERE name = 'Platinum Kangaroo Coin')),
+    ((SELECT id FROM position WHERE userId = (SELECT id FROM users WHERE email = 'jane.smith@example.com') AND productId = (SELECT id FROM product WHERE name = 'Platinum Kangaroo Coin')),
      (SELECT id FROM users WHERE email = 'jane.smith@example.com'),
      'sell', '2024-04-15T11:30:00Z', 3.0000, 1000.00, 30.00, 'Sold platinum for profit', CURRENT_TIMESTAMP);
