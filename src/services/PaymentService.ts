@@ -171,7 +171,7 @@ export class PaymentService {
           currency: stripeRefund.currency.toUpperCase() as 'USD' | 'EUR' | 'GBP' | 'CHF',
           status: (stripeRefund.status as 'succeeded' | 'canceled' | 'pending' | 'failed') || 'pending',
           reason: stripeRefund.reason || 'requested_by_customer',
-          createdAt: new Date(stripeRefund.created * 1000).toISOString()
+          createdAt: new Date(stripeRefund.created * 1000)
         }
       };
     } catch (error) {
@@ -221,8 +221,8 @@ export class PaymentService {
       customerId: stripePI.customer as string || undefined,
       paymentMethodId: stripePI.payment_method as string || undefined,
       metadata: stripePI.metadata || {},
-      createdAt: new Date(stripePI.created * 1000).toISOString(),
-      updatedAt: new Date().toISOString() // Stripe doesn't track updated_at, use current time
+      createdAt: new Date(stripePI.created * 1000),
+      updatedAt: new Date() // Stripe doesn't track updated_at, use current time
     };
   }
 
@@ -256,8 +256,8 @@ export class PaymentService {
       expiryYear: stripePM.card?.exp_year || undefined,
       bankName: stripePM.us_bank_account?.bank_name || undefined,
       accountLast4: stripePM.us_bank_account?.last4 || undefined,
-      createdAt: new Date(stripePM.created * 1000).toISOString(),
-      updatedAt: new Date().toISOString() // Stripe doesn't track updated_at, use current time
+      createdAt: new Date(stripePM.created * 1000),
+      updatedAt: new Date() // Stripe doesn't track updated_at, use current time
     };
   }
 
