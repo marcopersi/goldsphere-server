@@ -4,11 +4,7 @@ import {
   PositionSchema,
   PositionCreateRequestSchema,
   PositionUpdateRequestSchema,
-  PositionQueryParamsSchema,
-  PositionsResponseSchema,
-  ProductSchema,
-  CurrencyEnum
-} from "@marcopersi/shared";
+  PositionsResponseSchema} from "@marcopersi/shared";
 import { z } from 'zod';
 
 const router = Router();
