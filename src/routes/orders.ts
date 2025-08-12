@@ -8,8 +8,12 @@ import {
   CurrencyEnum,
   OrderQueryParamsSchema
 } from "@marcopersi/shared";
+import { OrderService } from "../services/OrderService";
 
 const router = Router();
+
+// Initialize the order service
+const orderService = new OrderService();
 
 // Helper function to convert database rows to Order objects
 const mapDatabaseRowsToOrder = (rows: any[]): Order => {
@@ -166,7 +170,7 @@ router.get("/orders", async (req: Request, res: Response) => {
   }
 });
 
-// POST new order - Frontend sends minimal request, backend enriches
+// POST new order - Using OrderService for business logic separation
 router.post("/orders", async (req: Request, res: Response) => {
   try {
     // Extract userId from JWT token (set by authMiddleware)
@@ -179,131 +183,67 @@ router.post("/orders", async (req: Request, res: Response) => {
       });
     }
 
-    // Validate that we have the minimal required fields from frontend
-    const { type, items, shippingAddress, paymentMethod, notes } = req.body;
-    
-    if (!type || !items) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: type, items"
-      });
-    }
-
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Items must be a non-empty array"
-      });
-    }
-
-    // Validate each item has the minimal required fields
-    for (const item of items) {
-      if (!item.productId || !item.quantity) {
-        return res.status(400).json({
-          success: false,
-          error: "Each item must have productId and quantity"
-        });
-      }
-    }
-    
-    // Generate backend-enriched fields
-    const orderId = uuidv4();
-    const now = new Date();
-    
-    // Enrich items with product details and calculate totals
-    const enrichedItems = [];
-    let subtotal = 0;
-    
-    for (const item of items) {
-      // Fetch product details to enrich the item
-      const productResult = await pool.query(
-        "SELECT name, price, currency FROM product WHERE id = $1",
-        [item.productId]
-      );
-      
-      if (productResult.rows.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: `Product not found: ${item.productId}`
-        });
-      }
-      
-      const product = productResult.rows[0];
-      const unitPrice = parseFloat(product.price);
-      const totalPrice = unitPrice * item.quantity;
-      
-      enrichedItems.push({
-        productId: item.productId,
-        productName: product.name,
-        quantity: item.quantity,
-        unitPrice: unitPrice,
-        totalPrice: totalPrice,
-        specifications: item.specifications || {}
-      });
-      
-      subtotal += totalPrice;
-    }
-
-    // Calculate fees and taxes (simplified for now)
-    const fees = {
-      processing: subtotal * 0.02, // 2% processing fee
-      shipping: 25.00, // Flat shipping
-      insurance: subtotal * 0.005 // 0.5% insurance
-    };
-    
-    const taxes = subtotal * 0.08; // 8% tax
-    const totalAmount = subtotal + fees.processing + fees.shipping + fees.insurance + taxes;
-    
-    // Create the enriched order object
-    const enrichedOrder: Order = {
-      id: orderId,
-      userId: userId, // Extracted from JWT token
-      type: type as OrderType,
-      status: OrderStatus.PENDING,
-      items: enrichedItems,
-      subtotal: subtotal,
-      fees: fees,
-      taxes: taxes,
-      totalAmount: totalAmount,
-      currency: CurrencyEnum.USD, // Default currency, could be extracted from user preferences
-      shippingAddress: shippingAddress,
-      paymentMethod: paymentMethod || { type: 'card' as const },
-      tracking: undefined,
-      notes: notes,
-      createdAt: now,
-      updatedAt: now
+    // Prepare request for OrderService
+    const createOrderRequest = {
+      userId,
+      type: req.body.type,
+      items: req.body.items,
+      shippingAddress: req.body.shippingAddress,
+      paymentMethod: req.body.paymentMethod,
+      notes: req.body.notes
     };
 
-    // Store in legacy database format (each item as separate row)
-    for (const item of enrichedItems) {
-      await pool.query(
-        "INSERT INTO orders (id, userId, productId, quantity, totalPrice, orderStatus, custodyServiceId, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-        [
-          orderId, // Use same orderId for all items in this order
-          enrichedOrder.userId,
-          item.productId,
-          item.quantity,
-          item.totalPrice,
-          enrichedOrder.status.value || "pending", // Use the string value for database
-          null, // custodyServiceId - will be determined during order processing
-          enrichedOrder.createdAt,
-          enrichedOrder.updatedAt
-        ]
-      );
-    }
+    // Use OrderService to create the order
+    const result = await orderService.createOrder(createOrderRequest);
 
-    // Return the enriched order structure
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data: enrichedOrder,
-      message: "Order created successfully. Backend enriched the order with product details and calculations."
+      data: {
+        order: result.order,
+        calculation: result.calculation,
+        message: "Order created successfully",
+        summary: {
+          orderId: result.order.id,
+          itemCount: result.order.items.length,
+          subtotal: result.calculation.subtotal,
+          processingFee: result.calculation.processingFee,
+          taxes: result.calculation.taxes,
+          totalAmount: result.calculation.totalAmount
+        }
+      }
     });
+
   } catch (error) {
     console.error("Error creating order:", error);
-    res.status(500).json({ 
+    
+    // Handle specific business logic errors
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || 
+          error.message.includes('out of stock') ||
+          error.message.includes('Minimum order quantity') ||
+          error.message.includes('Insufficient stock')) {
+        return res.status(400).json({
+          success: false,
+          error: "Order validation failed",
+          details: error.message
+        });
+      }
+      
+      if (error.message.includes('required') || 
+          error.message.includes('must be') ||
+          error.message.includes('Invalid order type')) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid request data",
+          details: error.message
+        });
+      }
+    }
+
+    return res.status(500).json({
       success: false,
-      error: "Failed to create order", 
-      details: (error as Error).message 
+      error: "Failed to create order",
+      details: (error as Error).message
     });
   }
 });
