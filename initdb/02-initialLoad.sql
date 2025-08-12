@@ -89,8 +89,9 @@ INSERT INTO producer (producerName, createdat) VALUES
 ('Rand Refinery', CURRENT_TIMESTAMP);
 
 -- Insert users for testing and system operations
+-- Passwords: bank.technical@goldsphere.vault = "GoldspherePassword", admin@goldsphere.vault = "admin123"
+-- See CREDENTIALS.md for all system passwords
 INSERT INTO users (userName, email, passwordHash, createdat)
 VALUES
-    ('Bank Technical User', 'bank.technical@goldsphere.vault', '$2b$10$.06T8FlnlaUi3AxhUQ3xiuI7X/YG0KzkAKx7FfQyCKxXgH2zdK.8G', CURRENT_TIMESTAMP),
-    ('Admin User', 'admin@goldsphere.vault', '$2b$10$oWWBsW3k27.FHsrPkSp4quWD.hqcdk917aHcA9R4ITeU04uImejA2', CURRENT_TIMESTAMP),
-    ('Test User', 'test@example.com', '$2b$10$JnY0rEXKbSy7CIhRKMQt0u7NjAK9WahB6vkmQnOKzIIui5Js4GYrS', CURRENT_TIMESTAMP);
+    ('Bank Technical User', 'bank.technical@goldsphere.vault', '$2b$10$Qpvbznj0phc/iumR0YcUVezf0eWV6wR0j34KxK/WLR1VwGv8Wgmj6', CURRENT_TIMESTAMP),
+    ('Admin User', 'admin@goldsphere.vault', '$2b$10$oWWBsW3k27.FHsrPkSp4quWD.hqcdk917aHcA9R4ITeU04uImejA2', CURRENT_TIMESTAMP);

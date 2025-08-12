@@ -3,12 +3,17 @@
 # Test script for portfolio auto-creation when processing orders
 # Tests the logic where a user without a portfolio gets one created when order reaches "shipped"
 
-SERVER_URL="http://localhost:8888"
-ADMIN_EMAIL="admin@goldsphere.vault"
-ADMIN_PASSWORD="admin123"
+# Source credentials helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SCRIPT_DIR/credentials.sh"
 
 echo "=== Testing Portfolio Auto-Creation for Orders ==="
 echo
+
+# Test server connection
+if ! test_server_connection; then
+    exit 1
+fi
 
 # Step 1: Authenticate as admin
 echo "Step 1: Authenticating as admin..."
@@ -18,6 +23,7 @@ ADMIN_TOKEN=$(curl -s -X POST "$SERVER_URL/api/auth/login" \
 
 if [ "$ADMIN_TOKEN" = "null" ] || [ -z "$ADMIN_TOKEN" ]; then
   echo "❌ Admin authentication failed!"
+  echo "Check credentials in CREDENTIALS.md"
   exit 1
 fi
 

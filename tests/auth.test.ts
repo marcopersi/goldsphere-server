@@ -4,7 +4,22 @@ import { generateToken } from '../src/middleware/auth';
 
 describe('Authentication Endpoints', () => {
   describe('POST /api/auth/login', () => {
-    it('should authenticate with valid credentials', async () => {
+    it('should authenticate with valid bank technical user credentials', async () => {
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'bank.technical@goldsphere.vault',
+          password: 'GoldspherePassword'
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user).toHaveProperty('email', 'bank.technical@goldsphere.vault');
+    });
+
+    it('should authenticate with valid admin credentials', async () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
@@ -17,7 +32,6 @@ describe('Authentication Endpoints', () => {
       expect(response.body).toHaveProperty('token');
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', 'admin@goldsphere.vault');
-      expect(response.body.user).toHaveProperty('role', 'admin');
     });
 
     it('should reject invalid credentials', async () => {

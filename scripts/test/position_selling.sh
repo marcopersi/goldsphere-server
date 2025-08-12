@@ -1,23 +1,31 @@
 #!/bin/bash
 
-# Test script for selling positions and checking portfolio behavior
+# TestADMIN_TOKEN=$(curl -s -X POST "$SERVER_URL/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\": \"$ADMIN_EMAIL\", \"password\": \"$ADMIN_PASSWORD\"}" | jq -r '.token')ript for selling positions and checking portfolio behavior
 # Tests what happens to a portfolio when all its positions are sold/deleted
 
-SERVER_URL="http://localhost:8888"
-ADMIN_EMAIL="admin@goldsphere.vault"
-ADMIN_PASSWORD="admin123"
+# Source credentials helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SCRIPT_DIR/credentials.sh"
 
 echo "=== Testing Position Selling and Portfolio Behavior ==="
 echo
+
+# Test server connection
+if ! test_server_connection; then
+    exit 1
+fi
 
 # Step 1: Authenticate as admin
 echo "Step 1: Authenticating as admin..."
 ADMIN_TOKEN=$(curl -s -X POST "$SERVER_URL/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d "{\"email\": \"$ADMIN_EMAIL\", \"password\": \"$ADMIN_PASSWORD\"}" | jq -r '.token')
+  -d "{\"email\": \"$ADMIN_EMAIL\", \"password\": \"$ADMIN_PASSWORD\"}" | jq -r '.data.token // .token')
 
 if [ "$ADMIN_TOKEN" = "null" ] || [ -z "$ADMIN_TOKEN" ]; then
   echo "❌ Admin authentication failed!"
+  echo "Check credentials in CREDENTIALS.md"
   exit 1
 fi
 

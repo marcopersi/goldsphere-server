@@ -3,20 +3,27 @@
 # Test script for the corrected Order API
 # This demonstrates the proper frontend-minimal/backend-enriched pattern
 
+# Source credentials helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SCRIPT_DIR/credentials.sh"
+
 echo "=== Testing Corrected Order API ==="
 echo ""
 
-BASE_URL="http://localhost:8888"
+# Test server connection
+if ! test_server_connection; then
+    exit 1
+fi
 
-# First, get the auth token (assuming we have a test user)
-echo "1. Getting authentication token..."
+# First, get the auth token using bank technical user
+echo "1. Getting authentication token for bank technical user..."
 
-LOGIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/auth/login" \
+LOGIN_RESPONSE=$(curl -s -X POST "${SERVER_URL}/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@goldsphere.vault",
-    "password": "admin123"
-  }')
+  -d "{
+    \"email\": \"$BANK_EMAIL\",
+    \"password\": \"$BANK_PASSWORD\"
+  }")
 
 TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.token // empty')
 
@@ -26,18 +33,19 @@ if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
   echo ""
   echo "Please ensure:"
   echo "- Server is running on port 8888"
-  echo "- Test user exists (admin@goldsphere.vault)"
-  echo "- Database is initialized"
+  echo "- Bank technical user exists ($BANK_EMAIL)"
+  echo "- Database is initialized with correct password"
+  echo "- See CREDENTIALS.md for current passwords"
   exit 1
 fi
 
-echo "✅ Authentication successful"
+echo "✅ Authentication successful for $BANK_EMAIL"
 echo ""
 
 # Get a test product ID
 echo "2. Getting available products..."
 
-PRODUCTS_RESPONSE=$(curl -s -X GET "${BASE_URL}/api/products?limit=1" \
+PRODUCTS_RESPONSE=$(curl -s -X GET "${SERVER_URL}/api/products?limit=1" \
   -H "Authorization: Bearer $TOKEN")
 
 PRODUCT_ID=$(echo $PRODUCTS_RESPONSE | jq -r '.data.products[0].id // empty')
@@ -84,7 +92,7 @@ echo "Minimal request payload:"
 echo "$MINIMAL_ORDER_REQUEST" | jq '.'
 echo ""
 
-ORDER_RESPONSE=$(curl -s -X POST "${BASE_URL}/api/orders" \
+ORDER_RESPONSE=$(curl -s -X POST "${SERVER_URL}/api/orders" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d "$MINIMAL_ORDER_REQUEST")
