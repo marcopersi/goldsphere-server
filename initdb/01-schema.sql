@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     userId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     productId UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
     quantity NUMERIC(12, 2) NOT NULL,
     totalPrice NUMERIC(12, 2) NOT NULL,
     orderStatus orderStatus NOT NULL,

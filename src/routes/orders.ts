@@ -8,8 +8,12 @@ import {
   CurrencyEnum,
   OrderQueryParamsSchema
 } from "@marcopersi/shared";
+import { OrderService } from "../services/OrderService";
 
 const router = Router();
+
+// Initialize the order service
+const orderService = new OrderService();
 
 // Helper function to convert database rows to Order objects
 const mapDatabaseRowsToOrder = (rows: any[]): Order => {
@@ -68,29 +72,53 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
 // Load SQL query from file (for future use if needed)
 // const queries = fs.readFileSync(path.join(__dirname, "../queries/queries.json"), "utf8");
 
-// GET all orders
-router.get("/orders", async (req: Request, res: Response) => {
+// GET all orders (admin only) - comprehensive order management endpoint
+router.get("/orders/admin", async (req: Request, res: Response) => {
   try {
+    // Extract user info from JWT token
+    const authenticatedUser = (req as any).user;
+    
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    // Check if user is admin
+    if (authenticatedUser.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: "Access denied. Admin role required."
+      });
+    }
+
     // Parse query parameters
     const query = OrderQueryParamsSchema.parse(req.query);
     const { page, limit, status, type, userId } = query;
     
-    // Calculate offset
-    const offset = (page - 1) * limit;
+    // Use OrderService for basic order retrieval
+    const ordersResult = await OrderService.getOrdersByUserId(userId, {
+      page,
+      limit,
+      status,
+      type
+    });
     
-    // Build WHERE clause
+    // For admin view, we need additional statistics
+    // Build WHERE clause for stats query
     let whereConditions: string[] = [];
     let queryParams: any[] = [];
     let paramIndex = 1;
     
     if (status) {
-      whereConditions.push(`orderStatus = $${paramIndex}`);
+      whereConditions.push(`status = $${paramIndex}`);
       queryParams.push(status);
       paramIndex++;
     }
     
     if (type) {
-      whereConditions.push(`orderType = $${paramIndex}`);
+      whereConditions.push(`type = $${paramIndex}`);
       queryParams.push(type);
       paramIndex++;
     }
@@ -103,55 +131,155 @@ router.get("/orders", async (req: Request, res: Response) => {
     
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
-    // Get total count
-    const countQuery = `
-      SELECT COUNT(DISTINCT id) as total
-      FROM orders 
+    // Get summary statistics for admin dashboard
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as totalOrders,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pendingOrders,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completedOrders,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelledOrders,
+        COUNT(DISTINCT userId) as uniqueUsers
+      FROM orders
       ${whereClause}
     `;
     
-    const countResult = await pool.query(countQuery, queryParams);
-    const total = parseInt(countResult.rows[0].total);
+    const statsResult = await pool.query(statsQuery, queryParams);
+    const stats = statsResult.rows[0];
     
-    // Get orders with pagination
-    const dataQuery = `
-      SELECT * FROM orders 
-      ${whereClause}
-      ORDER BY createdAt DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-    
-    queryParams.push(limit, offset);
-    const result = await pool.query(dataQuery, queryParams);
-    
-    // Group database rows by order ID and convert to Order objects
-    const ordersMap = new Map<string, any[]>();
-    result.rows.forEach((row: any) => {
-      if (!ordersMap.has(row.id)) {
-        ordersMap.set(row.id, []);
+    // Return comprehensive admin response
+    const response = {
+      success: true,
+      data: {
+        orders: ordersResult.orders,
+        pagination: ordersResult.pagination,
+        statistics: {
+          totalOrders: parseInt(stats.totalorders),
+          pendingOrders: parseInt(stats.pendingorders),
+          completedOrders: parseInt(stats.completedorders),
+          cancelledOrders: parseInt(stats.cancelledorders),
+          uniqueUsers: parseInt(stats.uniqueusers)
+        },
+        filters: {
+          status,
+          type,
+          userId
+        },
+        adminContext: {
+          requestedBy: authenticatedUser.email,
+          role: authenticatedUser.role
+        }
       }
-      ordersMap.get(row.id)!.push(row);
+    };
+    
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching orders for admin:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch orders for admin", 
+      details: (error as Error).message 
+    });
+  }
+});
+
+// GET user's own orders - simplified endpoint for authenticated users
+router.get("/orders/my", async (req: Request, res: Response) => {
+  try {
+    // Extract user info from JWT token
+    const authenticatedUser = (req as any).user;
+    
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    // Parse query parameters (page, limit, status, type only - no userId)
+    const { page = 1, limit = 20, status, type } = req.query;
+    
+    // Use OrderService to get user's orders
+    const ordersResult = await OrderService.getOrdersByUserId(authenticatedUser.id, {
+      page: Number(page),
+      limit: Number(limit),
+      status: status as string,
+      type: type as string
     });
     
-    const orders = Array.from(ordersMap.values()).map(rows => mapDatabaseRowsToOrder(rows));
+    // Return standardized response
+    const response = {
+      success: true,
+      data: {
+        ...ordersResult,
+        user: {
+          id: authenticatedUser.id,
+          role: authenticatedUser.role
+        }
+      }
+    };
     
-    // Calculate pagination
-    const totalPages = Math.ceil(total / limit);
-    const pagination = {
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching user's orders:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch user's orders", 
+      details: (error as Error).message 
+    });
+  }
+});
+
+// GET all orders - intelligently routes based on user role and parameters
+router.get("/orders", async (req: Request, res: Response) => {
+  try {
+    // Extract user info from JWT token
+    const authenticatedUser = (req as any).user;
+    
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    const { userId } = req.query;
+    
+    // Access control: Regular users can only access their own orders
+    if (authenticatedUser.role !== 'admin' && userId && userId !== authenticatedUser.id) {
+      return res.status(403).json({
+        success: false,
+        error: "Access denied. Users can only view their own orders. Use /orders/my for a simpler experience."
+      });
+    }
+    
+    // Parse query parameters
+    const query = OrderQueryParamsSchema.parse(req.query);
+    const { page, limit, status, type } = query;
+    
+    // For regular users, force userId to their own ID
+    const effectiveUserId = authenticatedUser.role === 'admin' ? userId : authenticatedUser.id;
+    
+    // Use OrderService to get orders with proper access control
+    const ordersResult = await OrderService.getOrdersByUserId(effectiveUserId, {
       page,
       limit,
-      total,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrev: page > 1
+      status,
+      type
+    });
+    
+    const responseContext = {
+      requestedBy: `${authenticatedUser.role}:${authenticatedUser.email}`,
+      viewingOrdersFor: effectiveUserId || 'all-users',
+      endpointType: authenticatedUser.role === 'admin' ? 'admin-access' : 'user-scoped',
+      ...(authenticatedUser.role !== 'admin' && { suggestion: 'Consider using /orders/my for a simplified user experience' })
     };
     
     // Return standardized response
     const response = {
       success: true,
       data: {
-        orders,
-        pagination
+        ...ordersResult,
+        context: responseContext
       }
     };
     

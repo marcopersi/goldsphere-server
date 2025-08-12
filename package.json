@@ -16,7 +16,7 @@
     "test:orders-integration": "jest tests/integration/orders.integration.test.ts --testTimeout=30000",
     "test:payment-quick": "node scripts/test-payment-api.js",
     "start": "node dist/index.js",
-    "dev": "NODE_ENV=development node -r dotenv/config dist/index.js dotenv_config_path=.env.dev",
+    "dev": "nodemon",
     "dev:test": "NODE_ENV=test node -r dotenv/config dist/index.js dotenv_config_path=.env.test",
     "dev:prod": "NODE_ENV=production node -r dotenv/config dist/index.js dotenv_config_path=.env.prod",
     "build": "tsc && cp -r src/queries dist/",
