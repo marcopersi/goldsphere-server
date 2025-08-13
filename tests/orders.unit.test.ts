@@ -57,8 +57,8 @@ describe('Orders Unit Tests', () => {
           type: 'card'
         },
         notes: 'Test order',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
       // Test that the order has all required properties
@@ -117,8 +117,8 @@ describe('Orders Unit Tests', () => {
         paymentMethod: {
           type: 'card'
         },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
       expect(anotherValidOrder.items).toHaveLength(2);

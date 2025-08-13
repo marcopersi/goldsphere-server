@@ -270,19 +270,19 @@ export class OrderService {
     let paramIndex = 1;
     
     if (userId) {
-      whereConditions.push(`userId = $${paramIndex}`);
+      whereConditions.push(`o.userId = $${paramIndex}`);
       queryParams.push(userId);
       paramIndex++;
     }
     
     if (status) {
-      whereConditions.push(`orderStatus = $${paramIndex}`);
+      whereConditions.push(`o.status = $${paramIndex}`);
       queryParams.push(status);
       paramIndex++;
     }
     
     if (type) {
-      whereConditions.push(`type = $${paramIndex}`);
+      whereConditions.push(`o.type = $${paramIndex}`);
       queryParams.push(type);
       paramIndex++;
     }
@@ -291,8 +291,8 @@ export class OrderService {
     
     // Get total count
     const countQuery = `
-      SELECT COUNT(DISTINCT id) as total
-      FROM orders 
+      SELECT COUNT(DISTINCT o.id) as total
+      FROM orders o
       ${whereClause}
     `;
     
@@ -301,9 +301,15 @@ export class OrderService {
     
     // Get orders with pagination
     const dataQuery = `
-      SELECT * FROM orders 
+      SELECT o.*, 
+             oi.productid,
+             oi.quantity,
+             oi.unitprice,
+             oi.totalprice
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.orderid
       ${whereClause}
-      ORDER BY createdAt DESC
+      ORDER BY o.createdAt DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     
@@ -354,9 +360,9 @@ export class OrderService {
       .map(row => ({
         productId: row.productid,
         productName: row.productname || `Product ${row.productid}`,
-        quantity: parseFloat(row.quantity),
-        unitPrice: parseFloat(row.unitprice),
-        totalPrice: parseFloat(row.totalprice),
+        quantity: parseFloat(row.quantity || '0'),
+        unitPrice: parseFloat(row.unitprice || '0'),
+        totalPrice: parseFloat(row.totalprice || '0'),
         specifications: {}
       }));
 
@@ -364,7 +370,7 @@ export class OrderService {
       id: firstRow.id,
       userId: firstRow.userid,
       type: (firstRow.type ? OrderType.fromValue(firstRow.type) : null) || OrderType.BUY,
-      status: (firstRow.orderstatus ? OrderStatus.fromValue(firstRow.orderstatus) : null) || OrderStatus.PENDING,
+      status: (firstRow.status ? OrderStatus.fromValue(firstRow.status) : null) || OrderStatus.PENDING,
       items,
       subtotal: parseFloat(firstRow.subtotal || '0'),
       fees: {
@@ -373,10 +379,10 @@ export class OrderService {
         insurance: 0
       },
       taxes: parseFloat(firstRow.taxes || '0'),
-      totalAmount: parseFloat(firstRow.totalprice || '0'),
+      totalAmount: parseFloat(firstRow.totalamount || '0'),
       currency: CurrencyEnum.USD,
-      shippingAddress: firstRow.shippingaddress ? JSON.parse(firstRow.shippingaddress) : undefined,
-      paymentMethod: firstRow.paymentmethod ? JSON.parse(firstRow.paymentmethod) : undefined,
+      shippingAddress: firstRow.shippingaddress || undefined,
+      paymentMethod: firstRow.paymentmethod || undefined,
       notes: firstRow.notes,
       createdAt: new Date(firstRow.createdat),
       updatedAt: new Date(firstRow.updatedat)

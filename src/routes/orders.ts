@@ -449,7 +449,7 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
     const order = orderResult.rows[0];
     let newStatus;
 
-    switch (order.orderstatus) {
+    switch (order.status) {
       case "pending":
         console.debug("Order is now pending, will be processing...");
         newStatus = "processing";
@@ -472,7 +472,7 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
     }
 
     const result = await pool.query(
-      "UPDATE orders SET orderstatus = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+      "UPDATE orders SET status = $1, updatedat = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
       [newStatus, id]
     );
 
@@ -577,36 +577,54 @@ const insertPosition = async (order: Order, portfolioId: string) => {
   return positions;
 };
 
-// Create position from a database order row (simpler version for shipped orders)
+// Create position from a database order row (updated for new schema with order_items)
 const insertPositionFromOrder = async (orderRow: any, portfolioId: string) => {
   try {
-    const positionId = uuidv4();
+    // First, get all order items for this order
+    const orderItemsResult = await pool.query(
+      `SELECT * FROM order_items WHERE orderid = $1`,
+      [orderRow.id]
+    );
+
+    if (orderItemsResult.rows.length === 0) {
+      console.warn(`No order items found for order ${orderRow.id}`);
+      return [];
+    }
+
+    const positions = [];
     const purchaseDate = new Date();
     const createdAt = new Date();
     const updatedAt = new Date();
 
-    const result = await pool.query(
-      `INSERT INTO public.position(
-        id, userId, productId, portfolioId, purchaseDate, quantity, purchasePrice, marketPrice, createdat, updatedat)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [
-        positionId,
-        orderRow.userid,  // Database row uses lowercase column names
-        orderRow.productid,
-        portfolioId,
-        purchaseDate,
-        parseFloat(orderRow.quantity),
-        parseFloat(orderRow.totalprice),
-        parseFloat(orderRow.totalprice), // Set marketPrice same as purchasePrice initially
-        createdAt,
-        updatedAt
-      ]
-    );
+    // Create a position for each order item
+    for (const item of orderItemsResult.rows) {
+      const positionId = uuidv4();
+      
+      const result = await pool.query(
+        `INSERT INTO public.position(
+          id, userId, productId, portfolioId, purchaseDate, quantity, purchasePrice, marketPrice, createdat, updatedat)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [
+          positionId,
+          orderRow.userid,
+          item.productid,
+          portfolioId,
+          purchaseDate,
+          parseFloat(item.quantity),
+          parseFloat(item.unitprice),
+          parseFloat(item.unitprice), // Set marketPrice same as purchasePrice initially
+          createdAt,
+          updatedAt
+        ]
+      );
 
-    console.log(`Created position ${positionId} for product ${orderRow.productid}, quantity: ${orderRow.quantity}`);
-    return result.rows[0];
+      console.log(`Created position ${positionId} for product ${item.productid}, quantity: ${item.quantity}`);
+      positions.push(result.rows[0]);
+    }
+
+    return positions;
   } catch (error) {
-    console.error(`Error creating position from order ${orderRow.id}:`, error);
+    console.error(`Error creating positions from order ${orderRow.id}:`, error);
     throw error;
   }
 };
