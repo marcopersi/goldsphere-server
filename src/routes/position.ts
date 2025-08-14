@@ -23,6 +23,7 @@ const fetchProductForPosition = async (productId: string) => {
       product.price,
       product.currency,
       producer.producerName AS producer,
+      issuingCountry.issuingCountryName AS country,
       product.year AS productyear,
       product.description,
       product.imageFilename AS imageurl,
@@ -34,6 +35,7 @@ const fetchProductForPosition = async (productId: string) => {
     JOIN productType ON productType.id = product.productTypeId 
     JOIN metal ON metal.id = product.metalId 
     JOIN producer ON producer.id = product.producerId
+    LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId
     WHERE product.id = $1
   `;
   
@@ -54,6 +56,7 @@ const fetchProductForPosition = async (productId: string) => {
     price: parseFloat(row.price) || 0,
     currency: row.currency,
     producer: row.producer,
+    country: row.country || null,
     year: row.productyear || undefined,
     description: row.description || '',
     imageUrl: row.imageurl || '',
@@ -95,22 +98,19 @@ router.get("/positions", async (req: Request, res: Response) => {
       result.rows.map(row => mapDatabaseRowToPosition(row))
     );
 
-    const response = {
-      success: true,
-      data: {
-        positions: positions || [],
-        pagination: {
-          page: 1,
-          limit: result.rows.length,
-          total: result.rows.length,
-          totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
-          hasNext: false,
-          hasPrev: false
-        }
-      }
+    const pagination = {
+      page: 1,
+      limit: result.rows.length,
+      total: result.rows.length,
+      totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
+      hasNext: false,
+      hasPrev: false
     };
 
-    res.json(response);
+    res.json({
+      positions: positions || [],
+      pagination
+    });
   } catch (error) {
     console.error("Error fetching positions:", error);
     res.status(500).json({ error: "Failed to fetch positions", details: (error as Error).message });
@@ -127,22 +127,19 @@ router.get("/global/positions", async (req: Request, res: Response) => {
       result.rows.map(row => mapDatabaseRowToPosition(row))
     );
 
-    const response = {
-      success: true,
-      data: {
-        positions: positions || [],
-        pagination: {
-          page: 1,
-          limit: result.rows.length,
-          total: result.rows.length,
-          totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
-          hasNext: false,
-          hasPrev: false
-        }
-      }
+    const pagination = {
+      page: 1,
+      limit: result.rows.length,
+      total: result.rows.length,
+      totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
+      hasNext: false,
+      hasPrev: false
     };
 
-    res.json(response);
+    res.json({
+      positions: positions || [],
+      pagination
+    });
   } catch (error) {
     console.error("Error fetching global positions:", error);
     res.status(500).json({ error: "Failed to fetch global positions", details: (error as Error).message });
@@ -162,23 +159,19 @@ router.get("/portfolios/:portfolioId/positions", async (req: Request, res: Respo
       result.rows.map(row => mapDatabaseRowToPosition(row))
     );
 
-    // Simple response without schema validation for debugging
-    const response = {
-      success: true,
-      data: {
-        positions: positions,
-        pagination: {
-          page: 1,
-          limit: result.rows.length,
-          total: result.rows.length,
-          totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
-          hasNext: false,
-          hasPrev: false
-        }
-      }
+    const pagination = {
+      page: 1,
+      limit: result.rows.length,
+      total: result.rows.length,
+      totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
+      hasNext: false,
+      hasPrev: false
     };
 
-    res.json(response);
+    res.json({
+      positions,
+      pagination
+    });
   } catch (error) {
     console.error("Error fetching portfolio positions:", error);
     res.status(500).json({ error: "Failed to fetch portfolio positions", details: (error as Error).message });
