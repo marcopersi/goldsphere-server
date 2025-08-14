@@ -4,12 +4,30 @@ import pool from "../dbConfig";
 
 const router = Router();
 
-// GET /api/transactions - Get transaction history
-router.get("/", async (req: Request, res: Response): Promise<void> => {
+// GET /api/transactions - Get transaction history for authenticated user
+router.get("/transactions", async (req: Request, res: Response): Promise<void> => {
   const { page = 1, limit = 50 } = req.query;
   const offset = (Number(page) - 1) * Number(limit);
+  
+  // Get user ID from authenticated request
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
 
   try {
+    // Get total count first
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM transactions t
+      WHERE t.userId = $1
+    `;
+    
+    const countResult = await pool.query(countQuery, [userId]);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get transactions with pagination
     const query = `
       SELECT 
         t.id,
@@ -22,19 +40,31 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         t.fees,
         t.notes,
         t.createdAt::text,
-        p.productname AS "productName",
         (t.quantity * t.price + COALESCE(t.fees, 0)) AS total
       FROM transactions t
-      JOIN positions pos ON t.positionId = pos.id
-      JOIN product p ON pos.product_id = p.id
+      WHERE t.userId = $1
       ORDER BY t.date DESC
-      LIMIT $1 OFFSET $2
+      LIMIT $2 OFFSET $3
     `;
 
-    const result = await pool.query(query, [Number(limit), offset]);
+    const result = await pool.query(query, [userId, Number(limit), offset]);
     const transactions: TransactionHistoryItem[] = result.rows;
 
-    res.json({ transactions });
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / Number(limit));
+    const pagination = {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages,
+      hasNext: Number(page) < totalPages,
+      hasPrev: Number(page) > 1
+    };
+
+    res.json({ 
+      transactions,
+      pagination 
+    });
   } catch (error) {
     console.error("Failed to fetch transactions:", error);
     res.status(500).json({ error: "Failed to fetch transactions" });
@@ -42,7 +72,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 });
 
 // POST /api/transactions - Create transaction
-router.post("/", async (req: Request, res: Response): Promise<void> => {
+router.post("/transactions", async (req: Request, res: Response): Promise<void> => {
   const { positionId, type, date, quantity, price, fees = 0, notes }: TransactionCreateRequest = req.body;
 
   try {
@@ -82,8 +112,18 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 });
 
 // GET /api/transactions/:id - Get transaction by ID
-router.get("/:id", async (req: Request, res: Response): Promise<void> => {
+router.get("/transactions/:id", async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
+
+  console.log(`Transaction endpoint called with ID: "${id}"`);
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    console.log(`Invalid UUID format: "${id}"`);
+    res.status(400).json({ error: "Invalid transaction ID format. Expected UUID." });
+    return;
+  }
 
   try {
     const query = `
