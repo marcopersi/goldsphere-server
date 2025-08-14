@@ -101,15 +101,45 @@ app.get("/api/auth/validate", authMiddleware, (req: any, res: any) => {
   });
 });
 
-// Health endpoint
-app.get("/health", (req: any, res: any) => {
-  res.json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: "1.0.0",
-    environment: process.env.NODE_ENV || "development"
-  });
+// Health endpoint with database connectivity check
+app.get("/health", async (req: any, res: any) => {
+  try {
+    // Test database connection
+    const dbResult = await pool.query('SELECT 1 as db_check');
+    const dbHealthy = dbResult.rows[0]?.db_check === 1;
+    
+    res.json({
+      status: dbHealthy ? "healthy" : "unhealthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: "1.0.0",
+      environment: process.env.NODE_ENV || "development",
+      database: {
+        status: dbHealthy ? "connected" : "disconnected",
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT,
+        database: process.env.DB_NAME,
+        user: process.env.DB_USER
+        // Note: Never expose password in health checks
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "unhealthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: "1.0.0",
+      environment: process.env.NODE_ENV || "development",
+      database: {
+        status: "error",
+        error: error instanceof Error ? error.message : 'Unknown database error',
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT,
+        database: process.env.DB_NAME,
+        user: process.env.DB_USER
+      }
+    });
+  }
 });
 
 // Info endpoint

@@ -143,6 +143,76 @@ jobs:
                   process.exit(1);
                 });
             "
+        - name: Verify App Will Use Correct Database Config
+          run: |
+            echo "=== Application Database Configuration Check ==="
+            echo "Environment variables that will be passed to the app:"
+            echo "NODE_ENV: test"
+            echo "DB_HOST: localhost"
+            echo "DB_PORT: 5432"
+            echo "DB_NAME: goldsphere_test"
+            echo "DB_USER: postgres"
+            echo "DB_PASSWORD: test_password"
+            echo ""
+            echo "Testing app's database connection with these exact credentials..."
+            
+            NODE_ENV=test DB_HOST=localhost DB_PORT=5432 DB_NAME=goldsphere_test DB_USER=postgres DB_PASSWORD=test_password node -e "
+              const { Pool } = require('pg');
+              const pool = new Pool({
+                host: process.env.DB_HOST,
+                port: Number(process.env.DB_PORT),
+                user: process.env.DB_USER,
+                password: String(process.env.DB_PASSWORD),
+                database: process.env.DB_NAME,
+              });
+              
+              console.log('🔍 App-style connection test...');
+              console.log('Using host:', process.env.DB_HOST);
+              console.log('Using port:', process.env.DB_PORT);
+              console.log('Using database:', process.env.DB_NAME);
+              console.log('Using user:', process.env.DB_USER);
+              
+              pool.query('SELECT COUNT(*) as count FROM product')
+                .then(result => {
+                  console.log('✅ App-style database connection SUCCESSFUL');
+                  console.log('📊 Products found:', result.rows[0].count);
+                  pool.end();
+                  process.exit(0);
+                })
+                .catch(err => {
+                  console.log('❌ App-style database connection FAILED:', err.message);
+                  console.log('🔍 Full error:', err);
+                  pool.end();
+                  process.exit(1);
+                });
+            "
+        - name: Test Application Health Endpoint
+          run: |
+            echo "=== Testing Application Startup ==="
+            echo "Starting application in background to test health endpoint..."
+            
+            # Start the app in background with test environment
+            NODE_ENV=test DB_HOST=localhost DB_PORT=5432 DB_NAME=goldsphere_test DB_USER=postgres DB_PASSWORD=test_password JWT_SECRET=test-jwt-secret STRIPE_SECRET_KEY=dummy npm start &
+            APP_PID=$!
+            
+            echo "App started with PID: $APP_PID"
+            echo "Waiting for app to be ready..."
+            sleep 10
+            
+            # Test health endpoint
+            if curl -f http://localhost:8080/health; then
+              echo "✅ Application health endpoint is responding"
+            else
+              echo "❌ Application health endpoint failed"
+              echo "App logs:"
+              jobs
+              kill $APP_PID || true
+              exit 1
+            fi
+            
+            # Clean up
+            kill $APP_PID || true
+            echo "Application test completed"
         - name: Run tests
           run: npm run test:ci
           env:
