@@ -1,5 +1,7 @@
 # GoldSphere Server
 
+[![CI/CD](https://github.com/marcopersi/goldsphere-server/workflows/CI%2FCD/badge.svg)](https://github.com/marcopersi/goldsphere-server/actions/workflows/ci-cd.yml)
+
 The server including the business logic and integration for the goldsphere project.
 
 ## Getting Started
