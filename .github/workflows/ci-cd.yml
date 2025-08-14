@@ -128,10 +128,6 @@ jobs:
           DB_PASSWORD: test_password
           JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          CORS_ORIGINS: http://localhost:3000
-          CORS_METHODS: GET,POST,PUT,DELETE,OPTIONS
-          CORS_HEADERS: Authorization,Content-Type
-          API_DOCS_ENABLED: false
       - name: Upload coverage to Codecov
         if: success()
         uses: codecov/codecov-action@v4
