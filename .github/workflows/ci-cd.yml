@@ -11,6 +11,26 @@ env:
   NODE_VERSION: '18'
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      - name: Run ESLint
+        run: npm run lint
+      - name: Run type checking
+        run: npx tsc --noEmit
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -34,117 +54,89 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-          path: dist
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-      - name: Run ESLint
-        run: npm run lint || echo "Linting completed with warnings"
+          path: dist        
 
   test:
-    name: Test
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_USER: postgres
-          POSTGRES_DB: goldsphere_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-      - name: Wait for Postgres to be ready
-        run: |
-          until pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Waiting for PostgreSQL to be ready..."
-            sleep 2
-          done
-          echo "PostgreSQL is ready!"
-      - name: Setup database schema
-        run: |
-          echo "Setting up database schema..."
-          psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
-          echo "Schema setup completed"
-        env:
-          PGPASSWORD: test_password
-      - name: Database Initial Load
-        run: |
-          echo "Loading initial data..."
-          psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
-          echo "Initial data loaded"
-        env:
-          PGPASSWORD: test_password
-      - name: Load sample data
-        run: |
-          echo "Loading sample data..."
-          psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
-          echo "Sample data loaded"
-        env:
-          PGPASSWORD: test_password
-      - name: Run linting
-        run: npm run lint
-      - name: Run type checking
-        run: npx tsc --noEmit
-      - name: Build application
-        run: npm run build
-      - name: Run tests
-        run: npm run test:ci
-        env:
-          NODE_ENV: test
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: goldsphere_test
-          DB_USER: postgres
-          DB_PASSWORD: test_password
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          CORS_ORIGINS: http://localhost:3000
-          CORS_METHODS: GET,POST,PUT,DELETE,OPTIONS
-          CORS_HEADERS: Authorization,Content-Type
-          API_DOCS_ENABLED: false
-      - name: Upload coverage to Codecov
-        if: success()
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
-      - name: Test build output
-        run: |
-          if [ ! -d "dist" ]; then
-            echo "Build failed - dist directory not found"
-            exit 1
-          fi
-          echo "Build successful"
+      name: Test
+      runs-on: ubuntu-latest
+      needs: [build, lint]
+      services:
+        postgres:
+          image: postgres:14
+          env:
+            POSTGRES_PASSWORD: test_password
+            POSTGRES_USER: postgres
+            POSTGRES_DB: goldsphere_test
+          options: >-
+            --health-cmd pg_isready
+            --health-interval 10s
+            --health-timeout 5s
+            --health-retries 5
+          ports:
+            - 5432:5432
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+        - name: Set up Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: ${{ env.NODE_VERSION }}
+            cache: 'npm'
+        - name: Install Dependencies
+          run: npm ci
+          env:
+            NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        - name: Download Build Artifacts
+          uses: actions/download-artifact@v4
+          with:
+            name: build-artifacts
+            path: dist
+        - name: Wait for Postgres to be ready
+          run: |
+            until pg_isready -h localhost -p 5432 -U postgres; do
+              echo "Waiting for PostgreSQL to be ready..."
+              sleep 2
+            done
+            echo "PostgreSQL is ready!"
+        - name: Setup database schema
+          run: |
+            echo "Setting up database schema..."
+            psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
+            echo "Schema setup completed"
+          env:
+            PGPASSWORD: test_password
+        - name: Database Initial Load
+          run: |
+            echo "Loading initial data..."
+            psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
+            echo "Initial data loaded"
+          env:
+            PGPASSWORD: test_password
+        - name: Load sample data
+          run: |
+            echo "Loading sample data..."
+            psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
+            echo "Sample data loaded"
+          env:
+            PGPASSWORD: test_password
+        - name: Run tests
+          run: npm run test:ci
+          env:
+            NODE_ENV: test
+            DB_HOST: localhost
+            DB_PORT: 5432
+            DB_NAME: goldsphere_test
+            DB_USER: postgres
+            DB_PASSWORD: test_password
+            JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+            STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+            API_DOCS_ENABLED: false
+        - name: Upload coverage to Codecov
+          if: success()
+          uses: codecov/codecov-action@v4
+          with:
+            file: ./coverage/lcov.info
+            flags: unittests
+            name: codecov-umbrella
 
-# ... other jobs (security-scan, deploy, etc.) can be appended here in the same clean style
+
