@@ -119,6 +119,29 @@ jobs:
             echo "Sample data loaded"
           env:
             PGPASSWORD: test_password
+        - name: Verify database connection for Node.js
+          run: |
+            echo "Testing database connection with Node.js..."
+            node -e "
+              const { Pool } = require('pg');
+              const pool = new Pool({
+                host: 'localhost',
+                port: 5432,
+                user: 'postgres',
+                password: 'test_password',
+                database: 'goldsphere_test'
+              });
+              pool.query('SELECT COUNT(*) FROM product')
+                .then(result => {
+                  console.log('✅ Node.js database connection successful');
+                  console.log('Product count:', result.rows[0].count);
+                  process.exit(0);
+                })
+                .catch(err => {
+                  console.log('❌ Node.js database connection failed:', err.message);
+                  process.exit(1);
+                });
+            "
         - name: Run tests
           run: npm run test:ci
           env:
