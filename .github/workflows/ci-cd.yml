@@ -106,6 +106,8 @@ jobs:
         run: npm run lint
       - name: Run type checking
         run: npx tsc --noEmit
+      - name: Build application
+        run: npm run build
       - name: Run tests
         run: npm run test:ci
         env:
@@ -116,6 +118,7 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: test_password
           JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       - name: Upload coverage to Codecov
         if: success()
         uses: codecov/codecov-action@v4
@@ -123,8 +126,6 @@ jobs:
           file: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
-      - name: Build application
-        run: npm run build
       - name: Test build output
         run: |
           if [ ! -d "dist" ]; then
