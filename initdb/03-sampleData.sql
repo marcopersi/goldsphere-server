@@ -126,27 +126,35 @@ VALUES
     ('Jane''s Portfolio', (SELECT id FROM users WHERE email = 'jane.smith@example.com'), CURRENT_TIMESTAMP);
 
 -- Insert sample positions
-INSERT INTO position (userId, productId, portfolioId, purchaseDate, purchasePrice, marketPrice, quantity, status, notes, createdat)
+INSERT INTO position (userId, productId, portfolioId, purchaseDate, purchasePrice, marketPrice, quantity, custodyServiceId, status, notes, createdat)
 VALUES
     ((SELECT id FROM users WHERE email = 'john.doe@example.com'),
      (SELECT id FROM product WHERE name = 'Canadian Gold Maple Leaf'),
      (SELECT id FROM portfolio WHERE portfolioName = 'John''s Portfolio'),
-     '2024-01-15T10:30:00Z', 1450.00, 1500.00, 5.0000, 'active', 'Initial gold investment', CURRENT_TIMESTAMP),
+     '2024-01-15T10:30:00Z', 1450.00, 1500.00, 5.0000, 
+     (SELECT id FROM custodyService WHERE custodyServiceName = 'Loomis Standard Vault'),
+     'active', 'Loomis', CURRENT_TIMESTAMP),
      
     ((SELECT id FROM users WHERE email = 'jane.smith@example.com'),
      (SELECT id FROM product WHERE name = 'Silver Eagle Coin'),
      (SELECT id FROM portfolio WHERE portfolioName = 'Jane''s Portfolio'),
-     '2024-02-20T14:15:00Z', 28.50, 30.00, 100.0000, 'active', 'Silver portfolio diversification', CURRENT_TIMESTAMP),
+     '2024-02-20T14:15:00Z', 28.50, 30.00, 100.0000,
+     (SELECT id FROM custodyService WHERE custodyServiceName = 'Home Delivery'),
+     'active', 'home delivered', CURRENT_TIMESTAMP),
      
     ((SELECT id FROM users WHERE email = 'john.doe@example.com'),
      (SELECT id FROM product WHERE name = 'Gold Cast Bar 100g Valcambi'),
      (SELECT id FROM portfolio WHERE portfolioName = 'John''s Portfolio'),
-     '2024-03-10T09:45:00Z', 5750.00, 5800.00, 2.0000, 'active', 'Physical gold bars', CURRENT_TIMESTAMP),
+     '2024-03-10T09:45:00Z', 5750.00, 5800.00, 2.0000,
+     (SELECT id FROM custodyService WHERE custodyServiceName = 'Home Delivery'),
+     'active', 'home delivered', CURRENT_TIMESTAMP),
      
     ((SELECT id FROM users WHERE email = 'jane.smith@example.com'),
      (SELECT id FROM product WHERE name = 'Platinum Kangaroo Coin'),
      (SELECT id FROM portfolio WHERE portfolioName = 'Jane''s Portfolio'),
-     '2024-01-25T16:20:00Z', 980.00, 1000.00, 3.0000, 'closed', 'Sold for profit', CURRENT_TIMESTAMP);
+     '2024-01-25T16:20:00Z', 980.00, 1000.00, 3.0000,
+     (SELECT id FROM custodyService WHERE custodyServiceName = 'Loomis Standard Vault'),
+     'closed', 'Zollfreilager ZRH', CURRENT_TIMESTAMP);
 INSERT INTO transactions (positionId, userId, type, date, quantity, price, fees, notes, createdat)
 VALUES
     ((SELECT id FROM position WHERE userId = (SELECT id FROM users WHERE email = 'john.doe@example.com') AND productId = (SELECT id FROM product WHERE name = 'Canadian Gold Maple Leaf')),

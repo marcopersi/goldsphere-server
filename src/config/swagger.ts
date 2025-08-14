@@ -199,6 +199,19 @@ const swaggerDefinition = {
           status: { type: 'string', enum: ['active', 'closed'], description: 'Position status' },
           closedDate: { type: 'string', format: 'date-time', description: 'When position was closed (if applicable)' },
           notes: { type: 'string', description: 'Optional notes' },
+          custodyServiceId: { type: 'string', description: 'Custody service identifier for this position' },
+          custody: {
+            type: 'object',
+            description: 'Custody information for this position',
+            properties: {
+              custodyServiceId: { type: 'string', description: 'Custody service identifier' },
+              custodyServiceName: { type: 'string', description: 'Name of the custody service' },
+              custodianId: { type: 'string', description: 'Custodian identifier' },
+              custodianName: { type: 'string', description: 'Name of the custodian' },
+              fee: { type: 'number', description: 'Custody fee amount' },
+              paymentFrequency: { type: 'string', enum: ['Monthly', 'Quarterly', 'Annual'], description: 'Fee payment frequency' }
+            }
+          },
           createdAt: { type: 'string', format: 'date-time', description: 'Creation timestamp' },
           updatedAt: { type: 'string', format: 'date-time', description: 'Last update timestamp' }
         }

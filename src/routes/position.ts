@@ -71,6 +71,35 @@ const fetchProductForPosition = async (productId: string) => {
 const mapDatabaseRowToPosition = async (row: any) => {
   const product = await fetchProductForPosition(row.productid);
   
+  // Fetch custody information if custodyServiceId exists
+  let custody = null;
+  if (row.custodyserviceid) {
+    const custodyQuery = `
+      SELECT 
+        cs.id as custodyServiceId,
+        cs.custodyServiceName,
+        c.id as custodianId,
+        c.custodianName,
+        cs.fee,
+        cs.paymentFrequency
+      FROM custodyService cs
+      JOIN custodian c ON cs.custodianId = c.id
+      WHERE cs.id = $1
+    `;
+    const custodyResult = await pool.query(custodyQuery, [row.custodyserviceid]);
+    if (custodyResult.rows.length > 0) {
+      const custodyRow = custodyResult.rows[0];
+      custody = {
+        custodyServiceId: custodyRow.custodyserviceid,
+        custodyServiceName: custodyRow.custodyservicename,
+        custodianId: custodyRow.custodianid,
+        custodianName: custodyRow.custodianname,
+        fee: parseFloat(custodyRow.fee) || 0,
+        paymentFrequency: custodyRow.paymentfrequency
+      };
+    }
+  }
+  
   return {
     id: row.id,
     userId: row.userid,
@@ -81,6 +110,8 @@ const mapDatabaseRowToPosition = async (row: any) => {
     purchasePrice: parseFloat(row.purchaseprice) || 0,
     marketPrice: parseFloat(row.marketprice) || 0,
     quantity: parseFloat(row.quantity) || 0,
+    custodyServiceId: row.custodyserviceid || null,
+    custody: custody,
     status: row.status || 'active',
     notes: row.notes || '',
     createdAt: row.createdat || new Date(),
@@ -89,6 +120,24 @@ const mapDatabaseRowToPosition = async (row: any) => {
 };
 
 // GET all positions (global endpoint)
+/**
+ * @swagger
+ * /positions:
+ *   get:
+ *     summary: Get all positions
+ *     tags: [Positions]
+ *     responses:
+ *       200:
+ *         description: List of all positions with custody information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Position'
+ *       500:
+ *         description: Internal server error
+ */
 router.get("/positions", async (req: Request, res: Response) => {
   try {
     const result = await pool.query("SELECT * FROM position ORDER BY createdat DESC");
@@ -147,6 +196,37 @@ router.get("/global/positions", async (req: Request, res: Response) => {
 });
 
 // GET positions by portfolio
+/**
+ * @swagger
+ * /portfolios/{portfolioId}/positions:
+ *   get:
+ *     summary: Get positions by portfolio
+ *     tags: [Positions]
+ *     parameters:
+ *       - in: path
+ *         name: portfolioId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Portfolio identifier
+ *     responses:
+ *       200:
+ *         description: List of positions for the specified portfolio with custody information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 positions:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Position'
+ *                 pagination:
+ *                   type: object
+ *                   description: Pagination information
+ *       500:
+ *         description: Internal server error
+ */
 router.get("/portfolios/:portfolioId/positions", async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
@@ -179,13 +259,92 @@ router.get("/portfolios/:portfolioId/positions", async (req: Request, res: Respo
 });
 
 // POST new position
+/**
+ * @swagger
+ * /positions:
+ *   post:
+ *     summary: Create a new position
+ *     tags: [Positions]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - portfolioId
+ *               - productId
+ *               - purchaseDate
+ *               - purchasePrice
+ *               - marketPrice
+ *               - quantity
+ *               - issuingCountry
+ *               - producer
+ *               - certifiedProvenance
+ *               - status
+ *               - custodyServiceId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: User identifier
+ *               portfolioId:
+ *                 type: string
+ *                 description: Portfolio identifier
+ *               productId:
+ *                 type: string
+ *                 description: Product identifier
+ *               purchaseDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Purchase date
+ *               purchasePrice:
+ *                 type: number
+ *                 description: Purchase price per unit
+ *               marketPrice:
+ *                 type: number
+ *                 description: Current market price per unit
+ *               quantity:
+ *                 type: number
+ *                 description: Quantity purchased
+ *               issuingCountry:
+ *                 type: string
+ *                 description: Country of origin
+ *               producer:
+ *                 type: string
+ *                 description: Producer/mint name
+ *               certifiedProvenance:
+ *                 type: boolean
+ *                 description: Whether provenance is certified
+ *               status:
+ *                 type: string
+ *                 enum: [active, closed]
+ *                 description: Position status
+ *               custodyServiceId:
+ *                 type: string
+ *                 description: Custody service for storing this position
+ *               notes:
+ *                 type: string
+ *                 description: Optional notes
+ *     responses:
+ *       201:
+ *         description: Position created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Position'
+ *       400:
+ *         description: Bad request - validation error
+ *       500:
+ *         description: Internal server error
+ */
 router.post("/positions", async (req: Request, res: Response) => {
   try {
     // Validate the request body against the schema (core position fields)
     const validatedRequest = PositionCreateRequestSchema.parse(req.body);
     
     // Get additional fields from request body (these are not in the create schema but needed for database)
-    const { userId, portfolioId, marketPrice } = req.body;
+    const { userId, portfolioId, marketPrice, custodyServiceId } = req.body;
     
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
@@ -198,9 +357,9 @@ router.post("/positions", async (req: Request, res: Response) => {
     const result = await pool.query(
       `INSERT INTO position (
         userId, portfolioId, productId, purchaseDate, purchasePrice, marketPrice, 
-        quantity, issuingCountry, producer, certifiedProvenance, status, notes, 
+        quantity, custodyServiceId, issuingCountry, producer, certifiedProvenance, status, notes, 
         createdat, updatedat
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`, 
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`, 
       [
         userId, 
         portfolioId, 
@@ -209,6 +368,7 @@ router.post("/positions", async (req: Request, res: Response) => {
         validatedRequest.purchasePrice, 
         marketPrice || validatedRequest.purchasePrice, // Use purchase price as default market price
         validatedRequest.quantity, 
+        custodyServiceId || null,
         validatedRequest.issuingCountry, 
         validatedRequest.producer, 
         validatedRequest.certifiedProvenance, 
@@ -315,6 +475,31 @@ router.delete("/positions/:id", async (req: Request, res: Response) => {
 });
 
 // GET position by id
+/**
+ * @swagger
+ * /positions/{id}:
+ *   get:
+ *     summary: Get position by ID
+ *     tags: [Positions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Position identifier
+ *     responses:
+ *       200:
+ *         description: Position details with custody information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Position'
+ *       404:
+ *         description: Position not found
+ *       500:
+ *         description: Internal server error
+ */
 router.get("/positions/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

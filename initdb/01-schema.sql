@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS position (
     purchasePrice NUMERIC(10,2) NOT NULL,
     marketPrice NUMERIC(10,2) NOT NULL,
     quantity NUMERIC(10,4) NOT NULL,
+    custodyServiceId UUID,
     status positionStatus NOT NULL DEFAULT 'active',
     closedDate TIMESTAMP,
     notes TEXT,

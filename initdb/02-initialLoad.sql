@@ -42,10 +42,10 @@ VALUES
 -- Insert sample custodians
 INSERT INTO custodian (custodianName, createdat)
 VALUES
+    ('N/A -> Delivered to customers home', CURRENT_TIMESTAMP),
     ('Loomis', CURRENT_TIMESTAMP),
     ('Brinks', CURRENT_TIMESTAMP),
     ('Bank of Switzerland', CURRENT_TIMESTAMP),
-    ('Home Storage', CURRENT_TIMESTAMP),
     ('Malca-Amit', CURRENT_TIMESTAMP),
     ('G4S Vaults', CURRENT_TIMESTAMP),
     ('Swiss Gold Safe', CURRENT_TIMESTAMP),
@@ -95,3 +95,21 @@ INSERT INTO users (userName, email, passwordHash, createdat)
 VALUES
     ('Bank Technical User', 'bank.technical@goldsphere.vault', '$2b$10$Qpvbznj0phc/iumR0YcUVezf0eWV6wR0j34KxK/WLR1VwGv8Wgmj6', CURRENT_TIMESTAMP),
     ('Admin User', 'admin@goldsphere.vault', '$2b$10$oWWBsW3k27.FHsrPkSp4quWD.hqcdk917aHcA9R4ITeU04uImejA2', CURRENT_TIMESTAMP);
+
+-- Insert basic custody services including home delivery option
+INSERT INTO custodyService (custodianId, custodyServiceName, fee, paymentFrequency, currencyId, maxWeight, createdat)
+VALUES
+    ((SELECT id FROM custodian WHERE custodianName = 'N/A -> Delivered to customers home'),
+     'Home Delivery',
+     0.00,
+     'monthly',
+     (SELECT id FROM currency WHERE isoCode3 = 'USD'),
+     NULL,
+     CURRENT_TIMESTAMP),
+    ((SELECT id FROM custodian WHERE custodianName = 'Loomis'),
+     'Loomis Standard Vault',
+     25.00,
+     'monthly',
+     (SELECT id FROM currency WHERE isoCode3 = 'USD'),
+     5000.00,
+     CURRENT_TIMESTAMP);
