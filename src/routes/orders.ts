@@ -146,32 +146,27 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
     const statsResult = await pool.query(statsQuery, queryParams);
     const stats = statsResult.rows[0];
     
-    // Return comprehensive admin response
-    const response = {
-      success: true,
-      data: {
-        orders: ordersResult.orders,
-        pagination: ordersResult.pagination,
-        statistics: {
-          totalOrders: parseInt(stats.totalorders),
-          pendingOrders: parseInt(stats.pendingorders),
-          completedOrders: parseInt(stats.completedorders),
-          cancelledOrders: parseInt(stats.cancelledorders),
-          uniqueUsers: parseInt(stats.uniqueusers)
-        },
-        filters: {
-          status,
-          type,
-          userId
-        },
-        adminContext: {
-          requestedBy: authenticatedUser.email,
-          role: authenticatedUser.role
-        }
+    // Return comprehensive admin response directly
+    res.json({
+      orders: ordersResult.orders,
+      pagination: ordersResult.pagination,
+      statistics: {
+        totalOrders: parseInt(stats.totalorders),
+        pendingOrders: parseInt(stats.pendingorders),
+        completedOrders: parseInt(stats.completedorders),
+        cancelledOrders: parseInt(stats.cancelledorders),
+        uniqueUsers: parseInt(stats.uniqueusers)
+      },
+      filters: {
+        status,
+        type,
+        userId
+      },
+      adminContext: {
+        requestedBy: authenticatedUser.email,
+        role: authenticatedUser.role
       }
-    };
-    
-    res.json(response);
+    });
   } catch (error) {
     console.error("Error fetching orders for admin:", error);
     res.status(500).json({ 
@@ -206,19 +201,13 @@ router.get("/orders/my", async (req: Request, res: Response) => {
       type: type as string
     });
     
-    // Return standardized response
-    const response = {
-      success: true,
-      data: {
-        ...ordersResult,
-        user: {
-          id: authenticatedUser.id,
-          role: authenticatedUser.role
-        }
+    // Return data directly with user context
+    res.json({
+      ...ordersResult,
+      user: {
+        id: authenticatedUser.id
       }
-    };
-    
-    res.json(response);
+    });
   } catch (error) {
     console.error("Error fetching user's orders:", error);
     res.status(500).json({ 
@@ -274,16 +263,11 @@ router.get("/orders", async (req: Request, res: Response) => {
       ...(authenticatedUser.role !== 'admin' && { suggestion: 'Consider using /orders/my for a simplified user experience' })
     };
     
-    // Return standardized response
-    const response = {
-      success: true,
-      data: {
-        ...ordersResult,
-        context: responseContext
-      }
-    };
-    
-    res.json(response);
+    // Return data directly with context
+    res.json({
+      ...ordersResult,
+      context: responseContext
+    });
   } catch (error) {
     console.error("Error fetching orders:", error);
     res.status(500).json({ 
