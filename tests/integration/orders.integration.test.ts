@@ -122,8 +122,7 @@ describe('Orders Integration Tests', () => {
             productName: 'Test Gold Coin',
             quantity: 2,
             unitPrice: 2000.00,
-            totalPrice: 4000.00,
-            specifications: {}
+            totalPrice: 4000.00
           }
         ],
         subtotal: 4000.00,
@@ -192,8 +191,7 @@ describe('Orders Integration Tests', () => {
             productName: 'Test Gold Coin',
             quantity: 1,
             unitPrice: 2000.00,
-            totalPrice: 2000.00,
-            specifications: {}
+            totalPrice: 2000.00
           }
         ],
         subtotal: 2000.00,
@@ -248,9 +246,7 @@ describe('Orders Integration Tests', () => {
             productName: 'Setup Test Coin',
             quantity: 1,
             unitPrice: 1500.00,
-            totalPrice: 1500.00,
-            specifications: {}
-          }
+            totalPrice: 1500.00          }
         ],
         subtotal: 1500.00,
         fees: { processing: 20.00, shipping: 10.00, insurance: 5.00 },
@@ -324,9 +320,7 @@ describe('Orders Integration Tests', () => {
             productName: 'Process Test Coin',
             quantity: 2,
             unitPrice: 1800.00,
-            totalPrice: 3600.00,
-            specifications: {}
-          }
+            totalPrice: 3600.00          }
         ],
         subtotal: 3600.00,
         fees: { processing: 40.00, shipping: 20.00, insurance: 12.00 },

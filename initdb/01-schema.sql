@@ -171,10 +171,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     userId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    productId UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
-    quantity NUMERIC(12, 2) NOT NULL,
-    totalPrice NUMERIC(12, 2) NOT NULL,
     orderStatus orderStatus NOT NULL,
     custodyServiceId UUID,
     payment_intent_id VARCHAR(255),
@@ -182,6 +179,17 @@ CREATE TABLE IF NOT EXISTS orders (
     paid_at TIMESTAMP,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    orderid UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    productid UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    productname VARCHAR NOT NULL,
+    quantity NUMERIC NOT NULL,
+    unitprice NUMERIC,
+    totalprice NUMERIC NOT NULL,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Index for payment lookups

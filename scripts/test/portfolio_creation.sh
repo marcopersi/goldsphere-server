@@ -91,8 +91,7 @@ CREATE_ORDER_RESPONSE=$(curl -s -X POST "$SERVER_URL/api/orders" \
       \"productName\": \"$PRODUCT_NAME\",
       \"quantity\": $ORDER_QUANTITY,
       \"unitPrice\": $PRODUCT_PRICE,
-      \"totalPrice\": $TOTAL_PRICE,
-      \"specifications\": {}
+      \"totalPrice\": $TOTAL_PRICE
     }],
     \"subtotal\": $TOTAL_PRICE,
     \"fees\": 0,

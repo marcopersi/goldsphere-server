@@ -109,16 +109,6 @@ const swaggerDefinition = {
             type: 'string',
             description: 'Product description'
           },
-          specifications: {
-            type: 'object',
-            description: 'Additional specifications',
-            properties: {
-              diameter: { type: 'number' },
-              thickness: { type: 'number' },
-              mintage: { type: 'number' },
-              certification: { type: 'string' }
-            }
-          },
           imageUrl: {
             type: 'string',
             format: 'uri',
@@ -173,7 +163,6 @@ const swaggerDefinition = {
           country: { type: 'string' },
           year: { type: 'integer' },
           description: { type: 'string' },
-          specifications: { type: 'object' },
           imageUrl: { type: 'string', format: 'uri' },
           inStock: { type: 'boolean' },
           stockQuantity: { type: 'integer' },

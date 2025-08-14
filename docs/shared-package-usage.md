@@ -169,7 +169,6 @@ The `Product` type includes:
 - `country?: string` - Country of origin (optional)
 - `year?: number` - Year of production (optional)
 - `description?: string` - Product description (optional)
-- `specifications?: Record<string, any>` - Additional specifications (optional)
 - `imageUrl: string` - Product image URL
 - `inStock: boolean` - Availability status
 - `stockQuantity?: number` - Available quantity (optional)

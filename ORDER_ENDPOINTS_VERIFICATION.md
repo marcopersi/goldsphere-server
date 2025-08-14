@@ -97,9 +97,7 @@ curl -X POST "http://localhost:8888/api/auth/login" \
             "productName": "Product 29fb2e52-4f29-4301-867a-fc30e6a35bc1",
             "quantity": 2,
             "unitPrice": null,
-            "totalPrice": 2000,
-            "specifications": {}
-          }
+            "totalPrice": 2000          }
         ],
         "subtotal": 0,
         "fees": {

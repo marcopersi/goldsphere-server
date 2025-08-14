@@ -14,7 +14,6 @@ export interface EnrichedOrderItem {
   unitPrice: number;
   totalPrice: number;
   available: boolean;
-  specifications: any;
 }
 
 export class ProductService {
@@ -63,7 +62,6 @@ export class ProductService {
           unitPrice,
           totalPrice,
           available,
-          specifications: product.specifications || {}
         });
       } catch (error) {
         throw new Error(`Failed to enrich product ${item.productId}: ${(error as Error).message}`);

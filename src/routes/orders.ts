@@ -28,7 +28,6 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
     quantity: parseFloat(row.quantity),
     unitPrice: parseFloat(row.totalprice) / parseFloat(row.quantity),
     totalPrice: parseFloat(row.totalprice),
-    specifications: {}
   }));
 
   // Map database values to enum instances
@@ -349,9 +348,7 @@ router.post("/orders", async (req: Request, res: Response) => {
         productName: product.name,
         quantity: item.quantity,
         unitPrice: unitPrice,
-        totalPrice: totalPrice,
-        specifications: item.specifications || {}
-      });
+        totalPrice: totalPrice      });
       
       subtotal += totalPrice;
     }
@@ -386,20 +383,32 @@ router.post("/orders", async (req: Request, res: Response) => {
       updatedAt: now
     };
 
-    // Store in legacy database format (each item as separate row)
+    // Store order header in orders table
+    await pool.query(
+      "INSERT INTO orders (id, userid, type, orderstatus, custodyserviceid, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [
+        orderId,
+        enrichedOrder.userId,
+        enrichedOrder.type,
+        enrichedOrder.status.value || "pending",
+        null, // custodyServiceId - will be determined during order processing
+        enrichedOrder.createdAt,
+        enrichedOrder.updatedAt
+      ]
+    );
+
+    // Store each item in order_items table
     for (const item of enrichedItems) {
       await pool.query(
-        "INSERT INTO orders (id, userId, productId, quantity, totalPrice, orderStatus, custodyServiceId, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        "INSERT INTO order_items (orderid, productid, productname, quantity, unitprice, totalprice, createdat) VALUES ($1, $2, $3, $4, $5, $6, $7)",
         [
-          orderId, // Use same orderId for all items in this order
-          enrichedOrder.userId,
+          orderId,
           item.productId,
+          item.productName,
           item.quantity,
+          item.unitPrice,
           item.totalPrice,
-          enrichedOrder.status.value || "pending", // Use the string value for database
-          null, // custodyServiceId - will be determined during order processing
-          enrichedOrder.createdAt,
-          enrichedOrder.updatedAt
+          enrichedOrder.createdAt
         ]
       );
     }
@@ -433,7 +442,7 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
     const order = orderResult.rows[0];
     let newStatus;
 
-    switch (order.status) {
+    switch (order.orderstatus) {
       case "pending":
         console.debug("Order is now pending, will be processing...");
         newStatus = "processing";
@@ -456,7 +465,7 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
     }
 
     const result = await pool.query(
-      "UPDATE orders SET status = $1, updatedat = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+      "UPDATE orders SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
       [newStatus, id]
     );
 
@@ -493,7 +502,7 @@ router.put("/orders/:id", async (req: Request, res: Response) => {
   const { userId, productId, quantity, totalPrice, custodyServiceId } = req.body;
   try {
     const result = await pool.query(
-      "UPDATE orders SET userId = $1, productId = $2, quantity = $3, totalPrice = $4, custodyServiceId = $5, updatedAt = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *",
+      "UPDATE orders SET userid = $1, productid = $2, quantity = $3, totalprice = $4, custodyserviceid = $5, updatedat = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *",
       [userId, productId, quantity, totalPrice, custodyServiceId, id]
     );
     res.json(result.rows[0]);
@@ -519,7 +528,7 @@ router.delete("/orders/:id", async (req: Request, res: Response) => {
 router.get("/orders/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, userId, productId, quantity, totalPrice, orderStatus, custodyServiceId, createdAt, updatedAt FROM orders WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, userid, productid, quantity, totalprice, orderstatus, custodyserviceid, createdat, updatedat FROM orders WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching order:", error);
@@ -539,7 +548,7 @@ const insertPosition = async (order: Order, portfolioId: string) => {
 
     const result = await pool.query(
       `INSERT INTO public.position(
-        id, userId, productId, portfolioId, purchaseDate, quantity, purchasePrice, marketPrice, createdat, updatedat)
+        id, userid, productid, portfolioid, purchasedate, quantity, purchaseprice, marketprice, createdat, updatedat)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
         positionId,
@@ -586,7 +595,7 @@ const insertPositionFromOrder = async (orderRow: any, portfolioId: string) => {
       
       const result = await pool.query(
         `INSERT INTO public.position(
-          id, userId, productId, portfolioId, purchaseDate, quantity, purchasePrice, marketPrice, createdat, updatedat)
+          id, userid, productid, portfolioid, purchasedate, quantity, purchaseprice, marketprice, createdat, updatedat)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
         [
           positionId,

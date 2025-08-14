@@ -20,7 +20,7 @@ function mapDatabaseRowToCustodian(row: any) {
 // GET all custodians
 router.get("/custodians", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, custodianName, createdAt, updatedAt FROM custodian ORDER BY custodianName");
+    const result = await pool.query("SELECT id, custodianname, createdat, updatedat FROM custodian ORDER BY custodianname");
     
     const custodiansData = result.rows.map(mapDatabaseRowToCustodian);
     
@@ -68,7 +68,7 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
     const validatedData = UpdateCustodianRequestSchema.parse(req.body);
     const { name } = validatedData;
     
-    const result = await pool.query("UPDATE custodian SET custodianName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [name, id]);
+    const result = await pool.query("UPDATE custodian SET custodianname = $1, updatedat = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [name, id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -123,7 +123,7 @@ router.delete("/custodians/:id", async (req: Request, res: Response) => {
 router.get("/custodians/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("SELECT id, custodianName, createdAt, updatedAt FROM custodian WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, custodianname, createdat, updatedat FROM custodian WHERE id = $1", [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({

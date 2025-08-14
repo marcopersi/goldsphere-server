@@ -31,7 +31,6 @@ describe('Orders Unit Tests', () => {
             quantity: 2,
             unitPrice: 2000.00,
             totalPrice: 4000.00,
-            specifications: {}
           }
         ],
         subtotal: 4000.00,
@@ -84,7 +83,6 @@ describe('Orders Unit Tests', () => {
             quantity: 2,
             unitPrice: 2000.00,
             totalPrice: 4000.00,
-            specifications: {}
           },
           {
             productId: 'prod-456',
@@ -92,7 +90,6 @@ describe('Orders Unit Tests', () => {
             quantity: 1,
             unitPrice: 500.00,
             totalPrice: 500.00,
-            specifications: {}
           }
         ],
         subtotal: 4500.00,
