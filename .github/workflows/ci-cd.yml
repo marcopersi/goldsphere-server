@@ -91,21 +91,32 @@ jobs:
           done
           echo "PostgreSQL is ready!"
       - name: Setup database schema
-        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
+        run: |
+          echo "Setting up database schema..."
+          psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
+          echo "Schema setup completed"
         env:
           PGPASSWORD: test_password
       - name: Database Initial Load
-        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
+        run: |
+          echo "Loading initial data..."
+          psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
+          echo "Initial data loaded"
         env:
           PGPASSWORD: test_password
       - name: Load sample data
-        run: psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
+        run: |
+          echo "Loading sample data..."
+          psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
+          echo "Sample data loaded"
         env:
           PGPASSWORD: test_password
       - name: Run linting
         run: npm run lint
       - name: Run type checking
         run: npx tsc --noEmit
+      - name: Build application
+        run: npm run build
       - name: Run tests
         run: npm run test:ci
         env:
@@ -116,6 +127,11 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: test_password
           JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          CORS_ORIGINS: http://localhost:3000
+          CORS_METHODS: GET,POST,PUT,DELETE,OPTIONS
+          CORS_HEADERS: Authorization,Content-Type
+          API_DOCS_ENABLED: false
       - name: Upload coverage to Codecov
         if: success()
         uses: codecov/codecov-action@v4
@@ -123,8 +139,6 @@ jobs:
           file: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
-      - name: Build application
-        run: npm run build
       - name: Test build output
         run: |
           if [ ! -d "dist" ]; then
