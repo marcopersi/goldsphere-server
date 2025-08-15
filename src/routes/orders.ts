@@ -134,10 +134,12 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
     const statsQuery = `
       SELECT 
         COUNT(*) as totalOrders,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pendingOrders,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completedOrders,
-        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelledOrders,
-        COUNT(DISTINCT userId) as uniqueUsers
+        COUNT(CASE WHEN orderstatus = 'pending' THEN 1 END) as pendingOrders,
+        COUNT(CASE WHEN orderstatus = 'processing' THEN 1 END) as processingOrders,
+        COUNT(CASE WHEN orderstatus = 'shipped' THEN 1 END) as shippedOrders,
+        COUNT(CASE WHEN orderstatus = 'delivered' THEN 1 END) as deliveredOrders,
+        COUNT(CASE WHEN orderstatus = 'cancelled' THEN 1 END) as cancelledOrders,
+        COUNT(DISTINCT userid) as uniqueUsers
       FROM orders
       ${whereClause}
     `;

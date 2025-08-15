@@ -70,9 +70,10 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Generate JWT token
+    // Generate JWT token with role
+    const userRole = user.email.includes('admin') ? 'admin' : 'user';
     const token = jwt.sign(
-      { id: user.id, email: user.email, userName: user.username },
+      { id: user.id, email: user.email, userName: user.username, role: userRole },
       process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "24h" }
     );
@@ -84,7 +85,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
         id: user.id, 
         email: user.email, 
         userName: user.username,
-        role: user.email.includes('admin') ? 'admin' : 'user'  // Simple role assignment based on email
+        role: userRole
       } 
     });
   } catch (error) {
