@@ -1,20 +1,11 @@
 /**
- * CalculationService
+ * CalculationService Implementation
  * 
  * Handles all financial calculations including fees, taxes, and totals.
  * Centralizes business logic for order pricing calculations.
  */
 
-export interface CalculationResult {
-  subtotal: number;
-  fees: {
-    processing: number;
-    shipping: number;
-    insurance: number;
-  };
-  taxes: number;
-  totalAmount: number;
-}
+import { ICalculationService, CalculationResult } from "../interfaces/ICalculationService";
 
 export interface CalculationConfig {
   processingFeeRate: number;
@@ -23,7 +14,7 @@ export interface CalculationConfig {
   insuranceFee: number;
 }
 
-export class CalculationService {
+export class CalculationServiceImpl implements ICalculationService {
   private readonly config: CalculationConfig;
 
   constructor(config?: Partial<CalculationConfig>) {
@@ -87,24 +78,42 @@ export class CalculationService {
     return Math.round(subtotal * 100) / 100;
   }
 
-  /**
-   * Calculate processing fee
-   */
-  private calculateProcessingFee(subtotal: number): number {
-    const fee = subtotal * this.config.processingFeeRate;
-    return Math.round(fee * 100) / 100;
-  }
 
-  /**
-   * Calculate taxes
-   */
-  private calculateTaxes(taxableAmount: number): number {
-    const taxes = taxableAmount * this.config.taxRate;
-    return Math.round(taxes * 100) / 100;
-  }
 
   /**
    * Validate calculation result
+   */
+  /**
+   * Calculate processing fees based on subtotal
+   */
+  calculateProcessingFee(subtotal: number): number {
+    return subtotal * this.config.processingFeeRate;
+  }
+
+  /**
+   * Calculate shipping costs based on order details
+   */
+  calculateShippingCost(items: Array<{ quantity: number; unitPrice: number }>, shippingMethod?: string): number {
+    // For now, use flat rate - could be enhanced with complex shipping logic
+    return this.config.shippingFee;
+  }
+
+  /**
+   * Calculate insurance costs based on order value
+   */
+  calculateInsurance(subtotal: number): number {
+    return subtotal * this.config.insuranceFee;
+  }
+
+  /**
+   * Calculate taxes based on order details and location
+   */
+  calculateTaxes(subtotal: number, location?: any): number {
+    return subtotal * this.config.taxRate;
+  }
+
+  /**
+   * Internal validation method
    */
   validateCalculation(result: CalculationResult): boolean {
     // Check for negative values

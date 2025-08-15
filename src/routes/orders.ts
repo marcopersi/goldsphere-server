@@ -292,141 +292,73 @@ router.post("/orders", async (req: Request, res: Response) => {
       });
     }
 
-    // Validate that we have the minimal required fields from frontend
+    // Manual validation for create order request (simplified input validation)
     const { type, items, shippingAddress, paymentMethod, notes } = req.body;
     
-    if (!type || !items) {
+    // Validate required fields
+    if (!type) {
       return res.status(400).json({
         success: false,
-        error: "Missing required fields: type, items"
+        error: "Order type is required"
       });
     }
 
-    if (!Array.isArray(items) || items.length === 0) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
         error: "Items must be a non-empty array"
       });
     }
 
-    // Validate each item has the minimal required fields
-    for (const item of items) {
-      if (!item.productId || !item.quantity) {
+    // Validate each item
+    for (const [index, item] of items.entries()) {
+      if (!item.productId) {
         return res.status(400).json({
           success: false,
-          error: "Each item must have productId and quantity"
+          error: `Item ${index + 1}: productId is required`
         });
       }
-    }
-    
-    // Generate backend-enriched fields
-    const orderId = uuidv4();
-    const now = new Date();
-    
-    // Enrich items with product details and calculate totals
-    const enrichedItems = [];
-    let subtotal = 0;
-    
-    for (const item of items) {
-      // Fetch product details to enrich the item
-      const productResult = await pool.query(
-        "SELECT name, price, currency FROM product WHERE id = $1",
-        [item.productId]
-      );
-      
-      if (productResult.rows.length === 0) {
+      if (!item.quantity || item.quantity <= 0) {
         return res.status(400).json({
           success: false,
-          error: `Product not found: ${item.productId}`
+          error: `Item ${index + 1}: quantity must be a positive number`
         });
       }
-      
-      const product = productResult.rows[0];
-      const unitPrice = parseFloat(product.price);
-      const totalPrice = unitPrice * item.quantity;
-      
-      enrichedItems.push({
-        productId: item.productId,
-        productName: product.name,
-        quantity: item.quantity,
-        unitPrice: unitPrice,
-        totalPrice: totalPrice      });
-      
-      subtotal += totalPrice;
     }
 
-    // Calculate fees and taxes (simplified for now)
-    const fees = {
-      processing: subtotal * 0.02, // 2% processing fee
-      shipping: 25.00, // Flat shipping
-      insurance: subtotal * 0.005 // 0.5% insurance
-    };
-    
-    const taxes = subtotal * 0.08; // 8% tax
-    const totalAmount = subtotal + fees.processing + fees.shipping + fees.insurance + taxes;
-    
-    // Create the enriched order object
-    const enrichedOrder: Order = {
-      id: orderId,
-      userId: userId, // Extracted from JWT token
-      type: type as OrderType,
-      status: OrderStatus.PENDING,
-      items: enrichedItems,
-      subtotal: subtotal,
-      fees: fees,
-      taxes: taxes,
-      totalAmount: totalAmount,
-      currency: CurrencyEnum.USD, // Default currency, could be extracted from user preferences
+    // Validate order type enum
+    const orderType = OrderType.fromValue(type);
+    if (!orderType) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid order type: ${type}. Must be 'buy' or 'sell'`
+      });
+    }
+
+    // Use OrderService to create order with proper validation and enrichment
+    const createOrderRequest = {
+      userId: userId,
+      type: type,
+      items: items,
       shippingAddress: shippingAddress,
-      paymentMethod: paymentMethod || { type: 'card' as const },
-      tracking: undefined,
-      notes: notes,
-      createdAt: now,
-      updatedAt: now
+      paymentMethod: paymentMethod,
+      notes: notes
     };
 
-    // Store order header in orders table
-    await pool.query(
-      "INSERT INTO orders (id, userid, type, orderstatus, custodyserviceid, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [
-        orderId,
-        enrichedOrder.userId,
-        enrichedOrder.type,
-        enrichedOrder.status.value || "pending",
-        null, // custodyServiceId - will be determined during order processing
-        enrichedOrder.createdAt,
-        enrichedOrder.updatedAt
-      ]
-    );
-
-    // Store each item in order_items table
-    for (const item of enrichedItems) {
-      await pool.query(
-        "INSERT INTO order_items (orderid, productid, productname, quantity, unitprice, totalprice, createdat) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [
-          orderId,
-          item.productId,
-          item.productName,
-          item.quantity,
-          item.unitPrice,
-          item.totalPrice,
-          enrichedOrder.createdAt
-        ]
-      );
-    }
-
-    // Return the enriched order structure
-    res.status(201).json({
+    const result = await orderService.createOrder(createOrderRequest);
+    
+    return res.status(201).json({
       success: true,
-      data: enrichedOrder,
+      data: result.order,
       message: "Order created successfully. Backend enriched the order with product details and calculations."
     });
+
   } catch (error) {
     console.error("Error creating order:", error);
-    res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: "Failed to create order", 
-      details: (error as Error).message 
+      error: "Failed to create order",
+      details: (error as Error).message
     });
   }
 });
@@ -434,67 +366,94 @@ router.post("/orders", async (req: Request, res: Response) => {
 // process order
 router.put("/orders/process/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
+  
   try {
-    const orderResult = await pool.query("SELECT * FROM orders WHERE id = $1", [id]);
-    if (orderResult.rows.length === 0) {
-      res.status(404).json({ error: "Order not found" });
-      return;
+    // Validate UUID format
+    if (!id || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid order ID format" 
+      });
     }
 
-    const order = orderResult.rows[0];
-    let newStatus;
+    // Get current order using OrderService to ensure proper data mapping
+    const currentOrder = await orderService.getOrderById(id);
+    if (!currentOrder) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Order not found" 
+      });
+    }
 
-    switch (order.orderstatus) {
+    // Determine next status
+    let newStatus: OrderStatus;
+    switch (currentOrder.status.value) {
       case "pending":
         console.debug("Order is now pending, will be processing...");
-        newStatus = "processing";
+        newStatus = OrderStatus.PROCESSING;
         break;
       case "processing":
         console.debug("Order is now processing, will be shipped...");
-        newStatus = "shipped";
+        newStatus = OrderStatus.SHIPPED;
         break;
       case "shipped":
         console.debug("Order is now shipped, will be delivered...");
-        newStatus = "delivered";
+        newStatus = OrderStatus.DELIVERED;
         break;
       case "delivered":
-        console.debug("Order is now delivered, will be closed...");
-        newStatus = "closed";
-        break;        
+        console.debug("Order is now delivered, cannot process further");
+        return res.status(400).json({ 
+          success: false,
+          error: "Order is already delivered and cannot be processed further" 
+        });      
       default:
-        res.status(400).json({ error: "Invalid order status for further processing" });
-        return;
+        return res.status(400).json({ 
+          success: false,
+          error: `Invalid order status '${currentOrder.status.value}' for further processing` 
+        });
     }
 
-    const result = await pool.query(
-      "UPDATE orders SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
-      [newStatus, id]
-    );
-
-    const updatedOrder = result.rows[0];
+    // Update order status using OrderService
+    await orderService.updateOrderStatus(id, newStatus);
 
     // Create portfolio and positions when order is shipped
-    if (newStatus === "shipped") {
-      let portfolioId = await findPortfolioId(updatedOrder.userid);
+    if (newStatus === OrderStatus.SHIPPED) {
+      let portfolioId = await findPortfolioId(currentOrder.userId);
       
       // If user doesn't have a portfolio, create one
       if (!portfolioId) {
-        portfolioId = await createPortfolioForUser(updatedOrder.userid);
+        portfolioId = await createPortfolioForUser(currentOrder.userId);
       }
       
       // Create positions for the shipped order
       if (portfolioId) {
-        await insertPositionFromOrder(updatedOrder, portfolioId);
-        console.log(`Created positions for order ${updatedOrder.id} in portfolio ${portfolioId}`);
+        await insertPositionFromOrder(currentOrder, portfolioId);
+        console.log(`Created positions for order ${currentOrder.id} in portfolio ${portfolioId}`);
       } else {
-        console.error(`Failed to create or find portfolio for user ${updatedOrder.userid}`);
+        console.error(`Failed to create or find portfolio for user ${currentOrder.userId}`);
       }
     }
 
-    res.json(updatedOrder);
+    // Get updated order with proper data mapping
+    const updatedOrder = await orderService.getOrderById(id);
+    if (!updatedOrder) {
+      throw new Error("Failed to retrieve updated order");
+    }
+
+    // Return properly validated response
+    return res.json({
+      success: true,
+      data: updatedOrder,
+      message: `Order status updated to ${newStatus.displayName}`
+    });
+
   } catch (error) {
-    console.error("Error updating order:", error);
-    res.status(500).json({ error: "Failed to update order", details: (error as Error).message });
+    console.error("Error processing order:", error);
+    return res.status(500).json({ 
+      success: false,
+      error: "Failed to process order", 
+      details: (error as Error).message 
+    });
   }
 });
 
@@ -530,8 +489,11 @@ router.delete("/orders/:id", async (req: Request, res: Response) => {
 router.get("/orders/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, userid, productid, quantity, totalprice, orderstatus, custodyserviceid, createdat, updatedat FROM orders WHERE id = $1", [id]);
-    res.json(result.rows[0]);
+    const order = await orderService.getOrderById(id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    res.json({ success: true, data: order });
   } catch (error) {
     console.error("Error fetching order:", error);
     res.status(500).json({ error: "Failed to fetch order", details: (error as Error).message });
@@ -573,16 +535,11 @@ const insertPosition = async (order: Order, portfolioId: string) => {
 };
 
 // Create position from a database order row (updated for new schema with order_items)
-const insertPositionFromOrder = async (orderRow: any, portfolioId: string) => {
+const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
   try {
-    // First, get all order items for this order
-    const orderItemsResult = await pool.query(
-      `SELECT * FROM order_items WHERE orderid = $1`,
-      [orderRow.id]
-    );
-
-    if (orderItemsResult.rows.length === 0) {
-      console.warn(`No order items found for order ${orderRow.id}`);
+    // Create a position for each order item
+    if (!order.items || order.items.length === 0) {
+      console.warn(`No order items found for order ${order.id}`);
       return [];
     }
 
@@ -592,7 +549,7 @@ const insertPositionFromOrder = async (orderRow: any, portfolioId: string) => {
     const updatedAt = new Date();
 
     // Create a position for each order item
-    for (const item of orderItemsResult.rows) {
+    for (const item of order.items) {
       const positionId = uuidv4();
       
       const result = await pool.query(
@@ -601,25 +558,25 @@ const insertPositionFromOrder = async (orderRow: any, portfolioId: string) => {
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
         [
           positionId,
-          orderRow.userid,
-          item.productid,
+          order.userId,
+          item.productId,
           portfolioId,
           purchaseDate,
-          parseFloat(item.quantity),
-          parseFloat(item.unitprice),
-          parseFloat(item.unitprice), // Set marketPrice same as purchasePrice initially
+          item.quantity,
+          item.unitPrice,
+          item.unitPrice, // Use purchase price as initial market price
           createdAt,
           updatedAt
         ]
       );
 
-      console.log(`Created position ${positionId} for product ${item.productid}, quantity: ${item.quantity}`);
+      console.log(`Created position ${positionId} for product ${item.productId}, quantity: ${item.quantity}`);
       positions.push(result.rows[0]);
     }
 
     return positions;
   } catch (error) {
-    console.error(`Error creating positions from order ${orderRow.id}:`, error);
+    console.error(`Error creating positions from order ${order.id}:`, error);
     throw error;
   }
 };

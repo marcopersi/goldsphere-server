@@ -1,28 +1,20 @@
 /**
- * ProductService
+ * ProductService Implementation
  * 
  * Handles product-related business logic including validation,
  * availability checking, and order item enrichment.
  */
 
 import pool from "../dbConfig";
+import { IProductService, EnrichedOrderItem } from "../interfaces/IProductService";
 
-export interface EnrichedOrderItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  available: boolean;
-}
-
-export class ProductService {
+export class ProductServiceImpl implements IProductService {
   /**
    * Get product by ID
    */
   async getProductById(productId: string): Promise<any> {
     const query = `
-      SELECT * FROM products 
+      SELECT * FROM product 
       WHERE id = $1
     `;
     
@@ -45,11 +37,12 @@ export class ProductService {
       try {
         const product = await this.getProductById(item.productId);
         
-        // Check availability
-        const available = product.stock >= item.quantity;
+        // Check availability using correct column name
+        const stockQuantity = product.stockquantity || 0;
+        const available = stockQuantity >= item.quantity;
         
         if (!available) {
-          throw new Error(`Insufficient stock for product ${item.productId}. Available: ${product.stock}, Requested: ${item.quantity}`);
+          throw new Error(`Insufficient stock for product ${item.productId}. Available: ${stockQuantity}, Requested: ${item.quantity}`);
         }
         
         const unitPrice = parseFloat(product.price);

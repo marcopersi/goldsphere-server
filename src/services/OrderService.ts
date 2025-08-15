@@ -1,5 +1,5 @@
 /**
- * OrderService
+ * OrderService Implementation
  * 
  * Handles all order-related business logic including creation, validation,
  * enrichment, and status management. Orchestrates other services.
@@ -7,8 +7,11 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import pool from "../dbConfig";
-import { ProductService } from "./ProductService";
-import { CalculationService, CalculationResult } from "./CalculationService";
+import { IProductService } from "../interfaces/IProductService";
+import { ICalculationService } from "../interfaces/ICalculationService";
+import { IOrderService, CreateOrderRequest, CreateOrderResult } from "../interfaces/IOrderService";
+import { ProductServiceImpl } from "./ProductServiceImpl";
+import { CalculationServiceImpl } from "./CalculationServiceImpl";
 import { 
   Order,
   OrderType,
@@ -16,27 +19,17 @@ import {
   CurrencyEnum
 } from "@marcopersi/shared";
 
-export interface CreateOrderRequest {
-  userId: string;
-  type: string;
-  items: Array<{ productId: string; quantity: number }>;
-  shippingAddress?: any;
-  paymentMethod?: any;
-  notes?: string;
-}
+export class OrderService implements IOrderService {
+  private readonly productService: IProductService;
+  private readonly calculationService: ICalculationService;
 
-export interface CreateOrderResult {
-  order: Order;
-  calculation: CalculationResult;
-}
-
-export class OrderService {
-  private readonly productService: ProductService;
-  private readonly calculationService: CalculationService;
-
-  constructor() {
-    this.productService = new ProductService();
-    this.calculationService = new CalculationService();
+  constructor(
+    productService?: IProductService,
+    calculationService?: ICalculationService
+  ) {
+    // Dependency injection with defaults - allows for easy mocking
+    this.productService = productService || new ProductServiceImpl();
+    this.calculationService = calculationService || new CalculationServiceImpl();
   }
 
   /**
@@ -72,7 +65,7 @@ export class OrderService {
         productName: item.productName,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        totalPrice: item.totalprice
+        totalPrice: item.totalPrice
       })),
       subtotal: calculation.subtotal,
       fees: {
@@ -200,7 +193,7 @@ export class OrderService {
           order.userId,
           order.type.value,
           order.status.value,
-          null, // custodyServiceId - will be set later
+          null, // custodyServiceId - currently not assigned during order creation
           order.createdAt,
           order.updatedAt
         ]
@@ -391,5 +384,31 @@ export class OrderService {
       createdAt: new Date(firstRow.createdat),
       updatedAt: new Date(firstRow.updatedat)
     };
+  }
+
+  /**
+   * Get orders by user ID with filtering and pagination (instance method)
+   */
+  async getOrdersByUserId(
+    userId?: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      type?: string;
+    }
+  ): Promise<{
+    orders: Order[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> {
+    // Delegate to static method for now
+    return OrderService.getOrdersByUserId(userId, options);
   }
 }
