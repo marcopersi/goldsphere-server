@@ -6,7 +6,16 @@ import {
   OrderType,
   OrderStatus,
   CurrencyEnum,
-  OrderQueryParamsSchema
+  OrderQueryParamsSchema,
+  // Validation schemas for order operations
+  CreateOrderInputSchema,
+  UpdateOrderRequestSchema,
+  UpdateOrderStatusRequestSchema,
+  // API response schemas for consistent formatting
+  OrderApiResponseSchema,
+  CreateOrderResponseSchema,
+  UpdateOrderResponseSchema,
+  OrderApiListResponseSchema
 } from "@marcopersi/shared";
 import { OrderService } from "../services/OrderService";
 
@@ -147,9 +156,10 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
     const statsResult = await pool.query(statsQuery, queryParams);
     const stats = statsResult.rows[0];
     
-    // Return comprehensive admin response directly
-    res.json({
-      orders: ordersResult.orders,
+    // Return comprehensive admin response using shared schema
+    const adminResponse = OrderApiListResponseSchema.parse({
+      success: true,
+      data: ordersResult.orders,
       pagination: ordersResult.pagination,
       statistics: {
         totalOrders: parseInt(stats.totalorders),
@@ -168,6 +178,8 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
         role: authenticatedUser.role
       }
     });
+    
+    res.json(adminResponse);
   } catch (error) {
     console.error("Error fetching orders for admin:", error);
     res.status(500).json({ 
@@ -202,13 +214,17 @@ router.get("/orders/my", async (req: Request, res: Response) => {
       type: type as string
     });
     
-    // Return data directly with user context
-    res.json({
-      ...ordersResult,
+    // Return data using shared schema with user context
+    const userResponse = OrderApiListResponseSchema.parse({
+      success: true,
+      data: ordersResult.orders,
+      pagination: ordersResult.pagination,
       user: {
         id: authenticatedUser.id
       }
     });
+    
+    res.json(userResponse);
   } catch (error) {
     console.error("Error fetching user's orders:", error);
     res.status(500).json({ 
@@ -264,11 +280,21 @@ router.get("/orders", async (req: Request, res: Response) => {
       ...(authenticatedUser.role !== 'admin' && { suggestion: 'Consider using /orders/my for a simplified user experience' })
     };
     
-    // Return data directly with context
-    res.json({
-      ...ordersResult,
-      context: responseContext
+    // Return data using shared schema with context
+    const response = OrderApiListResponseSchema.parse({
+      orders: ordersResult.orders || [],
+      pagination: {
+        ...ordersResult.pagination,
+        hasPrevious: ordersResult.pagination?.hasPrev || false
+      },
+      user: {
+        id: authenticatedUser.id,
+        email: authenticatedUser.email,
+        role: authenticatedUser.role
+      }
     });
+    
+    res.json(response);
   } catch (error) {
     console.error("Error fetching orders:", error);
     res.status(500).json({ 
@@ -292,66 +318,38 @@ router.post("/orders", async (req: Request, res: Response) => {
       });
     }
 
-    // Manual validation for create order request (simplified input validation)
-    const { type, items, shippingAddress, paymentMethod, notes } = req.body;
-    
-    // Validate required fields
-    if (!type) {
+    // Validate request body using shared schema
+    const validationResult = CreateOrderInputSchema.safeParse(req.body);
+    if (!validationResult.success) {
       return res.status(400).json({
         success: false,
-        error: "Order type is required"
+        error: "Invalid order data",
+        details: validationResult.error.errors
       });
     }
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Items must be a non-empty array"
-      });
-    }
-
-    // Validate each item
-    for (const [index, item] of items.entries()) {
-      if (!item.productId) {
-        return res.status(400).json({
-          success: false,
-          error: `Item ${index + 1}: productId is required`
-        });
-      }
-      if (!item.quantity || item.quantity <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: `Item ${index + 1}: quantity must be a positive number`
-        });
-      }
-    }
-
-    // Validate order type enum
-    const orderType = OrderType.fromValue(type);
-    if (!orderType) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid order type: ${type}. Must be 'buy' or 'sell'`
-      });
-    }
+    const orderInput = validationResult.data;
 
     // Use OrderService to create order with proper validation and enrichment
     const createOrderRequest = {
       userId: userId,
-      type: type,
-      items: items,
-      shippingAddress: shippingAddress,
-      paymentMethod: paymentMethod,
-      notes: notes
+      type: orderInput.type,
+      items: orderInput.items,
+      shippingAddress: orderInput.shippingAddress,
+      paymentMethod: orderInput.paymentMethod,
+      notes: orderInput.notes
     };
 
     const result = await orderService.createOrder(createOrderRequest);
     
-    return res.status(201).json({
+    // Format response using shared schema
+    const response = CreateOrderResponseSchema.parse({
       success: true,
       data: result.order,
       message: "Order created successfully. Backend enriched the order with product details and calculations."
     });
+    
+    return res.status(201).json(response);
 
   } catch (error) {
     console.error("Error creating order:", error);
@@ -369,10 +367,21 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
   
   try {
     // Validate UUID format
-    if (!id || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRegex.exec(id)) {
       return res.status(400).json({ 
         success: false,
         error: "Invalid order ID format" 
+      });
+    }
+
+    // Validate request body using shared schema
+    const validationResult = UpdateOrderStatusRequestSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid status update request",
+        details: validationResult.error.errors
       });
     }
 
@@ -440,12 +449,14 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
       throw new Error("Failed to retrieve updated order");
     }
 
-    // Return properly validated response
-    return res.json({
+    // Format response using shared schema
+    const response = UpdateOrderResponseSchema.parse({
       success: true,
       data: updatedOrder,
       message: `Order status updated to ${newStatus.displayName}`
     });
+
+    return res.json(response);
 
   } catch (error) {
     console.error("Error processing order:", error);
@@ -460,16 +471,109 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
 // PUT update order
 router.put("/orders/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { userId, productId, quantity, totalPrice, custodyServiceId } = req.body;
+  
   try {
-    const result = await pool.query(
-      "UPDATE orders SET userid = $1, productid = $2, quantity = $3, totalprice = $4, custodyserviceid = $5, updatedat = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *",
-      [userId, productId, quantity, totalPrice, custodyServiceId, id]
-    );
-    res.json(result.rows[0]);
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRegex.exec(id)) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid order ID format" 
+      });
+    }
+
+    // Validate request body using shared schema
+    const validationResult = UpdateOrderRequestSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid order update request",
+        details: validationResult.error.errors
+      });
+    }
+
+    const updateData = validationResult.data;
+
+    // For now, use direct database update since OrderService.updateOrder doesn't exist
+    // NOTE: OrderService.updateOrder method should be implemented for better abstraction
+    
+    // Check if order exists first
+    const existingOrder = await orderService.getOrderById(id);
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        error: "Order not found"
+      });
+    }
+
+    // Build dynamic update query based on provided fields
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+    let paramIndex = 1;
+
+    if (updateData.type) {
+      updateFields.push(`ordertype = $${paramIndex}`);
+      updateValues.push(updateData.type);
+      paramIndex++;
+    }
+    
+    if (updateData.status) {
+      updateFields.push(`orderstatus = $${paramIndex}`);
+      updateValues.push(updateData.status);
+      paramIndex++;
+    }
+    
+    if (updateData.notes) {
+      updateFields.push(`notes = $${paramIndex}`);
+      updateValues.push(updateData.notes);
+      paramIndex++;
+    }
+
+    // Always update the updatedAt timestamp
+    updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
+
+    if (updateFields.length === 1) { // Only timestamp update
+      return res.status(400).json({
+        success: false,
+        error: "No valid fields provided for update"
+      });
+    }
+
+    const updateQuery = `
+      UPDATE orders 
+      SET ${updateFields.join(', ')} 
+      WHERE id = $${paramIndex} 
+      RETURNING *
+    `;
+    updateValues.push(id);
+
+    const result = await pool.query(updateQuery, updateValues);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Order not found"
+      });
+    }
+
+    // Get updated order using OrderService for proper mapping
+    const updatedOrder = await orderService.getOrderById(id);
+    
+    // Format response using shared schema
+    const response = UpdateOrderResponseSchema.parse({
+      success: true,
+      data: updatedOrder,
+      message: "Order updated successfully"
+    });
+    
+    return res.json(response);
   } catch (error) {
     console.error("Error updating order:", error);
-    res.status(500).json({ error: "Failed to update order", details: (error as Error).message });
+    return res.status(500).json({ 
+      success: false,
+      error: "Failed to update order", 
+      details: (error as Error).message 
+    });
   }
 });
 
@@ -488,15 +592,40 @@ router.delete("/orders/:id", async (req: Request, res: Response) => {
 // GET order by id
 router.get("/orders/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
+  
   try {
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRegex.exec(id)) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid order ID format" 
+      });
+    }
+
     const order = await orderService.getOrderById(id);
     if (!order) {
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ 
+        success: false,
+        error: "Order not found" 
+      });
     }
-    res.json({ success: true, data: order });
+
+    // Format response using shared schema
+    const response = OrderApiResponseSchema.parse({
+      success: true,
+      data: order,
+      message: "Order retrieved successfully"
+    });
+
+    return res.json(response);
   } catch (error) {
     console.error("Error fetching order:", error);
-    res.status(500).json({ error: "Failed to fetch order", details: (error as Error).message });
+    return res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch order", 
+      details: (error as Error).message 
+    });
   }
 });
 

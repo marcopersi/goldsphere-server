@@ -16,7 +16,11 @@ import {
   Order,
   OrderType,
   OrderStatus,
-  CurrencyEnum
+  CurrencyEnum,
+  // Validation helpers for order business logic
+  isValidOrderType,
+  isValidOrderStatus,
+  isValidStatusTransition
 } from "@marcopersi/shared";
 
 export class OrderService implements IOrderService {
@@ -120,10 +124,26 @@ export class OrderService implements IOrderService {
   }
 
   /**
-   * Update order status
+   * Update order status with validation
    */
   async updateOrderStatus(orderId: string, newStatus: OrderStatus): Promise<void> {
     try {
+      // Validate that the new status is a valid order status
+      if (!isValidOrderStatus(newStatus.value)) {
+        throw new Error(`Invalid order status: ${newStatus.value}`);
+      }
+
+      // Get current order to validate status transition
+      const currentOrder = await this.getOrderById(orderId);
+      if (!currentOrder) {
+        throw new Error(`Order not found: ${orderId}`);
+      }
+
+      // Validate status transition
+      if (!isValidStatusTransition(currentOrder.status.value, newStatus.value)) {
+        throw new Error(`Invalid status transition from ${currentOrder.status.value} to ${newStatus.value}`);
+      }
+
       const result = await pool.query(
         `UPDATE orders 
          SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP 
@@ -141,9 +161,106 @@ export class OrderService implements IOrderService {
   }
 
   /**
-   * Validate create order request
+   * Update order with comprehensive validation
+   */
+  async updateOrder(orderId: string, updateData: {
+    type?: string;
+    status?: string;
+    notes?: string;
+    fees?: {
+      shipping: number;
+      insurance: number;
+      total: number;
+      certification: number;
+    };
+  }): Promise<{ order: Order }> {
+    try {
+      // Get current order
+      const currentOrder = await this.getOrderById(orderId);
+      if (!currentOrder) {
+        throw new Error(`Order not found: ${orderId}`);
+      }
+
+      // Validate order type if provided
+      if (updateData.type && !isValidOrderType(updateData.type)) {
+        throw new Error(`Invalid order type: ${updateData.type}`);
+      }
+
+      // Validate status transition if provided
+      if (updateData.status) {
+        if (!isValidOrderStatus(updateData.status)) {
+          throw new Error(`Invalid order status: ${updateData.status}`);
+        }
+        if (!isValidStatusTransition(currentOrder.status.value, updateData.status)) {
+          throw new Error(`Invalid status transition from ${currentOrder.status.value} to ${updateData.status}`);
+        }
+      }
+
+      // Build dynamic update query
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
+      let paramIndex = 1;
+
+      if (updateData.type) {
+        updateFields.push(`type = $${paramIndex}`);
+        updateValues.push(updateData.type);
+        paramIndex++;
+      }
+
+      if (updateData.status) {
+        updateFields.push(`orderstatus = $${paramIndex}`);
+        updateValues.push(updateData.status);
+        paramIndex++;
+      }
+
+      if (updateData.notes) {
+        updateFields.push(`notes = $${paramIndex}`);
+        updateValues.push(updateData.notes);
+        paramIndex++;
+      }
+
+      // Always update timestamp
+      updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
+
+      if (updateFields.length === 1) { // Only timestamp
+        throw new Error('No valid fields provided for update');
+      }
+
+      const updateQuery = `
+        UPDATE orders 
+        SET ${updateFields.join(', ')} 
+        WHERE id = $${paramIndex} 
+      `;
+      updateValues.push(orderId);
+
+      await pool.query(updateQuery, updateValues);
+
+      // Return updated order
+      const updatedOrder = await this.getOrderById(orderId);
+      if (!updatedOrder) {
+        throw new Error('Failed to retrieve updated order');
+      }
+
+      return { order: updatedOrder };
+    } catch (error) {
+      console.error(`Error updating order ${orderId}:`, error);
+      throw new Error(`Failed to update order: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Validate create order request with enhanced validation
    */
   private validateCreateOrderRequest(request: CreateOrderRequest): void {
+    this.validateBasicOrderFields(request);
+    this.validateOrderItems(request.items);
+    this.validateOptionalFields(request);
+  }
+
+  /**
+   * Validate basic required order fields
+   */
+  private validateBasicOrderFields(request: CreateOrderRequest): void {
     if (!request.userId) {
       throw new Error('User ID is required');
     }
@@ -152,25 +269,75 @@ export class OrderService implements IOrderService {
       throw new Error('Order type is required');
     }
 
-    if (!request.items || !Array.isArray(request.items) || request.items.length === 0) {
+    // Use shared package validation for order type
+    if (!isValidOrderType(request.type.toLowerCase())) {
+      throw new Error(`Invalid order type: ${request.type}. Must be 'buy' or 'sell'`);
+    }
+  }
+
+  /**
+   * Validate order items array
+   */
+  private validateOrderItems(items: Array<{ productId: string; quantity: number }>): void {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       throw new Error('Items must be a non-empty array');
     }
 
-    for (const item of request.items) {
+    for (const [index, item] of items.entries()) {
       if (!item.productId || !item.quantity) {
-        throw new Error('Each item must have productId and quantity');
+        throw new Error(`Item ${index + 1}: productId and quantity are required`);
       }
 
       if (item.quantity <= 0) {
-        throw new Error('Item quantity must be positive');
+        throw new Error(`Item ${index + 1}: quantity must be positive`);
       }
     }
   }
 
   /**
-   * Parse order type string to OrderType enum
+   * Validate optional order fields
+   */
+  private validateOptionalFields(request: CreateOrderRequest): void {
+    // Validate shipping address if provided
+    if (request.shippingAddress) {
+      this.validateShippingAddress(request.shippingAddress);
+    }
+
+    // Validate payment method if provided
+    if (request.paymentMethod) {
+      this.validatePaymentMethod(request.paymentMethod);
+    }
+  }
+
+  /**
+   * Validate shipping address completeness
+   */
+  private validateShippingAddress(address: any): void {
+    const { firstName, lastName, street, city, state, zipCode, country } = address;
+    if (!firstName || !lastName || !street || !city || !state || !zipCode || !country) {
+      throw new Error('Incomplete shipping address: all fields are required');
+    }
+  }
+
+  /**
+   * Validate payment method type
+   */
+  private validatePaymentMethod(paymentMethod: any): void {
+    const validTypes = ['card', 'bank_transfer', 'crypto'];
+    if (!validTypes.includes(paymentMethod.type)) {
+      throw new Error(`Invalid payment method type: ${paymentMethod.type}. Must be one of: ${validTypes.join(', ')}`);
+    }
+  }
+
+  /**
+   * Parse order type string to OrderType enum with validation
    */
   private parseOrderType(typeString: string): OrderType {
+    // Use shared package validation
+    if (!isValidOrderType(typeString.toLowerCase())) {
+      throw new Error(`Invalid order type: ${typeString}`);
+    }
+
     const orderType = OrderType.fromValue(typeString.toLowerCase());
     if (!orderType) {
       throw new Error(`Invalid order type: ${typeString}`);
