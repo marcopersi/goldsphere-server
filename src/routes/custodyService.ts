@@ -25,7 +25,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       });
     }
     
-    const { page, limit, search, custodianId, serviceType, isActive, sortBy, sortOrder } = queryValidation.data;
+    const { page, limit, search, custodianId, minFee, maxFee, paymentFrequency, currency, isActive, sortBy, sortOrder } = queryValidation.data;
     
     // Build dynamic query with filtering and pagination
     let whereConditions: string[] = [];
@@ -33,7 +33,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
     let paramIndex = 1;
     
     if (search) {
-      whereConditions.push(`cs.custodyServiceName ILIKE $${paramIndex++}`);
+      whereConditions.push(`cs.custodyservicename ILIKE $${paramIndex++}`);
       queryParams.push(`%${search}%`);
     }
     
@@ -42,57 +42,74 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       queryParams.push(custodianId);
     }
     
-    if (serviceType) {
-      whereConditions.push(`cs.serviceType = $${paramIndex++}`);
-      queryParams.push(serviceType);
+    if (minFee !== undefined) {
+      whereConditions.push(`cs.fee >= $${paramIndex++}`);
+      queryParams.push(minFee);
     }
     
-    if (isActive !== undefined) {
-      whereConditions.push(`cs.isActive = $${paramIndex++}`);
-      queryParams.push(isActive);
+    if (maxFee !== undefined) {
+      whereConditions.push(`cs.fee <= $${paramIndex++}`);
+      queryParams.push(maxFee);
+    }
+    
+    if (paymentFrequency) {
+      whereConditions.push(`cs.paymentFrequency = $${paramIndex++}`);
+      queryParams.push(paymentFrequency);
+    }
+    
+    if (currency) {
+      whereConditions.push(`curr.isocode3 = $${paramIndex++}`);
+      queryParams.push(currency);
     }
     
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
     // Validate and construct ORDER BY clause
-    const validSortColumns = ['serviceName', 'fee', 'custodianName', 'createdAt'];
-    let sortColumn = 'cs.custodyServiceName'; // default
-    if (validSortColumns.includes(sortBy)) {
-      if (sortBy === 'serviceName') sortColumn = 'cs.custodyServiceName';
-      else if (sortBy === 'fee') sortColumn = 'cs.fee';
-      else if (sortBy === 'custodianName') sortColumn = 'c.custodianName';
-      else if (sortBy === 'createdAt') sortColumn = 'cs.createdAt';
-    }
+    const validSortColumns = ['custodyServiceName', 'fee', 'custodianName', 'createdAt'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'custodyServiceName';
     const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
     
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) 
       FROM custodyService cs
+      LEFT JOIN currency curr ON cs.currencyId = curr.id
       LEFT JOIN custodian c ON cs.custodianId = c.id
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, queryParams);
     const totalCount = parseInt(countResult.rows[0].count);
     
-    // Get paginated results with enhanced joins
+    // Get paginated results with enhanced data
     const offset = (page - 1) * limit;
     const dataQuery = `
-      SELECT 
-        cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
-        curr.isocode3 as currency, cs.maxWeight, cs.createdAt, cs.updatedAt,
-        c.custodianName
+      SELECT cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
+             curr.isocode3 as currencyCode, cs.maxWeight, cs.createdAt, cs.updatedAt,
+             c.custodianName as custodianName
       FROM custodyService cs
-      LEFT JOIN custodian c ON cs.custodianId = c.id
       LEFT JOIN currency curr ON cs.currencyId = curr.id
+      LEFT JOIN custodian c ON cs.custodianId = c.id
       ${whereClause}
-      ORDER BY ${sortColumn} ${sortDirection}
+      ORDER BY ${sortColumn === 'custodianName' ? 'c.custodianName' : 'cs.' + sortColumn} ${sortDirection}
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `;
     queryParams.push(limit, offset);
     
     const result = await pool.query(dataQuery, queryParams);
-    const custodyServicesData = result.rows.map(sharedMapDatabaseRowToCustodyService);
+    
+    // Map database results to proper format
+    const custodyServicesData = result.rows.map(row => ({
+      id: row.id,
+      custodianId: row.custodianid,
+      custodianName: row.custodianname,
+      serviceName: row.custodyservicename,
+      fee: parseFloat(row.fee),
+      paymentFrequency: row.paymentfrequency,
+      currency: row.currencycode || 'USD',
+      maxWeight: row.maxweight ? parseFloat(row.maxweight) : null,
+      createdAt: row.createdat ? row.createdat.toISOString() : new Date().toISOString(),
+      updatedAt: row.updatedat ? row.updatedat.toISOString() : new Date().toISOString()
+    }));
     
     // Format response with pagination
     const response = {
@@ -122,8 +139,8 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
   }
 });
 
-// GET all custody services with enhanced query parameters and response formatting
-router.get("/custodyServices", async (req: Request, res: Response) => {
+// POST create new custody service with comprehensive validation
+router.post("/custodyServices", async (req: Request, res: Response) => {
   try {
     // Parse and validate query parameters
     const queryValidation = CustodyServicesQuerySchema.safeParse(req.query);
@@ -671,6 +688,114 @@ router.get("/custodyServices/:id", async (req: Request, res: Response) => {
     res.status(500).json({ 
       success: false, 
       error: "Failed to fetch custody service", 
+      details: (error as Error).message 
+    });
+  }
+});
+
+// GET all custodians with their custody services - comprehensive view
+router.get("/custodians-with-services", async (req: Request, res: Response) => {
+  try {
+    // Optional query parameters for filtering
+    const { search } = req.query;
+    
+    // Build dynamic query with optional filtering
+    let whereConditions: string[] = [];
+    let queryParams: any[] = [];
+    let paramIndex = 1;
+    
+    if (search && typeof search === 'string') {
+      whereConditions.push(`(c.custodianName ILIKE $${paramIndex} OR cs.custodyServiceName ILIKE $${paramIndex})`);
+      queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Get all custodians with their services
+    const query = `
+      SELECT 
+        c.id as custodian_id,
+        c.custodianName as custodian_name,
+        c.createdAt as custodian_created_at,
+        c.updatedAt as custodian_updated_at,
+        cs.id as service_id,
+        cs.custodyServiceName as service_name,
+        cs.fee as service_fee,
+        cs.paymentFrequency as service_payment_frequency,
+        curr.isocode3 as service_currency,
+        cs.maxWeight as service_max_weight,
+        cs.createdAt as service_created_at,
+        cs.updatedAt as service_updated_at
+      FROM custodian c
+      LEFT JOIN custodyService cs ON c.id = cs.custodianId
+      LEFT JOIN currency curr ON cs.currencyId = curr.id
+      ${whereClause}
+      ORDER BY c.custodianName ASC, cs.custodyServiceName ASC
+    `;
+    
+    const result = await pool.query(query, queryParams);
+    
+    // Group the results by custodian
+    const custodiansMap = new Map();
+    
+    for (const row of result.rows) {
+      const custodianId = row.custodian_id;
+      
+      if (!custodiansMap.has(custodianId)) {
+        custodiansMap.set(custodianId, {
+          id: custodianId,
+          name: row.custodian_name,
+          createdAt: row.custodian_created_at ? row.custodian_created_at.toISOString() : new Date().toISOString(),
+          updatedAt: row.custodian_updated_at ? row.custodian_updated_at.toISOString() : new Date().toISOString(),
+          services: []
+        });
+      }
+      
+      // Add service if it exists (LEFT JOIN might return null services)
+      if (row.service_id) {
+        custodiansMap.get(custodianId).services.push({
+          id: row.service_id,
+          serviceName: row.service_name,
+          fee: parseFloat(row.service_fee),
+          paymentFrequency: row.service_payment_frequency,
+          currency: row.service_currency || 'USD',
+          maxWeight: row.service_max_weight ? parseFloat(row.service_max_weight) : null,
+          createdAt: row.service_created_at ? row.service_created_at.toISOString() : new Date().toISOString(),
+          updatedAt: row.service_updated_at ? row.service_updated_at.toISOString() : new Date().toISOString()
+        });
+      }
+    }
+    
+    // Convert map to array
+    const custodiansWithServices = Array.from(custodiansMap.values());
+    
+    // Calculate summary statistics
+    const totalCustodians = custodiansWithServices.length;
+    const totalServices = custodiansWithServices.reduce((sum, custodian) => sum + custodian.services.length, 0);
+    const custodiansWithServices_count = custodiansWithServices.filter(c => c.services.length > 0).length;
+    const custodiansWithoutServices = totalCustodians - custodiansWithServices_count;
+    
+    const response = {
+      success: true,
+      data: {
+        custodians: custodiansWithServices,
+        summary: {
+          totalCustodians,
+          totalServices,
+          custodiansWithServices: custodiansWithServices_count,
+          custodiansWithoutServices
+        }
+      },
+      message: `Retrieved ${totalCustodians} custodians with ${totalServices} total services`
+    };
+    
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching custodians with services:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to fetch custodians with services", 
       details: (error as Error).message 
     });
   }
