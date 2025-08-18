@@ -203,7 +203,7 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
       notes: row.notes,
       createdAt: row.createdat,
       total: parseFloat(row.total) || 0,
-      productName: row.productname || 'Unknown Product'
+      productName: row.name || 'Unknown Product'
     }));
 
     // Calculate comprehensive pagination metadata
