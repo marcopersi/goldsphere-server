@@ -352,6 +352,22 @@ router.post("/orders/:id/process", async (req: Request, res: Response) => {
       });
     }
 
+    // Check authentication and admin role
+    const authenticatedUser = (req as any).user;
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    if (authenticatedUser.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: "Access denied. Admin role required to process orders."
+      });
+    }
+
     // No need to validate request body since we auto-determine the next status
     // The route automatically progresses the order to the next logical status
 
@@ -697,6 +713,38 @@ const insertPosition = async (order: Order, portfolioId: string) => {
   return positions;
 };
 
+// Create transaction record for a position
+const createTransactionForPosition = async (position: any, order: Order, item: any) => {
+  try {
+    const transactionId = uuidv4();
+    const transactionDate = new Date();
+    
+    const result = await pool.query(
+      `INSERT INTO public.transactions(
+        id, positionId, userId, type, date, quantity, price, fees, notes, createdat)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [
+        transactionId,
+        position.id,
+        order.userId,
+        'buy', // Transaction type matches order type
+        transactionDate,
+        item.quantity,
+        item.unitPrice,
+        0, // fees default to 0
+        `Transaction for order ${order.id}`, // notes
+        transactionDate // createdAt
+      ]
+    );
+
+    console.log(`Created transaction ${transactionId} for position ${position.id}, product ${item.productId}, quantity: ${item.quantity}`);
+    return result.rows[0];
+  } catch (error) {
+    console.error(`Error creating transaction for position ${position.id}:`, error);
+    throw error;
+  }
+};
+
 // Create position from a database order row (updated for new schema with order_items)
 const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
   try {
@@ -707,6 +755,7 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
     }
 
     const positions = [];
+    const transactions = [];
     const purchaseDate = new Date();
     const createdAt = new Date();
     const updatedAt = new Date();
@@ -733,13 +782,19 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
         ]
       );
 
+      const position = result.rows[0];
       console.log(`Created position ${positionId} for product ${item.productId}, quantity: ${item.quantity}`);
-      positions.push(result.rows[0]);
+      positions.push(position);
+
+      // Create corresponding transaction record
+      const transaction = await createTransactionForPosition(position, order, item);
+      transactions.push(transaction);
     }
 
-    return positions;
+    console.log(`Created ${positions.length} positions and ${transactions.length} transactions for order ${order.id}`);
+    return { positions, transactions };
   } catch (error) {
-    console.error(`Error creating positions from order ${order.id}:`, error);
+    console.error(`Error creating positions and transactions from order ${order.id}:`, error);
     throw error;
   }
 };
