@@ -369,37 +369,37 @@ router.get("/:id", async (req: Request, res: Response) => {
     const result = await pool.query(`
       SELECT 
         product.id, 
-        product.productName AS productname, 
-        productType.productTypeName AS producttype, 
+        product.name AS productname, 
+        productType.producttypename AS producttype, 
         metal.id AS metalid,
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
-        issuingCountry.isoCode2 AS countrycode, 
-        producer.producerName AS producer, 
-        product.fineWeight, 
-        product.unitOfMeasure, 
+        issuingCountry.isocode2 AS countrycode, 
+        producer.producername AS producer, 
+        product.weight AS fineweight, 
+        product.weightunit AS unitofmeasure, 
         product.purity,
         product.price,
         product.currency,
-        product.productYear,
+        product.year AS productyear,
         product.description,
-        product.imageFilename AS imageurl,
-        product.inStock,
-        product.stockQuantity,
-        product.minimumOrderQuantity,
-        product.premiumPercentage,
+        product.imagefilename AS imageurl,
+        product.instock,
+        product.stockquantity,
+        product.minimumorderquantity,
+        product.premiumpercentage,
         product.diameter,
         product.thickness,
         product.mintage,
         product.certification,
         product.tags,
-        product.createdAt,
-        product.updatedAt
+        product.createdat,
+        product.updatedat
       FROM product 
-      JOIN productType ON productType.id = product.productTypeId 
-      JOIN metal ON metal.id = product.metalId 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
-      JOIN producer ON producer.id = product.producerId
+      JOIN productType ON productType.id = product.producttypeid 
+      JOIN metal ON metal.id = product.metalid 
+      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingcountryid 
+      JOIN producer ON producer.id = product.producerid
       WHERE product.id = $1
     `, [id]);
     
@@ -638,33 +638,30 @@ router.put("/:id", async (req: Request, res: Response) => {
     let paramIndex = 1;
     
     if (productData.productName !== undefined) {
-      updateFields.push(`productName = $${paramIndex++}`);
+      updateFields.push(`name = $${paramIndex++}`);
       updateValues.push(productData.productName);
     }
     if (productData.productTypeId !== undefined) {
-      updateFields.push(`productTypeId = $${paramIndex++}`);
+      updateFields.push(`producttypeid = $${paramIndex++}`);
       updateValues.push(productData.productTypeId);
     }
     if (productData.metalId !== undefined) {
-      updateFields.push(`metalId = $${paramIndex++}`);
+      updateFields.push(`metalid = $${paramIndex++}`);
       updateValues.push(productData.metalId);
     }
     if (productData.issuingCountryId !== undefined) {
-      updateFields.push(`issuingCountryId = $${paramIndex++}`);
+      updateFields.push(`issuingcountryid = $${paramIndex++}`);
       updateValues.push(productData.issuingCountryId);
     }
     if (productData.producerId !== undefined) {
-      updateFields.push(`producerId = $${paramIndex++}`);
+      updateFields.push(`producerid = $${paramIndex++}`);
       updateValues.push(productData.producerId);
     }
     if (productData.fineWeight !== undefined) {
-      updateFields.push(`fineWeight = $${paramIndex++}`);
+      updateFields.push(`weight = $${paramIndex++}`);
       updateValues.push(productData.fineWeight);
     }
-    if (productData.unitOfMeasure !== undefined) {
-      updateFields.push(`unitOfMeasure = $${paramIndex++}`);
-      updateValues.push(productData.unitOfMeasure);
-    }
+
     if (productData.purity !== undefined) {
       updateFields.push(`purity = $${paramIndex++}`);
       updateValues.push(productData.purity);
@@ -678,31 +675,27 @@ router.put("/:id", async (req: Request, res: Response) => {
       updateValues.push(productData.currency);
     }
     if (productData.productYear !== undefined) {
-      updateFields.push(`productYear = $${paramIndex++}`);
+      updateFields.push(`year = $${paramIndex++}`);
       updateValues.push(productData.productYear);
     }
-    if (productData.description !== undefined) {
-      updateFields.push(`description = $${paramIndex++}`);
-      updateValues.push(productData.description);
-    }
     if (productData.imageFilename !== undefined) {
-      updateFields.push(`imageFilename = $${paramIndex++}`);
+      updateFields.push(`imagefilename = $${paramIndex++}`);
       updateValues.push(productData.imageFilename);
     }
     if (productData.inStock !== undefined) {
-      updateFields.push(`inStock = $${paramIndex++}`);
+      updateFields.push(`instock = $${paramIndex++}`);
       updateValues.push(productData.inStock);
     }
     if (productData.stockQuantity !== undefined) {
-      updateFields.push(`stockQuantity = $${paramIndex++}`);
+      updateFields.push(`stockquantity = $${paramIndex++}`);
       updateValues.push(productData.stockQuantity);
     }
     if (productData.minimumOrderQuantity !== undefined) {
-      updateFields.push(`minimumOrderQuantity = $${paramIndex++}`);
+      updateFields.push(`minimumorderquantity = $${paramIndex++}`);
       updateValues.push(productData.minimumOrderQuantity);
     }
     if (productData.premiumPercentage !== undefined) {
-      updateFields.push(`premiumPercentage = $${paramIndex++}`);
+      updateFields.push(`premiumpercentage = $${paramIndex++}`);
       updateValues.push(productData.premiumPercentage);
     }
     if (productData.diameter !== undefined) {
@@ -727,7 +720,7 @@ router.put("/:id", async (req: Request, res: Response) => {
     }
     
     // Always update updatedAt
-    updateFields.push(`updatedAt = CURRENT_TIMESTAMP`);
+    updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
     
     if (updateFields.length === 1) { // Only updatedAt
       return res.status(400).json({ 
@@ -751,37 +744,37 @@ router.put("/:id", async (req: Request, res: Response) => {
     const productResult = await pool.query(`
       SELECT 
         product.id, 
-        product.productName AS productname, 
-        productType.productTypeName AS producttype, 
+        product.name AS productname, 
+        productType.producttypename AS producttype, 
         metal.id AS metalid,
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
-        issuingCountry.isoCode2 AS countrycode, 
-        producer.producerName AS producer, 
-        product.fineWeight, 
-        product.unitOfMeasure, 
+        issuingCountry.isocode2 AS countrycode, 
+        producer.producername AS producer, 
+        product.weight AS fineweight, 
+        product.weightunit AS unitofmeasure,
         product.purity,
         product.price,
         product.currency,
-        product.productYear,
+        product.year AS productyear,
         product.description,
-        product.imageFilename AS imageurl,
-        product.inStock,
-        product.stockQuantity,
-        product.minimumOrderQuantity,
-        product.premiumPercentage,
+        product.imagefilename AS imageurl,
+        product.instock,
+        product.stockquantity,
+        product.minimumorderquantity,
+        product.premiumpercentage,
         product.diameter,
         product.thickness,
         product.mintage,
         product.certification,
         product.tags,
-        product.createdAt,
-        product.updatedAt
+        product.createdat,
+        product.updatedat
       FROM product 
-      JOIN productType ON productType.id = product.productTypeId 
-      JOIN metal ON metal.id = product.metalId 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
-      JOIN producer ON producer.id = product.producerId
+      JOIN productType ON productType.id = product.producttypeid 
+      JOIN metal ON metal.id = product.metalid 
+      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingcountryid 
+      JOIN producer ON producer.id = product.producerid
       WHERE product.id = $1
     `, [id]);
     
@@ -790,7 +783,7 @@ router.put("/:id", async (req: Request, res: Response) => {
     // Transform database result with comprehensive data mapping
     const product: ProductResponse = {
       id: row.id,
-      name: row.productname,
+      name: row.name,
       type: row.producttype,
       metal: {
         id: row.metalid,
@@ -856,7 +849,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
     }
     
     // Check if product exists
-    const existingResult = await pool.query("SELECT id, productName FROM product WHERE id = $1", [id]);
+    const existingResult = await pool.query("SELECT id, name FROM product WHERE id = $1", [id]);
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ 
         success: false,
@@ -864,7 +857,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
       });
     }
     
-    const productName = existingResult.rows[0].productname;
+    const productName = existingResult.rows[0].name;
     
     // Check for existing orders referencing this product
     const orderCheck = await pool.query("SELECT id FROM orders WHERE productId = $1 LIMIT 1", [id]);
@@ -950,13 +943,13 @@ router.post("/", async (req: Request, res: Response) => {
     // Insert new product with comprehensive data mapping
     const insertResult = await pool.query(`
       INSERT INTO product (
-        productName, productTypeId, metalId, issuingCountryId, producerId,
-        fineWeight, unitOfMeasure, purity, price, currency, productYear,
-        description, imageFilename, inStock, stockQuantity, minimumOrderQuantity,
-        premiumPercentage, diameter, thickness, mintage, certification, tags
+        name, producttypeid, metalid, issuingcountryid, producerid,
+        weight, weightunit, purity, price, currency, year,
+        description, imagefilename, instock, stockquantity, minimumorderquantity,
+        premiumpercentage, diameter, thickness, mintage, certification, tags
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-        $17, $18, $19, $20, $21, $22
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
       ) RETURNING id
     `, [
       productData.productName,
@@ -989,37 +982,37 @@ router.post("/", async (req: Request, res: Response) => {
     const productResult = await pool.query(`
       SELECT 
         product.id, 
-        product.productName AS productname, 
-        productType.productTypeName AS producttype, 
+        product.name AS productname, 
+        productType.producttypename AS producttype, 
         metal.id AS metalid,
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
-        issuingCountry.isoCode2 AS countrycode, 
-        producer.producerName AS producer, 
-        product.fineWeight, 
-        product.unitOfMeasure, 
+        issuingCountry.isocode2 AS countrycode, 
+        producer.producername AS producer, 
+        product.weight AS fineweight, 
+        product.weightunit AS unitofmeasure, 
         product.purity,
         product.price,
         product.currency,
-        product.productYear,
+        product.year AS productyear,
         product.description,
-        product.imageFilename AS imageurl,
-        product.inStock,
-        product.stockQuantity,
-        product.minimumOrderQuantity,
-        product.premiumPercentage,
+        product.imagefilename AS imageurl,
+        product.instock,
+        product.stockquantity,
+        product.minimumorderquantity,
+        product.premiumpercentage,
         product.diameter,
         product.thickness,
         product.mintage,
         product.certification,
         product.tags,
-        product.createdAt,
-        product.updatedAt
+        product.createdat,
+        product.updatedat
       FROM product 
-      JOIN productType ON productType.id = product.productTypeId 
-      JOIN metal ON metal.id = product.metalId 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
-      JOIN producer ON producer.id = product.producerId
+      JOIN productType ON productType.id = product.producttypeid 
+      JOIN metal ON metal.id = product.metalid 
+      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingcountryid 
+      JOIN producer ON producer.id = product.producerid
       WHERE product.id = $1
     `, [newProductId]);
     
