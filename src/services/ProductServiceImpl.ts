@@ -40,9 +40,10 @@ export class ProductServiceImpl implements IProductService {
         // Check availability using correct column name
         const stockQuantity = product.stockquantity || 0;
         const available = stockQuantity >= item.quantity;
+        const productName = product.name || `Product ${item.productId}`;
         
         if (!available) {
-          throw new Error(`Insufficient stock for product ${item.productId}. Available: ${stockQuantity}, Requested: ${item.quantity}`);
+          throw new Error(`Insufficient stock for ${productName}. Available: ${stockQuantity}, Requested: ${item.quantity}`);
         }
         
         const unitPrice = parseFloat(product.price);
