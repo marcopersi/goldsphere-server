@@ -80,8 +80,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
     const dataQuery = `
       SELECT 
         cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
-        curr.isocode3 as currency, cs.currencyId, cs.maxWeight, 
-        cs.createdAt::text as createdAt, cs.updatedAt::text as updatedAt,
+        curr.isocode3 as currency, cs.maxWeight, cs.createdAt, cs.updatedAt,
         c.custodianName
       FROM custodyService cs
       LEFT JOIN custodian c ON cs.custodianId = c.id
@@ -201,8 +200,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
     const offset = (page - 1) * limit;
     const dataQuery = `
       SELECT cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
-             c.isocode3 as currency, cs.currencyId, cs.maxWeight, 
-             cs.createdAt::text as createdAt, cs.updatedAt::text as updatedAt,
+             c.isocode3 as currency, cs.maxWeight, cs.createdAt, cs.updatedAt,
              cust.custodianName as custodianName
       FROM custodyService cs
       LEFT JOIN currency c ON cs.currencyId = c.id

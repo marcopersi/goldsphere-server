@@ -3,14 +3,10 @@ import pool from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   Order,
-  OrderType,
-  OrderStatus,
-  CurrencyEnum,
   OrderQueryParamsSchema,
   // Validation schemas for order operations
   CreateOrderInputSchema,
   UpdateOrderRequestSchema,
-  UpdateOrderStatusRequestSchema,
   // API response schemas for consistent formatting
   OrderApiResponseSchema,
   CreateOrderResponseSchema,
@@ -31,50 +27,39 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
   const firstRow = rows[0];
   
   // Group rows by order if needed, for now assume single item per order
-  const items = rows.map(row => ({
+  const items = rows.map((row, index) => ({
+    id: row.itemid || uuidv4(), // Use item ID from database or generate UUID
     productId: row.productid,
-    productName: `Product ${row.productid}`, // Product name lookup can be added later
+    productName: row.productname || `Product ${row.productid}`,
     quantity: parseFloat(row.quantity),
-    unitPrice: parseFloat(row.totalprice) / parseFloat(row.quantity),
+    unitPrice: parseFloat(row.unitprice || row.totalprice) / parseFloat(row.quantity),
     totalPrice: parseFloat(row.totalprice),
   }));
 
-  // Map database values to enum instances
-  const orderType = OrderType.fromValue(firstRow.ordertype) || OrderType.BUY;
-  const orderStatus = OrderStatus.fromValue(firstRow.orderstatus) || OrderStatus.PENDING;
-  const currency = CurrencyEnum.fromIsoCode3('USD') || CurrencyEnum.USD;
+  // Map database values to string literals (shared package expects strings)
+  const orderType = (firstRow.type as "buy" | "sell") || "buy";
+  const orderStatus = firstRow.orderstatus || "pending";  // Database has lowercase 'orderstatus'
+  const currency = "USD";
+
+  // Calculate missing fields if not in database
+  const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+  const taxes = 0; // Default for now
+  const totalAmount = subtotal + taxes;
 
   return {
     id: firstRow.id,
-    userId: firstRow.userid,
-    type: orderType,  // Use enum instance
-    status: orderStatus,  // Use enum instance
+    userId: firstRow.userid,  // Database has lowercase 'userid'
+    type: orderType,  // String literal
+    status: orderStatus,  // String literal
+    orderNumber: firstRow.ordernumber || `ORD-${firstRow.id.slice(0, 8).toUpperCase()}`,
     items: items,
-    subtotal: items.reduce((sum, item) => sum + item.totalPrice, 0),
-    fees: {
-      processing: 0,
-      shipping: 0,
-      insurance: 0
-    },
-    taxes: 0,
-    totalAmount: items.reduce((sum, item) => sum + item.totalPrice, 0),
-    currency: currency,  // Use enum instance
-    shippingAddress: {
-      type: 'shipping',
-      firstName: '',
-      lastName: '',
-      street: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: ''
-    },
-    paymentMethod: {
-      type: 'card' as const
-    },
+    currency: currency,  // String literal
+    subtotal: subtotal,
+    taxes: taxes,
+    totalAmount: totalAmount,
     createdAt: firstRow.createdat,
     updatedAt: firstRow.updatedat
-  };
+  } as Order;
 };
 
 // Load SQL query from file (for future use if needed)
@@ -159,7 +144,7 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
     // Return comprehensive admin response using shared schema
     const adminResponse = OrderApiListResponseSchema.parse({
       success: true,
-      data: ordersResult.orders,
+      orders: ordersResult.orders,  // Changed from "data" to "orders"
       pagination: ordersResult.pagination,
       statistics: {
         totalOrders: parseInt(stats.totalorders),
@@ -217,7 +202,7 @@ router.get("/orders/my", async (req: Request, res: Response) => {
     // Return data using shared schema with user context
     const userResponse = OrderApiListResponseSchema.parse({
       success: true,
-      data: ordersResult.orders,
+      orders: ordersResult.orders,  // Changed from "data" to "orders"
       pagination: ordersResult.pagination,
       user: {
         id: authenticatedUser.id
@@ -282,16 +267,10 @@ router.get("/orders", async (req: Request, res: Response) => {
     
     // Return data using shared schema with context
     const response = OrderApiListResponseSchema.parse({
-      orders: ordersResult.orders || [],
-      pagination: {
-        ...ordersResult.pagination,
-        hasPrevious: ordersResult.pagination?.hasPrev || false
-      },
-      user: {
-        id: authenticatedUser.id,
-        email: authenticatedUser.email,
-        role: authenticatedUser.role
-      }
+      success: true,
+      orders: ordersResult.orders,  // Changed from "data" to "orders"
+      pagination: ordersResult.pagination,
+      context: responseContext
     });
     
     res.json(response);
@@ -335,8 +314,6 @@ router.post("/orders", async (req: Request, res: Response) => {
       userId: userId,
       type: orderInput.type,
       items: orderInput.items,
-      shippingAddress: orderInput.shippingAddress,
-      paymentMethod: orderInput.paymentMethod,
       notes: orderInput.notes
     };
 
@@ -362,7 +339,7 @@ router.post("/orders", async (req: Request, res: Response) => {
 });
 
 // process order
-router.put("/orders/process/:id", async (req: Request, res: Response) => {
+router.post("/orders/:id/process", async (req: Request, res: Response) => {
   const { id } = req.params;
   
   try {
@@ -375,15 +352,8 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
       });
     }
 
-    // Validate request body using shared schema
-    const validationResult = UpdateOrderStatusRequestSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid status update request",
-        details: validationResult.error.errors
-      });
-    }
+    // No need to validate request body since we auto-determine the next status
+    // The route automatically progresses the order to the next logical status
 
     // Get current order using OrderService to ensure proper data mapping
     const currentOrder = await orderService.getOrderById(id);
@@ -394,39 +364,53 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
       });
     }
 
-    // Determine next status
-    let newStatus: OrderStatus;
-    switch (currentOrder.status.value) {
+    // Determine next status based on updated shared package flow
+    let newStatus: string;
+    switch (currentOrder.status) {
       case "pending":
-        console.debug("Order is now pending, will be processing...");
-        newStatus = OrderStatus.PROCESSING;
+        console.debug("Order is now pending, will be confirmed...");
+        newStatus = "confirmed";
+        break;
+      case "confirmed":
+        console.debug("Order is now confirmed, will be processing...");
+        newStatus = "processing";
         break;
       case "processing":
         console.debug("Order is now processing, will be shipped...");
-        newStatus = OrderStatus.SHIPPED;
+        newStatus = "shipped";
         break;
       case "shipped":
         console.debug("Order is now shipped, will be delivered...");
-        newStatus = OrderStatus.DELIVERED;
+        newStatus = "delivered";
         break;
       case "delivered":
-        console.debug("Order is now delivered, cannot process further");
+        console.debug("Order is now delivered, will be completed...");
+        newStatus = "completed";
+        break;
+      case "completed":
+        console.debug("Order is now completed, cannot process further");
         return res.status(400).json({ 
           success: false,
-          error: "Order is already delivered and cannot be processed further" 
-        });      
+          error: "Order is already completed and cannot be processed further" 
+        });
+      case "cancelled":
+        console.debug("Order is cancelled, cannot process further");
+        return res.status(400).json({ 
+          success: false,
+          error: "Order is cancelled and cannot be processed" 
+        });
       default:
         return res.status(400).json({ 
           success: false,
-          error: `Invalid order status '${currentOrder.status.value}' for further processing` 
+          error: `Invalid order status '${currentOrder.status}' for further processing` 
         });
     }
 
     // Update order status using OrderService
     await orderService.updateOrderStatus(id, newStatus);
 
-    // Create portfolio and positions when order is shipped
-    if (newStatus === OrderStatus.SHIPPED) {
+    // Create portfolio and positions when order is delivered (customer receives the items)
+    if (newStatus === "delivered") {
       let portfolioId = await findPortfolioId(currentOrder.userId);
       
       // If user doesn't have a portfolio, create one
@@ -446,16 +430,66 @@ router.put("/orders/process/:id", async (req: Request, res: Response) => {
     // Get updated order with proper data mapping
     const updatedOrder = await orderService.getOrderById(id);
     if (!updatedOrder) {
+      console.error(`Failed to retrieve updated order ${id} after processing`);
       throw new Error("Failed to retrieve updated order");
     }
 
+    // DEBUG: Log the retrieved updated order
+    console.log(`🔍 DEBUG Retrieved updated order ${id}:`, {
+      id: updatedOrder.id,
+      userId: updatedOrder.userId,
+      status: updatedOrder.status,
+      type: updatedOrder.type,
+      itemsCount: updatedOrder.items?.length || 0,
+      fullOrder: updatedOrder
+    });
+
+    // Validate that we have essential fields
+    if (!updatedOrder.id || !updatedOrder.userId) {
+      console.error(`Retrieved order ${id} has missing critical fields:`, {
+        hasId: !!updatedOrder.id,
+        hasUserId: !!updatedOrder.userId,
+        status: updatedOrder.status,
+        itemCount: updatedOrder.items?.length || 0
+      });
+      throw new Error("Retrieved order data is incomplete");
+    }
+
     // Format response using shared schema
+    console.log(`🔍 DEBUG Before Zod validation - updatedOrder:`, {
+      id: updatedOrder.id,
+      userId: updatedOrder.userId,
+      status: updatedOrder.status,
+      type: updatedOrder.type,
+      keys: Object.keys(updatedOrder)
+    });
+
     const response = UpdateOrderResponseSchema.parse({
       success: true,
       data: updatedOrder,
-      message: `Order status updated to ${newStatus.displayName}`
+      message: `Order status updated to ${newStatus}`
     });
 
+    console.log(`🔍 DEBUG After Zod validation - response.data:`, {
+      id: response.data.id,
+      userId: response.data.userId,
+      status: response.data.status,
+      type: response.data.type,
+      keys: Object.keys(response.data)
+    });
+
+    // Additional validation before sending response
+    if (!response.data || !response.data.id || !response.data.userId) {
+      console.error(`Response validation failed for order ${id}:`, {
+        hasData: !!response.data,
+        hasId: !!response.data?.id,
+        hasUserId: !!response.data?.userId,
+        status: response.data?.status
+      });
+      throw new Error("Response validation failed - missing critical data");
+    }
+
+    console.log(`✅ Order ${id} processed successfully: ${currentOrder.status} -> ${newStatus}`);
     return res.json(response);
 
   } catch (error) {

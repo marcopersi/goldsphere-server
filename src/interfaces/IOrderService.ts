@@ -5,7 +5,7 @@
  * Allows for multiple implementations (production, mock, test) with same interface.
  */
 
-import { Order, OrderStatus } from "@marcopersi/shared";
+import { Order } from "@marcopersi/shared";
 
 export interface CreateOrderRequest {
   userId: string;
@@ -45,7 +45,7 @@ export interface IOrderService {
   /**
    * Update order status with business logic validation
    */
-  updateOrderStatus(orderId: string, newStatus: OrderStatus): Promise<void>;
+  updateOrderStatus(orderId: string, newStatus: string): Promise<void>;
 
   /**
    * Get orders by user with filtering and pagination
@@ -66,7 +66,7 @@ export interface IOrderService {
       total: number;
       totalPages: number;
       hasNext: boolean;
-      hasPrev: boolean;
+      hasPrevious: boolean;  // Changed from hasPrev to hasPrevious
     };
   }>;
 }

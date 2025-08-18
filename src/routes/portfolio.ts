@@ -4,7 +4,6 @@
  * 
  * Features:
  * - Portfolio CRUD with comprehensive validation
- * - Portfolio analytics and summary calculations
  * - Position aggregation and metal breakdown
  * - Performance metrics and gain/loss analysis
  * - Advanced filtering, sorting, and pagination
@@ -14,21 +13,18 @@ import { Router, Request, Response } from "express";
 import pool from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
 import { 
-  z,
   PortfolioSummarySchema,
-  // Core validation schemas - using what's available in shared
-  // We'll create local schemas following the established patterns
+  UuidSchema,
+  TimestampSchema,
+  CommonPaginationSchema
 } from "@marcopersi/shared";
+import { z } from 'zod';
+
+const router = Router();
 
 // =============================================================================
-// LOCAL PORTFOLIO SCHEMAS (following shared package patterns)
+// LOCAL PORTFOLIO SCHEMAS (using shared package patterns)
 // =============================================================================
-
-// Basic UUID validation
-const UuidSchema = z.string().uuid('Invalid UUID format');
-
-// ISO timestamp validation  
-const TimestampSchema = z.string().datetime('Invalid ISO datetime format');
 
 // Core portfolio schema
 const PortfolioSchema = z.object({
@@ -61,21 +57,19 @@ const UpdatePortfolioRequestSchema = z.object({
   isActive: z.boolean().optional()
 });
 
-// String to number transformer
+// String transformation helpers
 const stringToNumber = z.string().optional().transform(val => {
   if (!val) return undefined;
   const num = parseInt(val, 10);
   return isNaN(num) ? undefined : num;
 });
 
-// String to float transformer
 const stringToFloat = z.string().optional().transform(val => {
   if (!val) return undefined;
   const num = parseFloat(val);
   return isNaN(num) ? undefined : num;
 });
 
-// String to boolean transformer
 const stringToBoolean = z.string().optional().transform(val => {
   if (val === 'true' || val === '1') return true;
   if (val === 'false' || val === '0') return false;
@@ -95,23 +89,13 @@ const PortfoliosQuerySchema = z.object({
   maxPositionCount: stringToNumber.transform(val => val && val >= 0 ? val : undefined),
   minGainLoss: stringToFloat,
   maxGainLoss: stringToFloat,
-  createdAfter: z.string().datetime().optional(),
-  createdBefore: z.string().datetime().optional(),
-  updatedAfter: z.string().datetime().optional(),
-  updatedBefore: z.string().datetime().optional(),
+  createdAfter: z.string().optional(),
+  createdBefore: z.string().optional(),
+  updatedAfter: z.string().optional(),
+  updatedBefore: z.string().optional(),
   metal: z.enum(['gold', 'silver', 'platinum', 'palladium']).optional(),
   sortBy: z.enum(['portfolioName', 'totalValue', 'totalGainLoss', 'positionCount', 'createdAt', 'updatedAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc')
-});
-
-// Pagination schema
-const PaginationSchema = z.object({
-  page: z.number().int().min(1),
-  limit: z.number().int().min(1).max(100),
-  total: z.number().int().min(0),
-  totalPages: z.number().int().min(0),
-  hasNext: z.boolean(),
-  hasPrevious: z.boolean()
 });
 
 // Response schemas
@@ -125,7 +109,7 @@ const PortfoliosResponseSchema = z.object({
   success: z.boolean(),
   data: z.object({
     portfolios: z.array(PortfolioSchema),
-    pagination: PaginationSchema
+    pagination: CommonPaginationSchema
   }),
   message: z.string().optional()
 });
@@ -136,8 +120,6 @@ type CreatePortfolioRequest = z.infer<typeof CreatePortfolioRequestSchema>;
 type UpdatePortfolioRequest = z.infer<typeof UpdatePortfolioRequestSchema>;
 type PortfoliosQuery = z.infer<typeof PortfoliosQuerySchema>;
 
-const router = Router();
-
 // =============================================================================
 // PORTFOLIO ANALYTICS HELPERS
 // =============================================================================
@@ -146,7 +128,7 @@ const router = Router();
 const calculateMetalBreakdown = async (portfolioId: string) => {
   const query = `
     SELECT 
-      m.name as metal,
+      m.metalname as metal,
       SUM(pos.quantity) as total_quantity,
       SUM(pos.quantity * pos.purchaseprice) as total_cost,
       SUM(pos.quantity * pos.marketprice) as total_value,
@@ -155,7 +137,7 @@ const calculateMetalBreakdown = async (portfolioId: string) => {
     JOIN public.product p ON pos.productid = p.id
     JOIN public.metal m ON p.metalid = m.id
     WHERE pos.portfolioid = $1
-    GROUP BY m.name
+    GROUP BY m.metalname
   `;
   
   const result = await pool.query(query, [portfolioId]);
@@ -317,7 +299,7 @@ router.get('/portfolios', async (req: Request, res: Response) => {
         SELECT 1 FROM public.position pos 
         JOIN public.product prod ON pos.productid = prod.id 
         JOIN public.metal m ON prod.metalid = m.id
-        WHERE pos.portfolioid = p.id AND LOWER(m.name) = LOWER($${paramCount})
+        WHERE pos.portfolioid = p.id AND LOWER(m.metalname) = LOWER($${paramCount})
       )`);
       values.push(metal);
     }
@@ -431,7 +413,6 @@ router.get('/portfolios', async (req: Request, res: Response) => {
         portfolios,
         pagination
       },
-      message: `Retrieved ${portfolios.length} portfolios`
     });
 
   } catch (error) {
@@ -443,6 +424,152 @@ router.get('/portfolios', async (req: Request, res: Response) => {
     });
   }
 });
+
+/**
+ * GET /portfolios/my - Get current user's portfolios
+ */
+router.get('/portfolios/my', async (req: Request, res: Response) => {
+    try {
+      // Extract user info from JWT token
+      const authenticatedUser = (req as any).user;
+    
+      if (!authenticatedUser) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated"
+        });
+      }
+
+      const userId = authenticatedUser.id;
+
+      // Fetch user's portfolios from database
+      const portfolioResult = await pool.query(
+        'SELECT * FROM portfolio WHERE ownerid = $1 ORDER BY createdat DESC',
+        [userId]
+      );
+
+      // For each portfolio, fetch its positions
+      const portfoliosWithPositions = await Promise.all(
+        portfolioResult.rows.map(async (portfolio) => {
+          try {
+            // Fetch positions for this portfolio
+            const positionsResult = await pool.query(`
+              SELECT * FROM position 
+              WHERE portfolioid = $1 
+              ORDER BY createdat DESC
+            `, [portfolio.id]);
+            
+            // Map positions using the same logic from position.ts
+            const positions = await Promise.all(
+              positionsResult.rows.map(async (row) => {
+                // Fetch product information for each position
+                const productResult = await pool.query(`
+                  SELECT p.*, pt.productTypeName as type, m.name as metal,
+                         ic.issuingCountryName as country, pr.producerName as producer
+                  FROM product p
+                  LEFT JOIN productType pt ON p.productTypeId = pt.id
+                  LEFT JOIN metal m ON p.metalId = m.id
+                  LEFT JOIN issuingCountry ic ON p.issuingCountryId = ic.id
+                  LEFT JOIN producer pr ON p.producerId = pr.id
+                  WHERE p.id = $1
+                `, [row.productid]);
+
+                const product = productResult.rows.length > 0 ? {
+                  id: productResult.rows[0].id,
+                  name: productResult.rows[0].name,
+                  type: productResult.rows[0].type || 'Unknown',
+                  metal: productResult.rows[0].metal || 'Unknown',
+                  weight: parseFloat(productResult.rows[0].weight) || 0,
+                  weightUnit: productResult.rows[0].weightunit || 'grams',
+                  purity: parseFloat(productResult.rows[0].purity) || 0,
+                  price: parseFloat(productResult.rows[0].price) || 0,
+                  currency: productResult.rows[0].currency || 'USD',
+                  producer: productResult.rows[0].producer || 'Unknown',
+                  country: productResult.rows[0].country || 'Unknown',
+                  year: productResult.rows[0].year || new Date().getFullYear(),
+                  description: productResult.rows[0].description || '',
+                  imageUrl: productResult.rows[0].imagefilename || '',
+                  inStock: productResult.rows[0].instock || false,
+                  minimumOrderQuantity: productResult.rows[0].minimumorderquantity || 1,
+                  createdAt: productResult.rows[0].createdat,
+                  updatedAt: productResult.rows[0].updatedat
+                } : null;
+
+                return {
+                  id: row.id,
+                  userId: row.userid,
+                  productId: row.productid,
+                  portfolioId: row.portfolioid,
+                  product: product,
+                  purchaseDate: row.purchasedate || new Date(),
+                  purchasePrice: parseFloat(row.purchaseprice) || 0,
+                  marketPrice: parseFloat(row.marketprice) || 0,
+                  quantity: parseFloat(row.quantity) || 0,
+                  custodyServiceId: row.custodyserviceid || null,
+                  custody: null, // Simplified for now
+                  status: row.status || 'active',
+                  notes: row.notes || '',
+                  createdAt: row.createdat || new Date(),
+                  updatedAt: row.updatedat || new Date()
+                };
+              })
+            );
+
+            // Calculate portfolio summary
+            const totalValue = positions.reduce((sum, pos) => sum + (pos.marketPrice * pos.quantity), 0);
+            const totalCost = positions.reduce((sum, pos) => sum + (pos.purchasePrice * pos.quantity), 0);
+            const totalGainLoss = totalValue - totalCost;
+            const totalGainLossPercentage = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
+
+            return {
+              id: portfolio.id,
+              portfolioName: portfolio.portfolioname,
+              ownerId: portfolio.ownerid,
+              description: portfolio.description || '',
+              totalValue,
+              totalCost,
+              totalGainLoss,
+              totalGainLossPercentage,
+              positionCount: positions.length,
+              positions,
+              createdAt: portfolio.createdat,
+              updatedAt: portfolio.updatedat
+            };
+          } catch (positionError) {
+            console.error(`Error fetching positions for portfolio ${portfolio.id}:`, positionError);
+            // Return portfolio without positions if there's an error
+            return {
+              id: portfolio.id,
+              portfolioName: portfolio.portfolioname,
+              ownerId: portfolio.ownerid,
+              description: portfolio.description || '',
+              totalValue: 0,
+              totalCost: 0,
+              totalGainLoss: 0,
+              totalGainLossPercentage: 0,
+              positionCount: 0,
+              positions: [],
+              createdAt: portfolio.createdat,
+              updatedAt: portfolio.updatedat
+            };
+          }
+        })
+      );
+
+      res.json({
+        success: true,
+        data: portfoliosWithPositions,
+        message: 'User portfolios with positions retrieved successfully'
+      });
+    } catch (error) {
+      console.error('Error fetching user portfolios:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch user portfolios',
+        error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'
+      });
+    }
+  });
 
 /**
  * GET /portfolios/:id - Get portfolio by ID with detailed analytics
@@ -951,3 +1078,53 @@ router.delete('/portfolios/:id', async (req: Request, res: Response) => {
 });
 
 export default router;
+
+// GET portfolio positions
+router.get("/portfolios", async (req: Request, res: Response) => {
+  try {
+    // Simple query to test basic functionality
+    const result = await pool.query("SELECT * FROM portfolio LIMIT 10");
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching portfolios:", error);
+    res.status(500).json({ error: "Failed to fetch portfolios", details: (error as Error).message });
+  }
+});
+
+// POST new portfolio
+router.post("/portfolios", async (req: Request, res: Response) => {
+  const { portfolioName, ownerId } = req.body;
+  try {
+    const result = await pool.query("INSERT INTO portfolio (portfolioName, ownerId) VALUES ($1, $2) RETURNING *", [portfolioName, ownerId]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("Error adding portfolio:", error);
+    res.status(500).json({ error: "Failed to add portfolio", details: (error as Error).message });
+  }
+});
+
+// PUT update portfolio
+router.put("/portfolios/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { portfolioName, ownerId } = req.body;
+  try {
+    const result = await pool.query("UPDATE portfolio SET portfolioName = $1, ownerId = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *", [portfolioName, ownerId, id]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating portfolio:", error);
+    res.status(500).json({ error: "Failed to update portfolio", details: (error as Error).message });
+  }
+});
+
+// DELETE portfolio
+router.delete("/portfolios/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM portfolio WHERE id = $1", [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting portfolio:", error);
+    res.status(500).json({ error: "Failed to delete portfolio", details: (error as Error).message });
+  }
+});
+

@@ -7,9 +7,9 @@ describe('Position API', () => {
 
   beforeAll(() => {
     authToken = generateToken({
-      id: '5207b74b-95ab-461c-be54-abc297ad4266', // Use actual admin user ID from database
-      email: 'admin@goldsphere.vault',
-      role: 'admin'
+      id: 'test-user',
+      email: 'test@goldsphere.vault',
+      role: 'user'
     });
   });
 

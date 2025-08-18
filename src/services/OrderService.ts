@@ -14,9 +14,6 @@ import { ProductServiceImpl } from "./ProductServiceImpl";
 import { CalculationServiceImpl } from "./CalculationServiceImpl";
 import { 
   Order,
-  OrderType,
-  OrderStatus,
-  CurrencyEnum,
   // Validation helpers for order business logic
   isValidOrderType,
   isValidOrderStatus,
@@ -63,29 +60,23 @@ export class OrderService implements IOrderService {
       id: orderId,
       userId: request.userId,
       type: orderType,
-      status: OrderStatus.PENDING,
-      items: enrichedItems.map((item: any) => ({
+      status: "pending",
+      orderNumber: `ORD-${orderId.slice(0, 8).toUpperCase()}`, // Generate order number
+      items: enrichedItems.map((item: any, index: number) => ({
+        id: uuidv4(), // Generate proper UUID for each item
         productId: item.productId,
         productName: item.productName,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         totalPrice: item.totalPrice
       })),
+      currency: "USD", //FIXME get currency from request, if there is non yet, we add one
       subtotal: calculation.subtotal,
-      fees: {
-        processing: calculation.fees.processing,
-        shipping: calculation.fees.shipping,
-        insurance: calculation.fees.insurance
-      },
-      taxes: calculation.taxes,
+      taxes: calculation.taxes || 0,
       totalAmount: calculation.totalAmount,
-      currency: CurrencyEnum.USD,
-      shippingAddress: request.shippingAddress,
-      paymentMethod: request.paymentMethod,
-      notes: request.notes,
       createdAt: now,
       updatedAt: now
-    };
+    } as Order;
 
     // Save to database
     await this.saveOrderToDatabase(order);
@@ -102,8 +93,8 @@ export class OrderService implements IOrderService {
   async getOrderById(orderId: string): Promise<Order | null> {
     try {
       const result = await pool.query(
-        `SELECT o.*, 
-                oi.productid, oi.quantity, oi.totalprice, oi.unitprice,
+        `SELECT o.id, o.userid, o.type, o.orderstatus, o.createdat, o.updatedat,
+                oi.id as itemid, oi.productid, oi.quantity, oi.totalprice, oi.unitprice,
                 oi.productname
          FROM orders o
          LEFT JOIN order_items oi ON o.id = oi.orderid  
@@ -116,6 +107,18 @@ export class OrderService implements IOrderService {
         return null;
       }
 
+      // DEBUG: Log what we actually got from database
+      console.log(`🔍 DEBUG getOrderById(${orderId}):`, {
+        rowCount: result.rows.length,
+        firstRow: result.rows[0],
+        allRows: result.rows.map(r => ({ 
+          id: r.id, 
+          userid: r.userid, 
+          orderstatus: r.orderstatus,
+          productid: r.productid 
+        }))
+      });
+
       return OrderService.mapDatabaseRowsToOrder(result.rows);
     } catch (error) {
       console.error(`Error fetching order ${orderId}:`, error);
@@ -126,11 +129,11 @@ export class OrderService implements IOrderService {
   /**
    * Update order status with validation
    */
-  async updateOrderStatus(orderId: string, newStatus: OrderStatus): Promise<void> {
+  async updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
     try {
       // Validate that the new status is a valid order status
-      if (!isValidOrderStatus(newStatus.value)) {
-        throw new Error(`Invalid order status: ${newStatus.value}`);
+      if (!isValidOrderStatus(newStatus)) {
+        throw new Error(`Invalid order status: ${newStatus}`);
       }
 
       // Get current order to validate status transition
@@ -140,15 +143,15 @@ export class OrderService implements IOrderService {
       }
 
       // Validate status transition
-      if (!isValidStatusTransition(currentOrder.status.value, newStatus.value)) {
-        throw new Error(`Invalid status transition from ${currentOrder.status.value} to ${newStatus.value}`);
+      if (!isValidStatusTransition(currentOrder.status, newStatus)) {
+        throw new Error(`Invalid status transition from ${currentOrder.status} to ${newStatus}`);
       }
 
       const result = await pool.query(
         `UPDATE orders 
          SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP 
          WHERE id = $2`,
-        [newStatus.value, orderId]
+        [newStatus, orderId]
       );
 
       if (result.rowCount === 0) {
@@ -191,8 +194,8 @@ export class OrderService implements IOrderService {
         if (!isValidOrderStatus(updateData.status)) {
           throw new Error(`Invalid order status: ${updateData.status}`);
         }
-        if (!isValidStatusTransition(currentOrder.status.value, updateData.status)) {
-          throw new Error(`Invalid status transition from ${currentOrder.status.value} to ${updateData.status}`);
+        if (!isValidStatusTransition(currentOrder.status, updateData.status)) {
+          throw new Error(`Invalid status transition from ${currentOrder.status} to ${updateData.status}`);
         }
       }
 
@@ -330,19 +333,19 @@ export class OrderService implements IOrderService {
   }
 
   /**
-   * Parse order type string to OrderType enum with validation
+   * Parse order type string to string literal with validation
    */
-  private parseOrderType(typeString: string): OrderType {
+  private parseOrderType(typeString: string): "buy" | "sell" {
     // Use shared package validation
     if (!isValidOrderType(typeString.toLowerCase())) {
       throw new Error(`Invalid order type: ${typeString}`);
     }
 
-    const orderType = OrderType.fromValue(typeString.toLowerCase());
-    if (!orderType) {
-      throw new Error(`Invalid order type: ${typeString}`);
+    const lowerType = typeString.toLowerCase();
+    if (lowerType === "buy" || lowerType === "sell") {
+      return lowerType;
     }
-    return orderType;
+    throw new Error(`Invalid order type: ${typeString}`);
   }
 
   /**
@@ -358,8 +361,8 @@ export class OrderService implements IOrderService {
         [
           order.id,
           order.userId,
-          order.type.value,
-          order.status.value,
+          order.type,
+          order.status,
           null, // custodyServiceId - currently not assigned during order creation
           order.createdAt,
           order.updatedAt
@@ -408,7 +411,7 @@ export class OrderService implements IOrderService {
       total: number;
       totalPages: number;
       hasNext: boolean;
-      hasPrev: boolean;
+      hasPrevious: boolean;  // Changed from hasPrev to hasPrevious
     };
   }> {
     const { page = 1, limit = 20, status, type } = options;
@@ -486,7 +489,7 @@ export class OrderService implements IOrderService {
       total,
       totalPages,
       hasNext: page < totalPages,
-      hasPrev: page > 1
+      hasPrevious: page > 1  // Changed from hasPrev to hasPrevious to match schema
     };
     
     return {
@@ -509,48 +512,53 @@ export class OrderService implements IOrderService {
     const items = rows
       .filter(row => row.productid) // Filter out rows without items
       .map(row => ({
+        id: row.itemid || uuidv4(), // Use item ID from database or generate UUID
         productId: row.productid,
         productName: row.productname || `Product ${row.productid}`,
         quantity: parseFloat(row.quantity || '0'),
         unitPrice: parseFloat(row.unitprice || '0'),
-        totalPrice: parseFloat(row.totalprice || '0')      }));
+        totalPrice: parseFloat(row.totalprice || '0')
+      }));
 
-    // Calculate totals from items since they're not stored in orders table
+    // Calculate missing fields if not in database
     const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-    const fees = {
-      processing: subtotal * 0.02, // 2% processing fee
-      shipping: 25.00, // Flat shipping
-      insurance: subtotal * 0.005 // 0.5% insurance
-    };
-    const taxes = subtotal * 0.08; // 8% tax
-    const totalAmount = subtotal + fees.processing + fees.shipping + fees.insurance + taxes;
+    const taxes = 0; // Default for now
+    const totalAmount = subtotal + taxes;
 
-    return {
+    // DEBUG: Log mapping process
+    console.log(`🔍 DEBUG mapDatabaseRowsToOrder:`, {
+      firstRowKeys: Object.keys(firstRow),
+      firstRowId: firstRow.id,
+      firstRowUserId: firstRow.userid,
+      firstRowStatus: firstRow.orderstatus,
+      firstRowType: firstRow.type
+    });
+
+    const mappedOrder = {
       id: firstRow.id,
-      userId: firstRow.userid,
-      type: (firstRow.type ? OrderType.fromValue(firstRow.type) : null) || OrderType.BUY,
-      status: (firstRow.orderstatus ? OrderStatus.fromValue(firstRow.orderstatus) : null) || OrderStatus.PENDING,
-      items,
-      subtotal,
-      fees,
-      taxes,
-      totalAmount,
-      currency: CurrencyEnum.USD,
-      shippingAddress: { 
-        type: 'shipping' as const,
-        firstName: '',
-        lastName: '',
-        street: '', 
-        city: '', 
-        state: '', 
-        zipCode: '', 
-        country: '' 
-      }, // Default empty address
-      paymentMethod: { type: 'card' as const }, // Default payment method
-      notes: undefined, // Not stored in current schema
+      userId: firstRow.userid,  // Database has lowercase 'userid' 
+      type: (firstRow.type === "buy" || firstRow.type === "sell") ? firstRow.type : "buy",
+      status: firstRow.orderstatus || "pending",  // Database has lowercase 'orderstatus' //FIXME WHY || pending, this is wrong! 
+      orderNumber: firstRow.ordernumber || `ORD-${firstRow.id.slice(0, 8).toUpperCase()}`,
+      items: items,
+      currency: "USD", //FIXME: Get currency from database
+      subtotal: subtotal,
+      taxes: taxes,
+      totalAmount: totalAmount,
       createdAt: new Date(firstRow.createdat),
       updatedAt: new Date(firstRow.updatedat)
-    };
+    } as Order;
+
+    // DEBUG: Log final mapped order
+    console.log(`🔍 DEBUG Final mapped order:`, {
+      id: mappedOrder.id,
+      userId: mappedOrder.userId,
+      status: mappedOrder.status,
+      type: mappedOrder.type,
+      itemsCount: mappedOrder.items.length
+    });
+
+    return mappedOrder;
   }
 
   /**
@@ -572,7 +580,7 @@ export class OrderService implements IOrderService {
       total: number;
       totalPages: number;
       hasNext: boolean;
-      hasPrev: boolean;
+      hasPrevious: boolean;  // Changed from hasPrev to hasPrevious
     };
   }> {
     // Delegate to static method for now

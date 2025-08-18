@@ -17,6 +17,7 @@ import ordersRoutes from "./routes/orders";
 import transactionRoutes from "./routes/transactions";
 import paymentsRoutes from "./routes/payments";
 import adminRoutes from "./routes/admin";
+import registrationRoutes from "./routes/registration";
 import authMiddleware from "./authMiddleware";
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
 import { WebhookController } from "./controllers/WebhookController";
@@ -183,6 +184,7 @@ app.get("/api-spec.yaml", (req: any, res: any) => {
 app.use("/api/products", productRoutes);
 app.use("/api", referencesRoutes);
 app.use("/api/enums", enumsDemoRoutes);
+app.use("/api/auth", registrationRoutes);
 
 // Webhook routes (no auth required)
 app.use("/api/payments/webhook", (req, res) => {

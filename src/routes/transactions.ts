@@ -1,10 +1,9 @@
 import { Router, Request, Response } from "express";
-import { 
-  Transaction,
-  TransactionHistoryItem
-} from "@marcopersi/shared";
+import { Transaction } from "@marcopersi/shared";
 import pool from "../dbConfig";
 import { z } from "zod";
+
+
 
 // Transaction query parameters schema
 const TransactionQueryParamsSchema = z.object({
@@ -165,8 +164,8 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
     const query = `
       SELECT 
         t.id,
-        t.positionId,
-        t.userId, 
+        t.positionid,
+        t.userid, 
         t.type,
         t.date::text,
         t.quantity,
@@ -175,14 +174,14 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
         t.notes,
         t.createdAt::text,
         (t.quantity * t.price + COALESCE(t.fees, 0)) AS total,
-        p.productId,
-        p.purchasePrice,
-        pr.productName,
-        pr.metal,
+        p.productid,
+        p.purchaseprice,
+        pr.name,
+        pr.metalid,
         pr.weight as productWeight
       FROM transactions t
-      LEFT JOIN position p ON t.positionId = p.id
-      LEFT JOIN product pr ON p.productId = pr.id
+      LEFT JOIN position p ON t.positionid = p.id
+      LEFT JOIN product pr ON p.productid = pr.id
       WHERE ${whereClause}
       ORDER BY ${sortColumn} ${orderDirection}, t.id DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -192,7 +191,7 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
     const result = await pool.query(query, queryParams);
 
     // Transform database results to proper transaction format
-    const transactions: TransactionHistoryItem[] = result.rows.map(row => ({
+    const transactions: Transaction[] = result.rows.map(row => ({
       id: row.id,
       positionId: row.positionid,
       userId: row.userid,
@@ -225,7 +224,6 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
     // Calculate summary statistics for the filtered results
     const summary = {
       totalQuantity: transactions.reduce((sum, t) => sum + t.quantity, 0),
-      totalValue: transactions.reduce((sum, t) => sum + t.total, 0),
       buyTransactions: transactions.filter(t => t.type === 'buy').length,
       sellTransactions: transactions.filter(t => t.type === 'sell').length,
       averagePrice: transactions.length > 0 ? 
@@ -282,7 +280,7 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
 
     // Verify position exists and get user ownership
     const positionCheck = await pool.query(
-      "SELECT user_id, productId FROM positions WHERE id = $1", 
+      "SELECT user_id, productid FROM positions WHERE id = $1", 
       [positionId]
     );
     
@@ -303,14 +301,14 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
     const productInfo = await pool.query(`
       SELECT 
         p.id,
-        p.productName,
+        p.productname,
         p.price as currentPrice,
-        pt.productTypeName as type,
-        m.metalName as metal,
+        pt.producttypename as type,
+        m.name as metal,
         p.fineWeight as weight
       FROM product p
-      LEFT JOIN productType pt ON pt.id = p.productTypeId
-      LEFT JOIN metal m ON m.id = p.metalId
+      LEFT JOIN producttype pt ON pt.id = p.producttypeid
+      LEFT JOIN metal m ON m.id = p.metalid
       WHERE p.id = $1
     `, [productId]);
 
@@ -346,15 +344,15 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING 
         id,
-        positionId,
-        userId,
+        positionid,
+        userid,
         type,
         date::text,
         quantity,
         price,
         fees,
         notes,
-        createdAt::text
+        createdat::text
     `;
 
     const result = await pool.query(query, [
@@ -431,8 +429,8 @@ router.get("/transactions/:id", async (req: Request, res: Response): Promise<voi
     const query = `
       SELECT 
         t.id,
-        t.positionId,
-        t.userId,
+        t.positionid,
+        t.userid,
         t.type,
         t.date::text,
         t.quantity,
@@ -442,26 +440,26 @@ router.get("/transactions/:id", async (req: Request, res: Response): Promise<voi
         t.createdAt::text,
         (t.quantity * t.price + COALESCE(t.fees, 0)) AS total,
         -- Position information
-        p.productId,
-        p.purchaseDate::text as positionPurchaseDate,
-        p.purchasePrice as positionPurchasePrice,
+        p.productid,
+        p.purchasedate::text as positionPurchaseDate,
+        p.purchaseprice as positionPurchasePrice,
         p.quantity as positionQuantity,
         -- Product information
-        pr.productName,
+        pr.name,
         pr.price as currentMarketPrice,
-        pt.productTypeName as productType,
-        m.metalName as metal,
-        pr.fineWeight as productWeight,
-        pr.unitOfMeasure,
+        pt.producttypename as productType,
+        m.name as metal,
+        pr.fineweight as productWeight,
+        pr.unitofmeasure,
         pr.purity,
         pr.currency as productCurrency,
-        prod.producerName as producer
+        prod.producername as producer
       FROM transactions t
-      LEFT JOIN position p ON t.positionId = p.id
-      LEFT JOIN product pr ON p.productId = pr.id
-      LEFT JOIN productType pt ON pr.productTypeId = pt.id
-      LEFT JOIN metal m ON pr.metalId = m.id  
-      LEFT JOIN producer prod ON pr.producerId = prod.id
+      LEFT JOIN position p ON t.positionid = p.id
+      LEFT JOIN product pr ON p.productid = pr.id
+      LEFT JOIN producttype pt ON pr.producttypeid = pt.id
+      LEFT JOIN metal m ON pr.metalid = m.id  
+      LEFT JOIN producer prod ON pr.producerid = prod.id
       WHERE t.id = $1
     `;
 

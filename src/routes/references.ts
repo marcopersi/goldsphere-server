@@ -243,7 +243,7 @@ router.get("/issuingCountries/:id", async (req: Request, res: Response) => {
 // Metals Endpoints
 router.get("/metals", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, metalName, createdAt, updatedAt FROM metal ORDER BY metalName");
+    const result = await pool.query("SELECT id, name, createdAt, updatedAt FROM metal ORDER BY name");
     console.info("metals returned: ", result.rows);
     res.json(result.rows);
   } catch (error) {
@@ -255,7 +255,7 @@ router.get("/metals", async (req: Request, res: Response) => {
 router.post("/metals", async (req: Request, res: Response) => {
   const { metalName } = req.body;
   try {
-    const result = await pool.query("INSERT INTO metal (metalName) VALUES ($1) RETURNING *", [metalName]);
+    const result = await pool.query("INSERT INTO metal (name) VALUES ($1) RETURNING *", [metalName]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding metal:", error);
@@ -267,7 +267,7 @@ router.put("/metals/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { metalName } = req.body;
   try {
-    const result = await pool.query("UPDATE metal SET metalName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [metalName, id]);
+    const result = await pool.query("UPDATE metal SET name = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [metalName, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating metal:", error);
@@ -289,7 +289,7 @@ router.delete("/metals/:id", async (req: Request, res: Response) => {
 router.get("/metals/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, metalName, createdAt, updatedAt FROM metal WHERE id = $1", [id]);
+    const result = await pool.query("SELECT id, name, createdAt, updatedAt FROM metal WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching metal:", error);

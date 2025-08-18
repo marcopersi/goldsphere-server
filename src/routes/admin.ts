@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import { PassThrough } from "stream";
 import pool from "../dbConfig";
+import { UuidSchema } from "@marcopersi/shared";
 
 const router = Router();
 const upload = multer({ 
@@ -14,22 +15,55 @@ const upload = multer({
 
 // Upload image for product
 router.post("/products/:id/image", upload.single("image"), async (req: Request, res: Response): Promise<void> => {
-  if (!req.file) {
-    res.status(400).json({ error: "No image file provided" });
-    return;
-  }
-
-  const { id } = req.params;
-  const { buffer, mimetype, originalname } = req.file;
-
   try {
+    if (!req.file) {
+      res.status(400).json({ 
+        success: false,
+        error: "No image file provided" 
+      });
+      return;
+    }
+
+    const { id } = req.params;
+    
+    // Validate product ID format
+    const idValidation = UuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid product ID format"
+      });
+      return;
+    }
+
+    const { buffer, mimetype, originalname } = req.file;
+
+    // Check if product exists
+    const productExists = await pool.query("SELECT id FROM product WHERE id = $1", [id]);
+    if (productExists.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: "Product not found"
+      });
+      return;
+    }
+
     await pool.query(
       "UPDATE product SET imageData = $1, imageContentType = $2, imageFilename = $3 WHERE id = $4",
       [buffer, mimetype, originalname, id]
     );
-    res.json({ message: "Image uploaded successfully" });
-  } catch {
-    res.status(500).json({ error: "Failed to upload image" });
+    res.json({ 
+      success: true,
+      message: "Image uploaded successfully",
+      data: { filename: originalname, contentType: mimetype }
+    });
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to upload image",
+      details: (error as Error).message
+    });
   }
 });
 
