@@ -3,10 +3,7 @@ import pool from "../dbConfig"; // Import the shared pool configuration
 import { 
   CreateExtendedCustodyServiceRequestSchema,
   UpdateExtendedCustodyServiceRequestSchema,
-  CustodyServiceResponseSchema,
-  CustodyServicesResponseSchema,
-  CustodyServicesQuerySchema,
-  mapDatabaseRowToCustodyService as sharedMapDatabaseRowToCustodyService
+  CustodyServicesQuerySchema
 } from "@marcopersi/shared";
 
 const router = Router();
@@ -25,7 +22,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       });
     }
     
-    const { page, limit, search, custodianId, minFee, maxFee, paymentFrequency, currency, isActive, sortBy, sortOrder } = queryValidation.data;
+    const { page, limit, search, custodianId, minFee, maxFee, paymentFrequency, currency, sortBy, sortOrder } = queryValidation.data;
     
     // Build dynamic query with filtering and pagination
     let whereConditions: string[] = [];
@@ -142,137 +139,6 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
 // POST create new custody service with comprehensive validation
 router.post("/custodyServices", async (req: Request, res: Response) => {
   try {
-    // Parse and validate query parameters
-    const queryValidation = CustodyServicesQuerySchema.safeParse(req.query);
-    
-    if (!queryValidation.success) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid query parameters",
-        details: queryValidation.error.issues
-      });
-    }
-    
-    const { page, limit, search, custodianId, minFee, maxFee, paymentFrequency, currency, isActive, sortBy, sortOrder } = queryValidation.data;
-    
-    // Build dynamic query with filtering and pagination
-    let whereConditions: string[] = [];
-    let queryParams: any[] = [];
-    let paramIndex = 1;
-    
-    if (search) {
-      whereConditions.push(`cs.custodyServiceName ILIKE $${paramIndex++}`);
-      queryParams.push(`%${search}%`);
-    }
-    
-    if (custodianId) {
-      whereConditions.push(`cs.custodianId = $${paramIndex++}`);
-      queryParams.push(custodianId);
-    }
-    
-    if (minFee !== undefined) {
-      whereConditions.push(`cs.fee >= $${paramIndex++}`);
-      queryParams.push(minFee);
-    }
-    
-    if (maxFee !== undefined) {
-      whereConditions.push(`cs.fee <= $${paramIndex++}`);
-      queryParams.push(maxFee);
-    }
-    
-    if (paymentFrequency) {
-      whereConditions.push(`cs.paymentFrequency = $${paramIndex++}`);
-      queryParams.push(paymentFrequency);
-    }
-    
-    if (currency) {
-      whereConditions.push(`c.isocode3 = $${paramIndex++}`);
-      queryParams.push(currency);
-    }
-    
-    if (isActive !== undefined) {
-      whereConditions.push(`cs.isActive = $${paramIndex++}`);
-      queryParams.push(isActive);
-    }
-    
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-    
-    // Validate and construct ORDER BY clause
-    const validSortColumns = ['custodyServiceName', 'fee', 'custodianName', 'createdAt'];
-    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'custodyServiceName';
-    const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
-    
-    // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) 
-      FROM custodyService cs
-      LEFT JOIN currency c ON cs.currencyId = c.id
-      LEFT JOIN custodian cust ON cs.custodianId = cust.id
-      ${whereClause}
-    `;
-    const countResult = await pool.query(countQuery, queryParams);
-    const totalCount = parseInt(countResult.rows[0].count);
-    
-    // Get paginated results with enhanced data
-    const offset = (page - 1) * limit;
-    const dataQuery = `
-      SELECT cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
-             c.isocode3 as currency, cs.maxWeight, cs.createdAt, cs.updatedAt,
-             cust.custodianName as custodianName
-      FROM custodyService cs
-      LEFT JOIN currency c ON cs.currencyId = c.id
-      LEFT JOIN custodian cust ON cs.custodianId = cust.id
-      ${whereClause}
-      ORDER BY ${sortColumn === 'custodianName' ? 'cust.custodianName' : 'cs.' + sortColumn} ${sortDirection}
-      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
-    `;
-    queryParams.push(limit, offset);
-    
-    const result = await pool.query(dataQuery, queryParams);
-    const custodyServicesData = result.rows.map(row => ({
-      id: row.id,
-      custodianId: row.custodianid,
-      custodianName: row.custodianname,
-      serviceName: row.custodyservicename,
-      fee: parseFloat(row.fee),
-      paymentFrequency: row.paymentfrequency,
-      currency: row.currency,
-      maxWeight: row.maxweight ? parseFloat(row.maxweight) : null,
-      createdAt: row.createdat,
-      updatedAt: row.updatedat
-    }));
-    
-    // Format response with pagination
-    const response = {
-      success: true,
-      data: {
-        custodyServices: custodyServicesData,
-        pagination: {
-          currentPage: page,
-          itemsPerPage: limit,
-          totalItems: totalCount,
-          totalPages: Math.ceil(totalCount / limit),
-          hasNextPage: page < Math.ceil(totalCount / limit),
-          hasPreviousPage: page > 1
-        }
-      },
-      message: `Retrieved ${custodyServicesData.length} custody services`
-    };
-    
-    res.json(response);
-  } catch (error) {
-    console.error("Error fetching custody services:", error);
-    res.status(500).json({ 
-      success: false, 
-      error: "Failed to fetch custody services", 
-      details: (error as Error).message 
-    });
-  }
-});
-
-// POST create new custody service with comprehensive validation
-router.post("/custodyServices", async (req: Request, res: Response) => {
-  try {
     // Validate request body using shared schema
     const validationResult = CreateExtendedCustodyServiceRequestSchema.safeParse(req.body);
     
@@ -319,25 +185,19 @@ router.post("/custodyServices", async (req: Request, res: Response) => {
     
     // Insert new custody service with comprehensive data
     const result = await pool.query(
-      `INSERT INTO custodyService (
-        custodianId, custodyServiceName, serviceType, description, fee, 
-        paymentFrequency, currencyId, maxWeight, weightUnit, supportedMetals,
-        minimumValue, maximumValue, isActive
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`, 
+      `INSERT INTO custodyservice (
+        custodianid, custodyservicename, fee, 
+        paymentfrequency, currencyid, maxweight, createdat, updatedat
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`, 
       [
         custodyServiceData.custodianId,
         custodyServiceData.serviceName,
-        custodyServiceData.serviceType || null,
-        custodyServiceData.description || null,
         custodyServiceData.fee,
         custodyServiceData.paymentFrequency,
         currencyId,
         custodyServiceData.maxWeight || null,
-        custodyServiceData.weightUnit || 'grams',
-        custodyServiceData.supportedMetals || [],
-        custodyServiceData.minimumValue || null,
-        custodyServiceData.maximumValue || null,
-        custodyServiceData.isActive ?? true
+        new Date(),
+        new Date()
       ]
     );
     
@@ -469,14 +329,6 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
     if (custodyServiceData.serviceName !== undefined) {
       updateFields.push(`custodyServiceName = $${paramIndex++}`);
       updateValues.push(custodyServiceData.serviceName);
-    }
-    if (custodyServiceData.serviceType !== undefined) {
-      updateFields.push(`serviceType = $${paramIndex++}`);
-      updateValues.push(custodyServiceData.serviceType);
-    }
-    if (custodyServiceData.description !== undefined) {
-      updateFields.push(`description = $${paramIndex++}`);
-      updateValues.push(custodyServiceData.description);
     }
     if (custodyServiceData.fee !== undefined) {
       updateFields.push(`fee = $${paramIndex++}`);
@@ -638,9 +490,8 @@ router.get("/custodyServices/:id", async (req: Request, res: Response) => {
     
     // Fetch custody service with joins for complete data
     const result = await pool.query(`
-      SELECT cs.id, cs.custodianId, cs.custodyServiceName, cs.serviceType, cs.description,
-             cs.fee, cs.paymentFrequency, c.isocode3 as currency, cs.maxWeight, cs.weightUnit,
-             cs.supportedMetals, cs.minimumValue, cs.maximumValue, cs.isActive,
+      SELECT cs.id, cs.custodianId, cs.custodyServiceName,
+             cs.fee, cs.paymentFrequency, c.isocode3 as currency, cs.maxWeight, 
              cs.createdAt, cs.updatedAt, cust.custodianName as custodianName
       FROM custodyService cs
       LEFT JOIN currency c ON cs.currencyId = c.id
@@ -661,17 +512,10 @@ router.get("/custodyServices/:id", async (req: Request, res: Response) => {
       custodianId: row.custodianid,
       custodianName: row.custodianname,
       serviceName: row.custodyservicename,
-      serviceType: row.servicetype,
-      description: row.description,
       fee: parseFloat(row.fee),
       paymentFrequency: row.paymentfrequency,
       currency: row.currency,
       maxWeight: row.maxweight ? parseFloat(row.maxweight) : null,
-      weightUnit: row.weightunit || 'grams',
-      supportedMetals: row.supportedmetals || [],
-      minimumValue: row.minimumvalue ? parseFloat(row.minimumvalue) : null,
-      maximumValue: row.maximumvalue ? parseFloat(row.maximumvalue) : null,
-      isActive: row.isactive,
       createdAt: row.createdat,
       updatedAt: row.updatedat
     };

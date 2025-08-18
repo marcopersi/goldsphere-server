@@ -1,15 +1,7 @@
 import { Router, Request, Response } from "express";
 import pool from "../dbConfig"; // Import the shared pool configuration
 import { 
-  Custodian,
-  CustodianReference,
-  RefDataCustodiansResponseSchema,
-  CreateExtendedCustodianRequestSchema,
-  UpdateCustodianRequestSchema,
-  CustodianResponseSchema,
-  CustodiansResponseSchema,
-  CustodiansQuerySchema,
-  mapDatabaseRowToCustodian as sharedMapDatabaseRowToCustodian
+  CustodiansQuerySchema
 } from "@marcopersi/shared";
 
 const router = Router();
@@ -112,21 +104,18 @@ router.get("/custodians", async (req: Request, res: Response) => {
 // POST create new custodian with comprehensive validation
 router.post("/custodians", async (req: Request, res: Response) => {
   try {
-    // Validate request body using shared schema
-    const validationResult = CreateExtendedCustodianRequestSchema.safeParse(req.body);
-    
-    if (!validationResult.success) {
+    // Simple validation for just the name field (matching database structure)
+    if (!req.body.name || typeof req.body.name !== 'string' || req.body.name.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        error: "Invalid custodian data",
-        details: validationResult.error.issues
+        error: "Invalid custodian data - name is required and must be a non-empty string"
       });
     }
-    
-    const custodianData = validationResult.data;
+
+    const custodianName = req.body.name.trim();
     
     // Check for duplicate custodian name
-    const duplicateCheck = await pool.query("SELECT id FROM custodian WHERE custodianName = $1", [custodianData.name]);
+    const duplicateCheck = await pool.query("SELECT id FROM custodian WHERE custodianName = $1", [custodianName]);
     if (duplicateCheck.rows.length > 0) {
       return res.status(409).json({
         success: false,
@@ -134,17 +123,10 @@ router.post("/custodians", async (req: Request, res: Response) => {
       });
     }
     
-    // Insert new custodian with comprehensive data
+    // Insert new custodian (only fields that exist in the table)
     const result = await pool.query(
-      "INSERT INTO custodian (custodianName, description, contactInfo, capabilities, isActive, certifications) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", 
-      [
-        custodianData.name,
-        custodianData.description || null,
-        custodianData.contactInfo ? JSON.stringify(custodianData.contactInfo) : null,
-        custodianData.capabilities || [],
-        custodianData.isActive ?? true,
-        custodianData.certifications || []
-      ]
+      "INSERT INTO custodian (custodianName) VALUES ($1) RETURNING *", 
+      [custodianName]
     );
     
     const newCustodianData = mapDatabaseRowToCustodian(result.rows[0]);
@@ -181,19 +163,16 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
       });
     }
     
-    // Validate request body using shared schema
-    const validationResult = UpdateCustodianRequestSchema.safeParse(req.body);
-    
-    if (!validationResult.success) {
+    // Simple validation for the name field if provided
+    if (req.body.name !== undefined && (typeof req.body.name !== 'string' || req.body.name.trim().length === 0)) {
       return res.status(400).json({
         success: false,
-        error: "Invalid custodian update data",
-        details: validationResult.error.issues
+        error: "Invalid custodian update data - name must be a non-empty string if provided"
       });
     }
-    
-    const custodianData = validationResult.data;
-    
+
+    const updatedName = req.body.name ? req.body.name.trim() : undefined;
+
     // Check if custodian exists
     const existingResult = await pool.query("SELECT id FROM custodian WHERE id = $1", [id]);
     if (existingResult.rows.length === 0) {
@@ -202,10 +181,10 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
         error: "Custodian not found" 
       });
     }
-    
+
     // Check for duplicate name if name is being updated
-    if (custodianData.name) {
-      const duplicateCheck = await pool.query("SELECT id FROM custodian WHERE custodianName = $1 AND id != $2", [custodianData.name, id]);
+    if (updatedName) {
+      const duplicateCheck = await pool.query("SELECT id FROM custodian WHERE custodianName = $1 AND id != $2", [updatedName, id]);
       if (duplicateCheck.rows.length > 0) {
         return res.status(409).json({
           success: false,
@@ -213,22 +192,16 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
         });
       }
     }
-    
+
     // Build dynamic update query with only provided fields
     const updateFields: string[] = [];
     const updateValues: any[] = [];
     let paramIndex = 1;
-    
-    if (custodianData.name !== undefined) {
+
+    if (updatedName !== undefined) {
       updateFields.push(`custodianName = $${paramIndex++}`);
-      updateValues.push(custodianData.name);
-    }
-    if (custodianData.description !== undefined) {
-      updateFields.push(`description = $${paramIndex++}`);
-      updateValues.push(custodianData.description);
-    }
-    
-    // Always update updatedAt
+      updateValues.push(updatedName);
+    }    // Always update updatedAt
     updateFields.push(`updatedAt = CURRENT_TIMESTAMP`);
     
     if (updateFields.length === 1) { // Only updatedAt
