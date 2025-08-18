@@ -664,20 +664,20 @@ router.delete("/orders/:id", async (req: Request, res: Response) => {
       });
     }
 
-    // Get the order to check if it exists and ownership
+    // Authorization check: Only admins can physically delete orders
+    if (authenticatedUser.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: "Only administrators can delete orders. Regular users should use the cancel endpoint instead."
+      });
+    }
+
+    // Get the order to check if it exists
     const order = await orderService.getOrderById(id);
     if (!order) {
       return res.status(404).json({
         success: false,
         error: "Order not found"
-      });
-    }
-
-    // Authorization check: Users can only delete their own orders, admins can delete any order
-    if (authenticatedUser.role !== 'admin' && order.userId !== authenticatedUser.id) {
-      return res.status(403).json({
-        success: false,
-        error: "You can only delete your own orders"
       });
     }
 
