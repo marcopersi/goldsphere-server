@@ -25,7 +25,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       });
     }
     
-    const { page, limit, search, custodianId, serviceType, isActive, sortBy, sortOrder } = queryValidation.data;
+    const { page, limit, search, custodianId, minFee, maxFee, paymentFrequency, currency, isActive, sortBy, sortOrder } = queryValidation.data;
     
     // Build dynamic query with filtering and pagination
     let whereConditions: string[] = [];
@@ -42,57 +42,74 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       queryParams.push(custodianId);
     }
     
-    if (serviceType) {
-      whereConditions.push(`cs.serviceType = $${paramIndex++}`);
-      queryParams.push(serviceType);
+    if (minFee !== undefined) {
+      whereConditions.push(`cs.fee >= $${paramIndex++}`);
+      queryParams.push(minFee);
     }
     
-    if (isActive !== undefined) {
-      whereConditions.push(`cs.isActive = $${paramIndex++}`);
-      queryParams.push(isActive);
+    if (maxFee !== undefined) {
+      whereConditions.push(`cs.fee <= $${paramIndex++}`);
+      queryParams.push(maxFee);
+    }
+    
+    if (paymentFrequency) {
+      whereConditions.push(`cs.paymentFrequency = $${paramIndex++}`);
+      queryParams.push(paymentFrequency);
+    }
+    
+    if (currency) {
+      whereConditions.push(`curr.isocode3 = $${paramIndex++}`);
+      queryParams.push(currency);
     }
     
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
     // Validate and construct ORDER BY clause
-    const validSortColumns = ['serviceName', 'fee', 'custodianName', 'createdAt'];
-    let sortColumn = 'cs.custodyServiceName'; // default
-    if (validSortColumns.includes(sortBy)) {
-      if (sortBy === 'serviceName') sortColumn = 'cs.custodyServiceName';
-      else if (sortBy === 'fee') sortColumn = 'cs.fee';
-      else if (sortBy === 'custodianName') sortColumn = 'c.custodianName';
-      else if (sortBy === 'createdAt') sortColumn = 'cs.createdAt';
-    }
+    const validSortColumns = ['custodyServiceName', 'fee', 'custodianName', 'createdAt'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'custodyServiceName';
     const sortDirection = sortOrder === 'desc' ? 'DESC' : 'ASC';
     
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) 
       FROM custodyService cs
+      LEFT JOIN currency curr ON cs.currencyId = curr.id
       LEFT JOIN custodian c ON cs.custodianId = c.id
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, queryParams);
     const totalCount = parseInt(countResult.rows[0].count);
     
-    // Get paginated results with enhanced joins
+    // Get paginated results with enhanced data
     const offset = (page - 1) * limit;
     const dataQuery = `
-      SELECT 
-        cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
-        curr.isocode3 as currency, cs.maxWeight, cs.createdAt, cs.updatedAt,
-        c.custodianName
+      SELECT cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
+             curr.isocode3 as currencyCode, cs.maxWeight, cs.createdAt, cs.updatedAt,
+             c.custodianName as custodianName
       FROM custodyService cs
-      LEFT JOIN custodian c ON cs.custodianId = c.id
       LEFT JOIN currency curr ON cs.currencyId = curr.id
+      LEFT JOIN custodian c ON cs.custodianId = c.id
       ${whereClause}
-      ORDER BY ${sortColumn} ${sortDirection}
+      ORDER BY ${sortColumn === 'custodianName' ? 'c.custodianName' : 'cs.' + sortColumn} ${sortDirection}
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `;
     queryParams.push(limit, offset);
     
     const result = await pool.query(dataQuery, queryParams);
-    const custodyServicesData = result.rows.map(sharedMapDatabaseRowToCustodyService);
+    
+    // Map database results to proper format
+    const custodyServicesData = result.rows.map(row => ({
+      id: row.id,
+      custodianId: row.custodianid,
+      custodianName: row.custodianname,
+      serviceName: row.custodyservicename,
+      fee: parseFloat(row.fee),
+      paymentFrequency: row.paymentfrequency,
+      currency: row.currencycode || 'USD',
+      maxWeight: row.maxweight ? parseFloat(row.maxweight) : null,
+      createdAt: row.createdat ? row.createdat.toISOString() : new Date().toISOString(),
+      updatedAt: row.updatedat ? row.updatedat.toISOString() : new Date().toISOString()
+    }));
     
     // Format response with pagination
     const response = {
@@ -122,8 +139,8 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
   }
 });
 
-// GET all custody services with enhanced query parameters and response formatting
-router.get("/custodyServices", async (req: Request, res: Response) => {
+// POST create new custody service with comprehensive validation
+router.post("/custodyServices", async (req: Request, res: Response) => {
   try {
     // Parse and validate query parameters
     const queryValidation = CustodyServicesQuerySchema.safeParse(req.query);
