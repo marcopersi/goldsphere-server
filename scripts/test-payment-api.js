@@ -12,7 +12,7 @@
 
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'http://localhost:8888';
 const TEST_ORDER_ID = `order_test_${Date.now()}`;
 
 let authToken = '';
