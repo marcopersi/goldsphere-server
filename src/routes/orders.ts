@@ -330,10 +330,24 @@ router.post("/orders", async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error("Error creating order:", error);
+    
+    const errorMessage = (error as Error).message;
+    
+    // Check if it's a stock availability error
+    if (errorMessage.includes('Insufficient stock for')) {
+      return res.status(400).json({
+        success: false,
+        error: "Insufficient stock",
+        message: errorMessage,
+        details: errorMessage
+      });
+    }
+    
+    // Generic error for other types of failures
     return res.status(500).json({
       success: false,
       error: "Failed to create order",
-      details: (error as Error).message
+      details: errorMessage
     });
   }
 });
@@ -627,15 +641,192 @@ router.put("/orders/:id", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE order
+// DELETE order - Physically delete order and all associated order items
 router.delete("/orders/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
+  const authenticatedUser = (req as any).user;
+  
   try {
-    await pool.query("DELETE FROM orders WHERE id = $1", [id]);
-    res.status(204).send();
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRegex.exec(id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid order ID format"
+      });
+    }
+
+    // Check authentication
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    // Get the order to check if it exists and ownership
+    const order = await orderService.getOrderById(id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: "Order not found"
+      });
+    }
+
+    // Authorization check: Users can only delete their own orders, admins can delete any order
+    if (authenticatedUser.role !== 'admin' && order.userId !== authenticatedUser.id) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only delete your own orders"
+      });
+    }
+
+    // Start transaction to ensure both order and order_items are deleted atomically
+    await pool.query('BEGIN');
+
+    try {
+      // First delete all order items
+      const deleteItemsResult = await pool.query(
+        "DELETE FROM order_items WHERE orderid = $1",
+        [id]
+      );
+
+      // Then delete the main order
+      await pool.query(
+        "DELETE FROM orders WHERE id = $1",
+        [id]
+      );
+
+      // Commit the transaction
+      await pool.query('COMMIT');
+
+      // Log the deletion for audit trail
+      console.log(`Order ${id} and ${deleteItemsResult.rowCount} associated items physically deleted by ${authenticatedUser.role}:${authenticatedUser.email} at ${new Date().toISOString()}`);
+
+      return res.status(200).json({
+        success: true,
+        message: "Order and associated items deleted successfully",
+        data: {
+          orderId: id,
+          deletedOrderItems: deleteItemsResult.rowCount,
+          deletedBy: authenticatedUser.email,
+          deletedAt: new Date().toISOString()
+        }
+      });
+
+    } catch (dbError) {
+      // Rollback the transaction on error
+      await pool.query('ROLLBACK');
+      throw dbError;
+    }
+
   } catch (error) {
     console.error("Error deleting order:", error);
-    res.status(500).json({ error: "Failed to delete order", details: (error as Error).message });
+    return res.status(500).json({ 
+      success: false,
+      error: "Failed to delete order", 
+      details: (error as Error).message 
+    });
+  }
+});
+
+// POST /orders/:id/cancel - Cancel an order with proper authorization
+router.post("/orders/:id/cancel", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const authenticatedUser = (req as any).user;
+  
+  try {
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRegex.exec(id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid order ID format"
+      });
+    }
+
+    // Check authentication
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    // Get the order to check ownership and current status
+    const order = await orderService.getOrderById(id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: "Order not found"
+      });
+    }
+
+    // Authorization check: Users can only cancel their own orders, admins can cancel any order
+    if (authenticatedUser.role !== 'admin' && order.userId !== authenticatedUser.id) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only cancel your own orders"
+      });
+    }
+
+    // Business logic check: Regular users can only cancel pending orders
+    if (authenticatedUser.role !== 'admin' && order.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot cancel order with status '${order.status}'. Only pending orders can be cancelled by users.`,
+        details: `Current order status: ${order.status}`
+      });
+    }
+
+    // Prevent cancelling already cancelled orders
+    if (order.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        error: "Order is already cancelled"
+      });
+    }
+
+    // Update order status to cancelled
+    await orderService.updateOrderStatus(id, 'cancelled');
+
+    // Get updated order for response
+    const cancelledOrder = await orderService.getOrderById(id);
+    
+    // Log the cancellation for audit trail
+    console.log(`Order ${id} cancelled by ${authenticatedUser.role}:${authenticatedUser.email} at ${new Date().toISOString()}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully",
+      data: {
+        orderId: id,
+        previousStatus: order.status,
+        newStatus: 'cancelled',
+        cancelledBy: authenticatedUser.email,
+        cancelledAt: new Date().toISOString(),
+        order: cancelledOrder
+      }
+    });
+
+  } catch (error) {
+    console.error(`Error cancelling order ${id}:`, error);
+    
+    // Handle specific business logic errors
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('Invalid status transition')) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot cancel order in current state",
+        details: errorMessage
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to cancel order",
+      details: errorMessage
+    });
   }
 });
 
