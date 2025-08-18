@@ -745,7 +745,88 @@ const createTransactionForPosition = async (position: any, order: Order, item: a
   }
 };
 
-// Create position from a database order row (updated for new schema with order_items)
+// Get custody service ID by name (with fallback)
+const getCustodyServiceId = async (custodyServiceName: string): Promise<string | null> => {
+  try {
+    const result = await pool.query(
+      `SELECT id FROM custodyService WHERE custodyServiceName = $1`,
+      [custodyServiceName]
+    );
+    return result.rows.length > 0 ? result.rows[0].id : null;
+  } catch (error) {
+    console.error(`Error getting custody service ID for "${custodyServiceName}":`, error);
+    return null;
+  }
+};
+
+// Get default "Home Delivery" custody service ID
+const getDefaultCustodyServiceId = async (): Promise<string | null> => {
+  return await getCustodyServiceId('Home Delivery');
+};
+
+// Check if a position already exists for consolidation
+const findExistingPosition = async (
+  userId: string, 
+  productId: string, 
+  portfolioId: string, 
+  custodyServiceId: string | null
+): Promise<any> => {
+  try {
+    let result;
+    if (custodyServiceId === null) {
+      // Handle NULL comparison properly
+      result = await pool.query(
+        `SELECT * FROM position 
+         WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid IS NULL AND status = 'active'`,
+        [userId, productId, portfolioId]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT * FROM position 
+         WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid = $4 AND status = 'active'`,
+        [userId, productId, portfolioId, custodyServiceId]
+      );
+    }
+    
+    console.log(`🔍 CONSOLIDATION CHECK: userId=${userId}, productId=${productId}, custodyServiceId=${custodyServiceId} → Found ${result.rows.length} existing positions`);
+    return result.rows.length > 0 ? result.rows[0] : null;
+  } catch (error) {
+    console.error(`❌ Error finding existing position:`, error);
+    return null;
+  }
+};
+
+// Consolidate existing position with new order item
+const consolidatePosition = async (existingPosition: any, newQuantity: number, newPrice: number): Promise<any> => {
+  try {
+    const currentQuantity = parseFloat(existingPosition.quantity);
+    const currentPrice = parseFloat(existingPosition.purchaseprice);
+    
+    // Calculate new consolidated values
+    const totalQuantity = currentQuantity + newQuantity;
+    const weightedAveragePrice = ((currentQuantity * currentPrice) + (newQuantity * newPrice)) / totalQuantity;
+    
+    console.log(`🔄 CONSOLIDATING POSITION ${existingPosition.id}:`, {
+      existing: { quantity: currentQuantity, price: currentPrice },
+      new: { quantity: newQuantity, price: newPrice },
+      consolidated: { totalQuantity, weightedAveragePrice: weightedAveragePrice.toFixed(2) }
+    });
+
+    const result = await pool.query(
+      `UPDATE position 
+       SET quantity = $1, purchaseprice = $2, marketprice = $3, updatedat = CURRENT_TIMESTAMP
+       WHERE id = $4 RETURNING *`,
+      [totalQuantity, weightedAveragePrice, weightedAveragePrice, existingPosition.id]
+    );
+
+    return result.rows[0];
+  } catch (error) {
+    console.error(`Error consolidating position ${existingPosition.id}:`, error);
+    throw error;
+  }
+};
+
+// Create position from a database order row (updated with consolidation logic)
 const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
   try {
     // Create a position for each order item
@@ -760,41 +841,75 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
     const createdAt = new Date();
     const updatedAt = new Date();
 
-    // Create a position for each order item
-    for (const item of order.items) {
-      const positionId = uuidv4();
-      
-      const result = await pool.query(
-        `INSERT INTO public.position(
-          id, userid, productid, portfolioid, purchasedate, quantity, purchaseprice, marketprice, createdat, updatedat)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-        [
-          positionId,
-          order.userId,
-          item.productId,
-          portfolioId,
-          purchaseDate,
-          item.quantity,
-          item.unitPrice,
-          item.unitPrice, // Use purchase price as initial market price
-          createdAt,
-          updatedAt
-        ]
-      );
+    // Get custody service ID from order or default to "Home Delivery"
+    let custodyServiceId: string | null = null;
+    
+    // First, try to get custody service ID from the order (we'll need to fetch this from DB)
+    const orderResult = await pool.query(
+      `SELECT custodyserviceid FROM orders WHERE id = $1`,
+      [order.id]
+    );
+    
+    if (orderResult.rows.length > 0 && orderResult.rows[0].custodyserviceid) {
+      custodyServiceId = orderResult.rows[0].custodyserviceid;
+      console.log(`✅ Using custody service ID from order: ${custodyServiceId}`);
+    } else {
+      // Default to "Home Delivery"
+      custodyServiceId = await getDefaultCustodyServiceId();
+      console.log(`🏠 Using default "Home Delivery" custody service ID: ${custodyServiceId}`);
+    }
 
-      const position = result.rows[0];
-      console.log(`Created position ${positionId} for product ${item.productId}, quantity: ${item.quantity}`);
+    // Create or consolidate positions for each order item
+    for (const item of order.items) {
+      // Check if position already exists for consolidation
+      const existingPosition = await findExistingPosition(order.userId, item.productId, portfolioId, custodyServiceId);
+      
+      let position: any;
+      
+      if (existingPosition) {
+        // CONSOLIDATE: Update existing position
+        console.log(`🔄 Found existing position ${existingPosition.id} for consolidation`);
+        position = await consolidatePosition(existingPosition, item.quantity, item.unitPrice);
+        console.log(`✅ Consolidated position ${position.id}: ${position.quantity} units at avg $${parseFloat(position.purchaseprice).toFixed(2)}`);
+      } else {
+        // CREATE NEW: No existing position found
+        const positionId = uuidv4();
+        console.log(`🆕 Creating new position for product ${item.productId} in custody service ${custodyServiceId}`);
+        
+        const result = await pool.query(
+          `INSERT INTO public.position(
+            id, userid, productid, portfolioid, purchasedate, quantity, purchaseprice, marketprice, custodyserviceid, createdat, updatedat)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+          [
+            positionId,
+            order.userId,
+            item.productId,
+            portfolioId,
+            purchaseDate,
+            item.quantity,
+            item.unitPrice,
+            item.unitPrice, // Use purchase price as initial market price
+            custodyServiceId,
+            createdAt,
+            updatedAt
+          ]
+        );
+
+        position = result.rows[0];
+        console.log(`✅ Created new position ${positionId}: ${item.quantity} units at $${item.unitPrice}`);
+      }
+
       positions.push(position);
 
-      // Create corresponding transaction record
+      // Create corresponding transaction record (always create new transaction)
       const transaction = await createTransactionForPosition(position, order, item);
       transactions.push(transaction);
     }
 
-    console.log(`Created ${positions.length} positions and ${transactions.length} transactions for order ${order.id}`);
+    console.log(`🎉 SUMMARY: Processed ${order.items.length} order items → ${positions.length} positions, ${transactions.length} transactions for order ${order.id}`);
     return { positions, transactions };
   } catch (error) {
-    console.error(`Error creating positions and transactions from order ${order.id}:`, error);
+    console.error(`❌ Error creating/consolidating positions from order ${order.id}:`, error);
     throw error;
   }
 };

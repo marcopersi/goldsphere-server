@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS orders (
     userid UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
     orderstatus orderStatus NOT NULL,
-    custodyserviceId UUID,
+    custodyserviceid UUID,
     payment_intent_id VARCHAR(255),
     payment_status VARCHAR(50) DEFAULT 'pending', -- pending, paid, failed, refunded
     paid_at TIMESTAMP,
