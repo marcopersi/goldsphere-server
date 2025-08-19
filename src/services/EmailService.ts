@@ -12,7 +12,7 @@ export class EmailService implements IEmailService {
   private readonly baseUrl: string;
   private readonly fromEmail: string;
 
-  constructor(baseUrl: string, fromEmail: string = 'noreply@goldsphere.com') {
+  constructor(baseUrl: string, fromEmail = 'noreply@goldsphere.com') {
     this.baseUrl = baseUrl;
     this.fromEmail = fromEmail;
   }

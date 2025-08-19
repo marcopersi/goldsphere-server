@@ -7,16 +7,6 @@ import { z } from 'zod';
 
 const router = Router();
 
-// User validation schemas using shared patterns
-const UserSchema = z.object({
-  id: UuidSchema,
-  username: z.string().min(3).max(50),
-  email: z.string().email("Invalid email format"),
-  passwordhash: z.string().min(1),
-  createdat: z.string().optional(),
-  updatedat: z.string().optional()
-});
-
 const CreateUserRequestSchema = z.object({
   username: z.string().min(3).max(50),
   email: z.string().email("Invalid email format"),

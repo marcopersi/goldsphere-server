@@ -27,7 +27,7 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
   const firstRow = rows[0];
   
   // Group rows by order if needed, for now assume single item per order
-  const items = rows.map((row, index) => ({
+  const items = rows.map((row, _index) => ({
     id: row.itemid || uuidv4(), // Use item ID from database or generate UUID
     productId: row.productid,
     productName: row.productname || `Product ${row.productid}`,

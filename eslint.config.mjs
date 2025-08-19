@@ -25,6 +25,11 @@ export default [
       "import/prefer-default-export": "off",
       "@typescript-eslint/no-var-requires": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }]
     },
   },
   {

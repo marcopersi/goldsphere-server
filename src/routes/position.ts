@@ -2,7 +2,6 @@ import { Router, Request, Response } from "express";
 import pool from "../dbConfig";
 import { 
   PositionSchema} from "@marcopersi/shared";
-import { z } from 'zod';
 
 const router = Router();
 

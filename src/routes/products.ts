@@ -1,13 +1,8 @@
 import { Router, Request, Response } from "express";
 import pool from "../dbConfig";
 import { 
-  // Core product enums and types
-  Metal,
-  ProductTypeEnum,
-  Producer,
   // Validation schemas from product-schemas  
   ProductSchema,
-  ProductsResponseSchema,
   // Enhanced query parameters schema (will create server-specific version)
   PaginationSchema
 } from "@marcopersi/shared";
@@ -61,17 +56,6 @@ const ProductCreateRequestSchema = z.object({
 
 const ProductUpdateRequestSchema = ProductCreateRequestSchema.partial();
 
-// Enhanced error response schema with validation details
-const ProductApiErrorResponseSchema = z.object({
-  success: z.literal(false),
-  error: z.string(),
-  details: z.union([z.string(), z.array(z.object({
-    path: z.string(),
-    message: z.string(),
-    code: z.string()
-  }))]).optional()
-});
-
 // Product API response schemas
 const ProductApiResponseSchema = z.object({
   success: z.literal(true),
@@ -91,7 +75,6 @@ const ProductApiListResponseSchema = z.object({
 
 // Types inferred from schemas
 type ProductResponse = z.infer<typeof ProductSchema>;
-type ProductsResponse = z.infer<typeof ProductsResponseSchema>;
 type Pagination = z.infer<typeof PaginationSchema>;
 type ProductApiResponse = z.infer<typeof ProductApiResponseSchema>;
 type ProductApiListResponse = z.infer<typeof ProductApiListResponseSchema>;

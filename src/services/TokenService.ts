@@ -14,7 +14,7 @@ export class TokenService implements ITokenService {
   private readonly jwtSecret: string;
   private readonly jwtExpirationTime: string;
 
-  constructor(jwtSecret: string, jwtExpirationTime: string = '24h') {
+  constructor(jwtSecret: string, jwtExpirationTime = '24h') {
     if (!jwtSecret || jwtSecret.length === 0) {
       throw new Error('JWT secret cannot be empty');
     }

@@ -62,7 +62,7 @@ export class OrderService implements IOrderService {
       type: orderType,
       status: "pending",
       orderNumber: `ORD-${orderId.slice(0, 8).toUpperCase()}`, // Generate order number
-      items: enrichedItems.map((item: any, index: number) => ({
+      items: enrichedItems.map((item: any, _index: number) => ({
         id: uuidv4(), // Generate proper UUID for each item
         productId: item.productId,
         productName: item.productName,

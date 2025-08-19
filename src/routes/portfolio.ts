@@ -15,8 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { 
   PortfolioSummarySchema,
   UuidSchema,
-  TimestampSchema,
-  CommonPaginationSchema
+  TimestampSchema
 } from "@marcopersi/shared";
 import { z } from 'zod';
 
@@ -98,27 +97,8 @@ const PortfoliosQuerySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc')
 });
 
-// Response schemas
-const PortfolioResponseSchema = z.object({
-  success: z.boolean(),
-  data: PortfolioSchema,
-  message: z.string().optional()
-});
-
-const PortfoliosResponseSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
-    portfolios: z.array(PortfolioSchema),
-    pagination: CommonPaginationSchema
-  }),
-  message: z.string().optional()
-});
-
 // Type exports
 type Portfolio = z.infer<typeof PortfolioSchema>;
-type CreatePortfolioRequest = z.infer<typeof CreatePortfolioRequestSchema>;
-type UpdatePortfolioRequest = z.infer<typeof UpdatePortfolioRequestSchema>;
-type PortfoliosQuery = z.infer<typeof PortfoliosQuerySchema>;
 
 // =============================================================================
 // PORTFOLIO ANALYTICS HELPERS

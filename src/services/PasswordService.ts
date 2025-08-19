@@ -11,7 +11,7 @@ import { IPasswordService } from '../interfaces/IUserRegistrationService';
 export class PasswordService implements IPasswordService {
   private readonly saltRounds: number;
 
-  constructor(saltRounds: number = 12) {
+  constructor(saltRounds = 12) {
     if (saltRounds < 10) {
       throw new Error('Salt rounds must be at least 10 for security');
     }

@@ -52,7 +52,7 @@ export class UserRegistrationService implements IUserRegistrationService {
       const passwordHash = await this.passwordService.hashPassword(registrationData.personalInfo.password);
 
       // Step 4: Execute transaction to create all records
-      const result = await this.userRepository.executeTransaction(async (client) => {
+      const result = await this.userRepository.executeTransaction(async (_client) => {
         // Create user
         const user = await this.userRepository.createUser({
           email: registrationData.personalInfo.email,

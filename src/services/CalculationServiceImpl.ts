@@ -93,7 +93,7 @@ export class CalculationServiceImpl implements ICalculationService {
   /**
    * Calculate shipping costs based on order details
    */
-  calculateShippingCost(items: Array<{ quantity: number; unitPrice: number }>, shippingMethod?: string): number {
+  calculateShippingCost(_items: Array<{ quantity: number; unitPrice: number }>, _shippingMethod?: string): number {
     // For now, use flat rate - could be enhanced with complex shipping logic
     return this.config.shippingFee;
   }
@@ -108,7 +108,7 @@ export class CalculationServiceImpl implements ICalculationService {
   /**
    * Calculate taxes based on order details and location
    */
-  calculateTaxes(subtotal: number, location?: any): number {
+  calculateTaxes(subtotal: number, _location?: any): number {
     return subtotal * this.config.taxRate;
   }
 
