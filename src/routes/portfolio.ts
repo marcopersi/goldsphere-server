@@ -434,9 +434,17 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
           try {
             // Fetch positions for this portfolio
             const positionsResult = await pool.query(`
-              SELECT * FROM position 
-              WHERE portfolioid = $1 
-              ORDER BY createdat DESC
+              SELECT p.*, 
+                     cs.id as custody_service_id,
+                     cs.custodyservicename as custody_service_name,
+                     cs.fee as custody_service_fee,
+                     cs.paymentfrequency as custody_payment_frequency,
+                     c.isocode3 as custody_currency
+              FROM position p
+              LEFT JOIN custodyservice cs ON p.custodyserviceid = cs.id
+              LEFT JOIN currency c ON cs.currencyid = c.id
+              WHERE p.portfolioid = $1 
+              ORDER BY p.createdat DESC
             `, [portfolio.id]);
             
             // Map positions using the same logic from position.ts
@@ -486,7 +494,13 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
                   marketPrice: parseFloat(row.marketprice) || 0,
                   quantity: parseFloat(row.quantity) || 0,
                   custodyServiceId: row.custodyserviceid || null,
-                  custody: null, // Simplified for now
+                  custody: row.custody_service_id ? {
+                    id: row.custody_service_id,
+                    name: row.custody_service_name,
+                    fee: parseFloat(row.custody_service_fee) || 0,
+                    paymentFrequency: row.custody_payment_frequency,
+                    currency: row.custody_currency || 'USD'
+                  } : null,
                   status: row.status || 'active',
                   notes: row.notes || '',
                   createdAt: row.createdat || new Date(),
