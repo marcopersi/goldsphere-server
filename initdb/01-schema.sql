@@ -22,7 +22,7 @@ DROP TYPE IF EXISTS unitOfMeasure;
 -- Create types
 CREATE TYPE transactionType AS ENUM ('buy', 'sell');
 CREATE TYPE positionStatus AS ENUM ('active', 'closed');
-CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
+CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'onetime');
 CREATE TYPE orderStatus AS ENUM ('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'completed', 'cancelled');
 CREATE TYPE unitOfMeasure as ENUM ('grams', 'troy_ounces', 'kilograms');
 

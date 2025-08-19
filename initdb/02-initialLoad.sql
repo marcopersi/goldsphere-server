@@ -42,7 +42,7 @@ VALUES
 -- Insert sample custodians
 INSERT INTO custodian (custodianName, createdat)
 VALUES
-    ('N/A -> Delivered to customers home', CURRENT_TIMESTAMP),
+    ('Home Delivery', CURRENT_TIMESTAMP),
     ('Loomis', CURRENT_TIMESTAMP),
     ('Brinks', CURRENT_TIMESTAMP),
     ('Bank of Switzerland', CURRENT_TIMESTAMP),
@@ -99,10 +99,10 @@ VALUES
 -- Insert basic custody services including home delivery option
 INSERT INTO custodyService (custodianId, custodyServiceName, fee, paymentFrequency, currencyId, maxWeight, createdat)
 VALUES
-    ((SELECT id FROM custodian WHERE custodianName = 'N/A -> Delivered to customers home'),
+    ((SELECT id FROM custodian WHERE custodianName = 'Home Delivery'),
      'Home Delivery',
-     0.00,
-     'monthly',
+     20.00,
+     'onetime',
      (SELECT id FROM currency WHERE isoCode3 = 'CHF'),
      NULL,
      CURRENT_TIMESTAMP),

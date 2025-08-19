@@ -475,6 +475,110 @@ router.delete("/custodyServices/:id", async (req: Request, res: Response) => {
   }
 });
 
+// GET default custody service (Home Delivery)
+router.get("/custodyServices/default", async (req: Request, res: Response) => {
+  try {
+    // Query to find the "Home Delivery" custodian and its associated custody service
+    const query = `
+      SELECT 
+        c.id as custodian_id,
+        c.custodianname as custodian_name,
+        c.createdat as custodian_created_at,
+        cs.id as custody_service_id,
+        cs.custodyservicename as custody_service_name,
+        cs.fee as custody_service_fee,
+        cs.paymentfrequency as payment_frequency,
+        curr.isocode3 as currency,
+        cs.createdat as custody_service_created_at,
+        cs.updatedat as custody_service_updated_at
+      FROM custodian c
+      INNER JOIN custodyservice cs ON c.id = cs.custodianid
+      LEFT JOIN currency curr ON cs.currencyid = curr.id
+      WHERE c.custodianname = 'Home Delivery'
+    `;
+
+    const result = await pool.query(query);
+
+    // Validation: Ensure exactly one custodian named "Home Delivery"
+    if (result.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: "System configuration error: No 'Home Delivery' custodian found",
+        details: "The system must have exactly one custodian named 'Home Delivery' configured"
+      });
+    }
+
+    if (result.rows.length > 1) {
+      return res.status(500).json({
+        success: false,
+        error: "System configuration error: Multiple 'Home Delivery' custodians found",
+        details: `Found ${result.rows.length} custodians named 'Home Delivery'. The system must have exactly one.`
+      });
+    }
+
+    const row = result.rows[0];
+
+    // Additional validation: Ensure exactly one custody service for Home Delivery custodian
+    const custodianId = row.custodian_id;
+    const serviceCountQuery = `
+      SELECT COUNT(*) as service_count 
+      FROM custodyservice 
+      WHERE custodianid = $1
+    `;
+    
+    const serviceCountResult = await pool.query(serviceCountQuery, [custodianId]);
+    const serviceCount = parseInt(serviceCountResult.rows[0].service_count);
+
+    if (serviceCount === 0) {
+      return res.status(500).json({
+        success: false,
+        error: "System configuration error: No custody service found for 'Home Delivery' custodian",
+        details: "The 'Home Delivery' custodian must have exactly one associated custody service"
+      });
+    }
+
+    if (serviceCount > 1) {
+      return res.status(500).json({
+        success: false,
+        error: "System configuration error: Multiple custody services found for 'Home Delivery' custodian",
+        details: `Found ${serviceCount} custody services for 'Home Delivery' custodian. Must have exactly one.`
+      });
+    }
+
+    // Format the successful response
+    const defaultCustodyService = {
+      custodian: {
+        id: row.custodian_id,
+        name: row.custodian_name,
+        createdAt: row.custodian_created_at
+      },
+      custodyService: {
+        id: row.custody_service_id,
+        name: row.custody_service_name,
+        fee: parseFloat(row.custody_service_fee),
+        paymentFrequency: row.payment_frequency,
+        currency: row.currency,
+        createdAt: row.custody_service_created_at,
+        updatedAt: row.custody_service_updated_at
+      }
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Default custody service retrieved successfully",
+      data: defaultCustodyService
+    });
+
+  } catch (error) {
+    console.error("Error fetching default custody service:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch default custody service",
+      details: (error as Error).message
+    });
+  }
+});
+
 // GET custody service by ID with comprehensive data
 router.get("/custodyServices/:id", async (req: Request, res: Response) => {
   try {
