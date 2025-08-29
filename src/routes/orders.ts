@@ -870,6 +870,200 @@ router.get("/orders/:id", async (req: Request, res: Response) => {
   }
 });
 
+// GET order by id with detailed information (frontend-friendly)
+router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const authenticatedUser = (req as any).user;
+  
+  try {
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRegex.exec(id)) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid order ID format" 
+      });
+    }
+
+    // Check authentication
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated"
+      });
+    }
+
+    // Comprehensive query to get order with all related data
+    const orderQuery = `
+      SELECT 
+        o.id as order_id,
+        o.userid as order_user_id,
+        o.type as order_type,
+        o.orderstatus as order_status,
+        o.payment_status as payment_status,
+        o.createdat as order_created_at,
+        o.updatedat as order_updated_at,
+        o.custodyserviceid as order_custody_service_id,
+
+        -- User information
+        u.username as user_name,
+        u.email as user_email,
+        
+        -- Order items
+        oi.id as item_id,
+        oi.productid as item_product_id,
+        oi.productname as item_product_name,
+        oi.quantity as item_quantity,
+        oi.unitprice as item_unit_price,
+        oi.totalprice as item_total_price,
+        
+        -- Product details
+        p.name as product_name,
+        p.price as product_current_price,
+        p.currency as product_currency,
+        p.weight as product_weight,
+        p.weightunit as product_weight_unit,
+        p.purity as product_purity,
+        p.year as product_year,
+        
+        -- Product related data
+        pt.producttypename as product_type,
+        m.name as product_metal,
+        ic.issuingcountryname as product_country,
+        pr.producername as product_producer,
+        
+        -- Custody service details
+        cs.id as custody_service_id,
+        cs.custodyservicename as custody_service_name,
+        cs.fee as custody_service_fee,
+        cs.paymentfrequency as custody_service_payment_frequency,
+        
+        -- Custody service currency
+        curr.isocode3 as custody_service_currency,
+        
+        -- Custodian information
+        cust.id as custodian_id,
+        cust.custodianname as custodian_name
+        
+      FROM orders o
+      LEFT JOIN users u ON o.userid = u.id
+      LEFT JOIN order_items oi ON o.id = oi.orderid
+      LEFT JOIN product p ON oi.productid = p.id
+      LEFT JOIN producttype pt ON p.producttypeid = pt.id
+      LEFT JOIN metal m ON p.metalid = m.id
+      LEFT JOIN issuingcountry ic ON p.issuingcountryid = ic.id
+      LEFT JOIN producer pr ON p.producerid = pr.id
+      LEFT JOIN custodyservice cs ON o.custodyserviceid = cs.id
+      LEFT JOIN custodian cust ON cs.custodianid = cust.id
+      LEFT JOIN currency curr ON cs.currencyid = curr.id
+      WHERE o.id = $1
+      ORDER BY oi.createdat
+    `;
+
+    const result = await pool.query(orderQuery, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Order not found"
+      });
+    }
+
+    const firstRow = result.rows[0];
+
+    // Check access control: users can only access their own orders, admins can access any
+    if (authenticatedUser.role !== 'admin' && firstRow.order_user_id !== authenticatedUser.id) {
+      return res.status(403).json({
+        success: false,
+        error: "Access denied: You can only view your own orders"
+      });
+    }
+
+    // Build the detailed order response
+    const detailedOrder = {
+      id: firstRow.order_id,
+      type: firstRow.order_type,
+      status: firstRow.order_status,
+      paymentStatus: firstRow.payment_status,
+      createdAt: firstRow.order_created_at,
+      updatedAt: firstRow.order_updated_at,
+      
+      // User information
+      user: {
+        id: firstRow.order_user_id,
+        name: firstRow.user_name,
+        email: firstRow.user_email
+      },
+      
+      // Process order items with full details
+      items: result.rows
+        .filter(row => row.item_id) // Only rows with actual items
+        .map(row => ({
+          id: row.item_id,
+          quantity: parseFloat(row.item_quantity || '0'),
+          unitPrice: parseFloat(row.item_unit_price || '0'),
+          totalPrice: parseFloat(row.item_total_price || '0'),
+          
+          // Full product details
+          product: {
+            id: row.item_product_id,
+            name: row.product_name || row.item_product_name, // Use stored name if product lookup fails
+            type: row.product_type || 'Unknown',
+            metal: row.product_metal || 'Unknown',
+            weight: parseFloat(row.product_weight || '0'),
+            weightUnit: row.product_weight_unit || 'grams',
+            purity: parseFloat(row.product_purity || '0'),
+            price: parseFloat(row.product_current_price || '0'),
+            currency: row.product_currency || 'USD',
+            producer: row.product_producer || 'Unknown',
+            country: row.product_country || 'Unknown',
+            year: row.product_year || new Date().getFullYear()
+          }
+        })),
+        
+      // Custody service details
+      custodyService: firstRow.custody_service_id ? {
+        id: firstRow.custody_service_id,
+        name: firstRow.custody_service_name,
+        fee: parseFloat(firstRow.custody_service_fee || '0'),
+        paymentFrequency: firstRow.custody_service_payment_frequency,
+        currency: firstRow.custody_service_currency || 'USD'
+      } : null,
+      
+      // Custodian information
+      custodian: firstRow.custodian_id ? {
+        id: firstRow.custodian_id,
+        name: firstRow.custodian_name
+      } : null,
+      
+      // Calculate totals
+      subtotal: result.rows
+        .filter(row => row.item_id)
+        .reduce((sum, row) => sum + parseFloat(row.item_total_price || '0'), 0),
+      taxes: 0, // TODO: Calculate actual taxes
+      currency: firstRow.product_currency || 'USD',
+      totalAmount: 0 // Will be calculated below
+    };
+
+    // Calculate totalAmount
+    detailedOrder.totalAmount = detailedOrder.subtotal + detailedOrder.taxes;
+
+    res.json({
+      success: true,
+      data: detailedOrder,
+      message: "Detailed order retrieved successfully"
+    });
+
+  } catch (error) {
+    console.error("Error fetching detailed order:", error);
+    return res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch detailed order", 
+      details: (error as Error).message 
+    });
+  }
+});
+
 const insertPosition = async (order: Order, portfolioId: string) => {
   const positions = [];
   
