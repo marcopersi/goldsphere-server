@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   Order,
@@ -138,7 +138,7 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
       ${whereClause}
     `;
     
-    const statsResult = await pool.query(statsQuery, queryParams);
+    const statsResult = await getPool().query(statsQuery, queryParams);
     const stats = statsResult.rows[0];
     
     // Return comprehensive admin response using shared schema
@@ -611,7 +611,7 @@ router.put("/orders/:id", async (req: Request, res: Response) => {
     `;
     updateValues.push(id);
 
-    const result = await pool.query(updateQuery, updateValues);
+    const result = await getPool().query(updateQuery, updateValues);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -682,23 +682,23 @@ router.delete("/orders/:id", async (req: Request, res: Response) => {
     }
 
     // Start transaction to ensure both order and order_items are deleted atomically
-    await pool.query('BEGIN');
+    await getPool().query('BEGIN');
 
     try {
       // First delete all order items
-      const deleteItemsResult = await pool.query(
+      const deleteItemsResult = await getPool().query(
         "DELETE FROM order_items WHERE orderid = $1",
         [id]
       );
 
       // Then delete the main order
-      await pool.query(
+      await getPool().query(
         "DELETE FROM orders WHERE id = $1",
         [id]
       );
 
       // Commit the transaction
-      await pool.query('COMMIT');
+      await getPool().query('COMMIT');
 
       // Log the deletion for audit trail
       console.log(`Order ${id} and ${deleteItemsResult.rowCount} associated items physically deleted by ${authenticatedUser.role}:${authenticatedUser.email} at ${new Date().toISOString()}`);
@@ -716,7 +716,7 @@ router.delete("/orders/:id", async (req: Request, res: Response) => {
 
     } catch (dbError) {
       // Rollback the transaction on error
-      await pool.query('ROLLBACK');
+      await getPool().query('ROLLBACK');
       throw dbError;
     }
 
@@ -960,7 +960,7 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
       ORDER BY oi.createdat
     `;
 
-    const result = await pool.query(orderQuery, [id]);
+    const result = await getPool().query(orderQuery, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1074,7 +1074,7 @@ const insertPosition = async (order: Order, portfolioId: string) => {
     const createdAt = new Date();
     const updatedAt = new Date();
 
-    const result = await pool.query(
+    const result = await getPool().query(
       `INSERT INTO public.position(
         id, userid, productid, portfolioid, purchasedate, quantity, purchaseprice, marketprice, createdat, updatedat)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
@@ -1104,7 +1104,7 @@ const createTransactionForPosition = async (position: any, order: Order, item: a
     const transactionId = uuidv4();
     const transactionDate = new Date();
     
-    const result = await pool.query(
+    const result = await getPool().query(
       `INSERT INTO public.transactions(
         id, positionId, userId, type, date, quantity, price, fees, notes, createdat)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
@@ -1133,7 +1133,7 @@ const createTransactionForPosition = async (position: any, order: Order, item: a
 // Get custody service ID by name (with fallback)
 const getCustodyServiceId = async (custodyServiceName: string): Promise<string | null> => {
   try {
-    const result = await pool.query(
+    const result = await getPool().query(
       `SELECT id FROM custodyService WHERE custodyServiceName = $1`,
       [custodyServiceName]
     );
@@ -1160,13 +1160,13 @@ const findExistingPosition = async (
     let result;
     if (custodyServiceId === null) {
       // Handle NULL comparison properly
-      result = await pool.query(
+      result = await getPool().query(
         `SELECT * FROM position 
          WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid IS NULL AND status = 'active'`,
         [userId, productId, portfolioId]
       );
     } else {
-      result = await pool.query(
+      result = await getPool().query(
         `SELECT * FROM position 
          WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid = $4 AND status = 'active'`,
         [userId, productId, portfolioId, custodyServiceId]
@@ -1197,7 +1197,7 @@ const consolidatePosition = async (existingPosition: any, newQuantity: number, n
       consolidated: { totalQuantity, weightedAveragePrice: weightedAveragePrice.toFixed(2) }
     });
 
-    const result = await pool.query(
+    const result = await getPool().query(
       `UPDATE position 
        SET quantity = $1, purchaseprice = $2, marketprice = $3, updatedat = CURRENT_TIMESTAMP
        WHERE id = $4 RETURNING *`,
@@ -1230,7 +1230,7 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
     let custodyServiceId: string | null = null;
     
     // First, try to get custody service ID from the order (we'll need to fetch this from DB)
-    const orderResult = await pool.query(
+    const orderResult = await getPool().query(
       `SELECT custodyserviceid FROM orders WHERE id = $1`,
       [order.id]
     );
@@ -1261,7 +1261,7 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
         const positionId = uuidv4();
         console.log(`🆕 Creating new position for product ${item.productId} in custody service ${custodyServiceId}`);
         
-        const result = await pool.query(
+        const result = await getPool().query(
           `INSERT INTO public.position(
             id, userid, productid, portfolioid, purchasedate, quantity, purchaseprice, marketprice, custodyserviceid, createdat, updatedat)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
@@ -1301,7 +1301,7 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
 
 // Find portfolio for user
 const findPortfolioId = async (userId: string) => {
-  const result = await pool.query(
+  const result = await getPool().query(
     `SELECT id FROM public.portfolio WHERE ownerid = $1`, [userId]
   );
 
@@ -1312,7 +1312,7 @@ const findPortfolioId = async (userId: string) => {
 const createPortfolioForUser = async (userId: string): Promise<string | null> => {
   try {
     // Get user information to create a meaningful portfolio name
-    const userResult = await pool.query(
+    const userResult = await getPool().query(
       `SELECT username, email FROM public.users WHERE id = $1`, [userId]
     );
     
@@ -1325,7 +1325,7 @@ const createPortfolioForUser = async (userId: string): Promise<string | null> =>
     const portfolioName = `${user.username}'s Portfolio`;
     
     // Create the portfolio
-    const portfolioResult = await pool.query(
+    const portfolioResult = await getPool().query(
       `INSERT INTO public.portfolio (portfolioName, ownerId, createdAt, updatedAt) 
        VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
        RETURNING id`,

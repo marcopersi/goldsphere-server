@@ -10,7 +10,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   PortfolioSummarySchema,
@@ -120,7 +120,7 @@ const calculateMetalBreakdown = async (portfolioId: string) => {
     GROUP BY m.metalname
   `;
   
-  const result = await pool.query(query, [portfolioId]);
+  const result = await getPool().query(query, [portfolioId]);
   
   const breakdown = {
     gold: { value: 0, cost: 0, quantity: 0, gainLoss: 0, gainLossPercentage: 0, positionCount: 0 },
@@ -315,7 +315,7 @@ router.get('/portfolios', async (req: Request, res: Response) => {
       ${whereClause}
     `;
 
-    const countResult = await pool.query(countQuery, values);
+    const countResult = await getPool().query(countQuery, values);
     const total = parseInt(countResult.rows[0].total);
 
     // Calculate pagination
@@ -360,7 +360,7 @@ router.get('/portfolios', async (req: Request, res: Response) => {
 
     values.push(limit, offset);
 
-    const dataResult = await pool.query(dataQuery, values);
+    const dataResult = await getPool().query(dataQuery, values);
 
     const portfolios: Portfolio[] = dataResult.rows.map((row: any) => ({
       id: row.id,
@@ -423,7 +423,7 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
       const userId = authenticatedUser.id;
 
       // Fetch user's portfolios from database
-      const portfolioResult = await pool.query(
+      const portfolioResult = await getPool().query(
         'SELECT * FROM portfolio WHERE ownerid = $1 ORDER BY createdat DESC',
         [userId]
       );
@@ -433,7 +433,7 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
         portfolioResult.rows.map(async (portfolio) => {
           try {
             // Fetch positions for this portfolio
-            const positionsResult = await pool.query(`
+            const positionsResult = await getPool().query(`
               SELECT p.*, 
                      cs.id as custody_service_id,
                      cs.custodyservicename as custody_service_name,
@@ -451,7 +451,7 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
             const positions = await Promise.all(
               positionsResult.rows.map(async (row) => {
                 // Fetch product information for each position
-                const productResult = await pool.query(`
+                const productResult = await getPool().query(`
                   SELECT p.*, pt.productTypeName as type, m.name as metal,
                          ic.issuingCountryName as country, pr.producerName as producer
                   FROM product p
@@ -615,7 +615,7 @@ router.get('/portfolios/:id', async (req: Request, res: Response) => {
       WHERE p.id = $1
     `;
 
-    const portfolioResult = await pool.query(portfolioQuery, [id]);
+    const portfolioResult = await getPool().query(portfolioQuery, [id]);
 
     if (portfolioResult.rows.length === 0) {
       return res.status(404).json({
@@ -675,7 +675,7 @@ router.get('/portfolios/:id/summary', async (req: Request, res: Response) => {
 
     // Check if portfolio exists
     const portfolioExistsQuery = 'SELECT id FROM public.portfolio WHERE id = $1';
-    const portfolioExistsResult = await pool.query(portfolioExistsQuery, [id]);
+    const portfolioExistsResult = await getPool().query(portfolioExistsQuery, [id]);
     
     if (portfolioExistsResult.rows.length === 0) {
       return res.status(404).json({
@@ -698,7 +698,7 @@ router.get('/portfolios/:id/summary', async (req: Request, res: Response) => {
       WHERE p.id = $1
     `;
 
-    const portfolioResult = await pool.query(portfolioQuery, [id]);
+    const portfolioResult = await getPool().query(portfolioQuery, [id]);
     const portfolioData = portfolioResult.rows[0];
 
     // Calculate comprehensive analytics
@@ -776,7 +776,7 @@ router.post('/portfolios', async (req: Request, res: Response) => {
 
     // Check if user exists
     const userExistsQuery = 'SELECT id FROM public.users WHERE id = $1';
-    const userExistsResult = await pool.query(userExistsQuery, [ownerId]);
+    const userExistsResult = await getPool().query(userExistsQuery, [ownerId]);
     
     if (userExistsResult.rows.length === 0) {
       return res.status(400).json({
@@ -787,7 +787,7 @@ router.post('/portfolios', async (req: Request, res: Response) => {
 
     // Check if user already has a portfolio with this name
     const existingPortfolioQuery = 'SELECT id FROM public.portfolio WHERE ownerid = $1 AND portfolioname = $2';
-    const existingPortfolioResult = await pool.query(existingPortfolioQuery, [ownerId, portfolioName]);
+    const existingPortfolioResult = await getPool().query(existingPortfolioQuery, [ownerId, portfolioName]);
     
     if (existingPortfolioResult.rows.length > 0) {
       return res.status(400).json({
@@ -807,7 +807,7 @@ router.post('/portfolios', async (req: Request, res: Response) => {
       RETURNING *
     `;
 
-    const insertResult = await pool.query(insertQuery, [
+    const insertResult = await getPool().query(insertQuery, [
       id,
       portfolioName,
       ownerId,
@@ -880,7 +880,7 @@ router.put('/portfolios/:id', async (req: Request, res: Response) => {
 
     // Check if portfolio exists
     const portfolioExistsQuery = 'SELECT id, ownerid FROM public.portfolio WHERE id = $1';
-    const portfolioExistsResult = await pool.query(portfolioExistsQuery, [id]);
+    const portfolioExistsResult = await getPool().query(portfolioExistsQuery, [id]);
     
     if (portfolioExistsResult.rows.length === 0) {
       return res.status(404).json({
@@ -894,7 +894,7 @@ router.put('/portfolios/:id', async (req: Request, res: Response) => {
     // If updating portfolio name, check for duplicates
     if (updates.portfolioName) {
       const duplicateQuery = 'SELECT id FROM public.portfolio WHERE ownerid = $1 AND portfolioname = $2 AND id != $3';
-      const duplicateResult = await pool.query(duplicateQuery, [ownerId, updates.portfolioName, id]);
+      const duplicateResult = await getPool().query(duplicateQuery, [ownerId, updates.portfolioName, id]);
       
       if (duplicateResult.rows.length > 0) {
         return res.status(400).json({
@@ -943,7 +943,7 @@ router.put('/portfolios/:id', async (req: Request, res: Response) => {
       RETURNING *
     `;
 
-    const updateResult = await pool.query(updateQuery, values);
+    const updateResult = await getPool().query(updateQuery, values);
     const updatedRow = updateResult.rows[0];
 
     // Get updated portfolio with analytics
@@ -965,7 +965,7 @@ router.put('/portfolios/:id', async (req: Request, res: Response) => {
       WHERE p.id = $1
     `;
 
-    const analyticsResult = await pool.query(analyticsQuery, [id]);
+    const analyticsResult = await getPool().query(analyticsQuery, [id]);
     const analytics = analyticsResult.rows[0] || { total_value: 0, total_cost: 0, position_count: 0 };
 
     const totalValue = parseFloat(analytics.total_value) || 0;
@@ -1032,7 +1032,7 @@ router.delete('/portfolios/:id', async (req: Request, res: Response) => {
       GROUP BY p.id, p.portfolioname
     `;
 
-    const portfolioResult = await pool.query(portfolioQuery, [id]);
+    const portfolioResult = await getPool().query(portfolioQuery, [id]);
     
     if (portfolioResult.rows.length === 0) {
       return res.status(404).json({
@@ -1054,7 +1054,7 @@ router.delete('/portfolios/:id', async (req: Request, res: Response) => {
 
     // Delete portfolio (hard delete since it's empty)
     const deleteQuery = 'DELETE FROM public.portfolio WHERE id = $1';
-    await pool.query(deleteQuery, [id]);
+    await getPool().query(deleteQuery, [id]);
 
     res.json({
       success: true,
@@ -1077,7 +1077,7 @@ export default router;
 router.get("/portfolios", async (req: Request, res: Response) => {
   try {
     // Simple query to test basic functionality
-    const result = await pool.query("SELECT * FROM portfolio LIMIT 10");
+    const result = await getPool().query("SELECT * FROM portfolio LIMIT 10");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching portfolios:", error);
@@ -1089,7 +1089,7 @@ router.get("/portfolios", async (req: Request, res: Response) => {
 router.post("/portfolios", async (req: Request, res: Response) => {
   const { portfolioName, ownerId } = req.body;
   try {
-    const result = await pool.query("INSERT INTO portfolio (portfolioName, ownerId) VALUES ($1, $2) RETURNING *", [portfolioName, ownerId]);
+    const result = await getPool().query("INSERT INTO portfolio (portfolioName, ownerId) VALUES ($1, $2) RETURNING *", [portfolioName, ownerId]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding portfolio:", error);
@@ -1102,7 +1102,7 @@ router.put("/portfolios/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { portfolioName, ownerId } = req.body;
   try {
-    const result = await pool.query("UPDATE portfolio SET portfolioName = $1, ownerId = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *", [portfolioName, ownerId, id]);
+    const result = await getPool().query("UPDATE portfolio SET portfolioName = $1, ownerId = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *", [portfolioName, ownerId, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating portfolio:", error);
@@ -1114,7 +1114,7 @@ router.put("/portfolios/:id", async (req: Request, res: Response) => {
 router.delete("/portfolios/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM portfolio WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM portfolio WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting portfolio:", error);

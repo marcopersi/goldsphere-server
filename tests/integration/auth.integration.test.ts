@@ -1,8 +1,20 @@
 import request from 'supertest';
-import app from '../src/app';
-import { generateToken } from '../src/middleware/auth';
+import app from '../../src/app';
+import { generateToken } from '../../src/middleware/auth';
+import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
 describe('Authentication Endpoints', () => {
+  
+  beforeAll(async () => {
+    // Setup fresh test database with complete schema and data
+    await setupTestDatabase();
+  });
+
+  afterAll(async () => {
+    // Clean up test database
+    await teardownTestDatabase();
+  });
+
   describe('POST /api/auth/login', () => {
     it('should authenticate with valid bank technical user credentials', async () => {
       const response = await request(app)

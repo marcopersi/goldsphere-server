@@ -1,6 +1,6 @@
 /**
  * User Repository Implem  async createUser(userData: CreateUserData): Promise<UserEntity> {
-    const result = await pool.query(
+    const result = await getPool().query(
       `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING id, username, email, createdat, updatedat, role, email_verified, terms_version, terms_accepted_at`,
@@ -9,7 +9,7 @@
  * with proper transaction support and error handling.
  */
 
-import pool from '../dbConfig';
+import { getPool } from '../dbConfig';
 import {
   IUserRepository,
   CreateUserData,
@@ -31,7 +31,7 @@ import {
 
 export class UserRepository implements IUserRepository {
   async createUser(userData: CreateUserData): Promise<UserEntity> {
-    const result = await pool.query(
+    const result = await getPool().query(
       `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING id, username, email, createdat, updatedat, role, email_verified, terms_version, terms_accepted_at`,
@@ -67,7 +67,7 @@ export class UserRepository implements IUserRepository {
     ];
 
     try {
-      const result = await pool.query(query, values);
+      const result = await getPool().query(query, values);
       return this.mapUserProfileEntity(result.rows[0]);
     } catch (error) {
       console.error('Error creating user profile:', error);
@@ -102,7 +102,7 @@ export class UserRepository implements IUserRepository {
     ];
 
     try {
-      const result = await pool.query(query, values);
+      const result = await getPool().query(query, values);
       return this.mapUserAddressEntity(result.rows[0]);
     } catch (error) {
       console.error('Error creating user address:', error);
@@ -132,7 +132,7 @@ export class UserRepository implements IUserRepository {
     ];
 
     try {
-      const result = await pool.query(query, values);
+      const result = await getPool().query(query, values);
       return this.mapDocumentProcessingLogEntity(result.rows[0]);
     } catch (error) {
       console.error('Error logging document processing:', error);
@@ -166,7 +166,7 @@ export class UserRepository implements IUserRepository {
     ];
 
     try {
-      const result = await pool.query(query, values);
+      const result = await getPool().query(query, values);
       return this.mapConsentLogEntity(result.rows[0]);
     } catch (error) {
       console.error('Error logging consent:', error);
@@ -197,7 +197,7 @@ export class UserRepository implements IUserRepository {
     ];
 
     try {
-      const result = await pool.query(query, values);
+      const result = await getPool().query(query, values);
       return this.mapUserVerificationStatusEntity(result.rows[0]);
     } catch (error) {
       console.error('Error creating user verification status:', error);
@@ -209,7 +209,7 @@ export class UserRepository implements IUserRepository {
     const query = 'SELECT * FROM users WHERE email = $1';
 
     try {
-      const result = await pool.query(query, [email]);
+      const result = await getPool().query(query, [email]);
       return result.rows.length > 0 ? this.mapUserEntity(result.rows[0]) : null;
     } catch (error) {
       console.error('Error finding user by email:', error);
@@ -221,7 +221,7 @@ export class UserRepository implements IUserRepository {
     const query = 'SELECT * FROM user_profiles WHERE user_id = $1';
 
     try {
-      const result = await pool.query(query, [userId]);
+      const result = await getPool().query(query, [userId]);
       return result.rows.length > 0 ? this.mapUserProfileEntity(result.rows[0]) : null;
     } catch (error) {
       console.error('Error finding user profile:', error);
@@ -233,7 +233,7 @@ export class UserRepository implements IUserRepository {
     const query = 'SELECT * FROM user_addresses WHERE user_id = $1 AND is_primary = true';
 
     try {
-      const result = await pool.query(query, [userId]);
+      const result = await getPool().query(query, [userId]);
       return result.rows.length > 0 ? this.mapUserAddressEntity(result.rows[0]) : null;
     } catch (error) {
       console.error('Error finding user address:', error);
@@ -242,7 +242,7 @@ export class UserRepository implements IUserRepository {
   }
 
   async executeTransaction<T>(callback: TransactionCallback<T>): Promise<T> {
-    const client = await pool.connect();
+    const client = await getPool().connect();
 
     try {
       await client.query('BEGIN');
@@ -312,7 +312,9 @@ export class UserRepository implements IUserRepository {
       userid: row.user_id,
       originalfilename: row.original_filename,
       processingstatus: row.processing_status,
-      extractedfields: Array.isArray(row.extracted_fields) ? row.extracted_fields : JSON.parse(row.extracted_fields || '[]'),
+      extractedfields: typeof row.extracted_fields === 'string' 
+        ? JSON.parse(row.extracted_fields || '{}')
+        : row.extracted_fields || {},
       wasprocessed: row.was_processed,
       processedat: row.processed_at,
     };
@@ -388,7 +390,7 @@ export class UserRepository implements IUserRepository {
     `;
     values.push(userId);
 
-    await pool.query(query, values);
+    await getPool().query(query, values);
   }
 
   /**

@@ -11,7 +11,6 @@
 
 import { 
   Order,
-  OrderType,
   OrderStatus,
   CurrencyEnum
 } from "@marcopersi/shared";
@@ -21,11 +20,13 @@ describe('Orders Unit Tests', () => {
     it('should validate a properly structured Order object', () => {
       const validOrder: Order = {
         id: '12345678-1234-1234-1234-123456789abc',
+        orderNumber: 'ORD-2024-001',
         userId: '87654321-4321-4321-4321-cba987654321',
-        type: OrderType.BUY,
-        status: OrderStatus.PENDING,
+        type: 'buy',
+        status: OrderStatus.PENDING.value,
         items: [
           {
+            id: 'item-123',
             productId: 'prod-123',
             productName: 'Test Gold Coin',
             quantity: 2,
@@ -34,27 +35,9 @@ describe('Orders Unit Tests', () => {
           }
         ],
         subtotal: 4000.00,
-        fees: {
-          processing: 50.00,
-          shipping: 25.00,
-          insurance: 15.00
-        },
         taxes: 320.00,
-        totalAmount: 4410.00,
-        currency: CurrencyEnum.USD,
-        shippingAddress: {
-          type: 'shipping',
-          firstName: 'John',
-          lastName: 'Doe',
-          street: '123 Test St',
-          city: 'Test City',
-          state: 'CA',
-          zipCode: '90210',
-          country: 'USA'
-        },
-        paymentMethod: {
-          type: 'card'
-        },
+        totalAmount: 4320.00,
+        currency: CurrencyEnum.USD.isoCode3,
         notes: 'Test order',
         createdAt: new Date(),
         updatedAt: new Date()
@@ -63,21 +46,23 @@ describe('Orders Unit Tests', () => {
       // Test that the order has all required properties
       expect(validOrder.id).toBeDefined();
       expect(validOrder.userId).toBeDefined();
-      expect(validOrder.type).toBe(OrderType.BUY);
-      expect(validOrder.status).toBe(OrderStatus.PENDING);
+      expect(validOrder.type).toBe('buy');
+      expect(validOrder.status).toBe(OrderStatus.PENDING.value);
       expect(validOrder.items).toHaveLength(1);
-      expect(validOrder.totalAmount).toBe(4410.00);
-      expect(validOrder.currency).toBe(CurrencyEnum.USD);
+      expect(validOrder.totalAmount).toBe(4320.00);
+      expect(validOrder.currency).toBe(CurrencyEnum.USD.isoCode3);
     });
 
     it('should handle orders with multiple items', () => {
       const anotherValidOrder: Order = {
         id: '87654321-4321-4321-4321-cba987654321',
+        orderNumber: 'ORD-2024-002',
         userId: '12345678-1234-1234-1234-123456789abc',
-        type: OrderType.BUY,
-        status: OrderStatus.PENDING,
+        type: 'buy',
+        status: OrderStatus.PENDING.value,
         items: [
           {
+            id: 'item-456',
             productId: 'prod-123',
             productName: 'Gold Coin',
             quantity: 2,
@@ -85,6 +70,7 @@ describe('Orders Unit Tests', () => {
             totalPrice: 4000.00,
           },
           {
+            id: 'item-789',
             productId: 'prod-456',
             productName: 'Silver Bar',
             quantity: 1,
@@ -93,34 +79,16 @@ describe('Orders Unit Tests', () => {
           }
         ],
         subtotal: 4500.00,
-        fees: {
-          processing: 60.00,
-          shipping: 30.00,
-          insurance: 20.00
-        },
         taxes: 360.00,
-        totalAmount: 4970.00,
-        currency: CurrencyEnum.USD,
-        shippingAddress: {
-          type: 'shipping',
-          firstName: 'Jane',
-          lastName: 'Smith',
-          street: '456 Test Ave',
-          city: 'Test Town',
-          state: 'NY',
-          zipCode: '10001',
-          country: 'USA'
-        },
-        paymentMethod: {
-          type: 'card'
-        },
+        totalAmount: 4860.00,
+        currency: CurrencyEnum.USD.isoCode3,
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
       expect(anotherValidOrder.items).toHaveLength(2);
       expect(anotherValidOrder.subtotal).toBe(4500.00);
-      expect(anotherValidOrder.totalAmount).toBe(4970.00);
+      expect(anotherValidOrder.totalAmount).toBe(4860.00);
     });
   });
 

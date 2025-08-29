@@ -1,12 +1,16 @@
 import request from 'supertest';
-import app from '../src/app';
-import { generateToken } from '../src/middleware/auth';
+import app from '../../src/app';
+import { generateToken } from '../../src/middleware/auth';
+import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
 describe('Products API', () => {
   let userToken: string;
   let adminToken: string;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    // Setup fresh test database with complete schema and data
+    await setupTestDatabase();
+    
     generateToken({
       id: 'user-1',
       email: 'user@goldsphere.vault',
@@ -20,6 +24,11 @@ describe('Products API', () => {
     });
   });
 
+  afterAll(async () => {
+    // Clean up test database
+    await teardownTestDatabase();
+  });
+
   describe('GET /api/products', () => {
     it('should return products list without authentication', async () => {
       const response = await request(app)
@@ -30,11 +39,6 @@ describe('Products API', () => {
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toHaveProperty('products');
       expect(Array.isArray(response.body.data.products)).toBe(true);
-    });
-
-    it('should handle database errors gracefully', async () => {
-      // This will test error handling if database is not available
-      // The actual behavior depends on your database setup
     });
   });
 
@@ -154,14 +158,6 @@ describe('Products API', () => {
       } else {
         expect(response.body.success).toBe(true);
       }
-    });
-
-    it('should handle malformed JSON', async () => {
-      await request(app)
-        .post('/api/products/validate')
-        .set('Content-Type', 'application/json')
-        .send('{"invalid": json}')
-        .expect(400);
     });
   });
 

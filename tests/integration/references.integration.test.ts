@@ -1,15 +1,33 @@
 import request from "supertest";
-import app from "../src/app";
-import pool from "../src/dbConfig";
+import { setupTestDatabase, teardownTestDatabase } from "./db-setup";
+
+let app: any;
+
+beforeAll(async () => {
+  // Setup fresh test database BEFORE importing app
+  await setupTestDatabase();
+  
+  // Import app AFTER database setup to ensure pool replacement takes effect  
+  app = (await import('../../src/app')).default;
+});
+
+afterAll(async () => {
+  // Clean up test database
+  await teardownTestDatabase();
+});
 
 describe("References API", () => {
+
   beforeAll(async () => {
-    // Wait for app to initialize
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Setup fresh test database BEFORE importing app
+    await setupTestDatabase();
+    
+    // Import app AFTER database setup to ensure pool replacement takes effect  
+    app = (await import('../../src/app')).default;
   });
 
   afterAll(async () => {
-    await pool.end();
+    await teardownTestDatabase();
   });
 
   describe("GET /api/", () => {

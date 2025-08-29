@@ -2,7 +2,15 @@
  * Enhanced User Registration Types and Interfaces
  * 
  * This file defines all TypeScript interfaces, types, and validation schemas
- * for the comprehensive user registration system.
+ * for the cexport interface DocumentProcessingLogEntity {
+  id: string;
+  userid: string;
+  originalfilename: string | null;
+  processingstatus: string;
+  extractedfields: Record<string, any>;
+  wasprocessed: boolean;
+  createdat: Date;
+}ive user registration system.
  */
 
 import { z } from 'zod';
@@ -39,7 +47,7 @@ export interface Address {
 export interface DocumentInfo {
   wasProcessed: boolean;
   originalFilename: string | null;
-  extractedFields: string[];
+  extractedFields: Record<string, any>;
 }
 
 export interface Consent {
@@ -274,7 +282,7 @@ const AddressSchema = z.object({
 const DocumentInfoSchema = z.object({
   wasProcessed: z.boolean(),
   originalFilename: z.string().nullable(),
-  extractedFields: z.array(z.string()).default([]),
+  extractedFields: z.record(z.string(), z.any()).default({}),
 }).optional();
 
 // Consent Schema

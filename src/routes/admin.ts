@@ -4,7 +4,7 @@ import csv from "csv-parser";
 import fs from "fs";
 import path from "path";
 import { PassThrough } from "stream";
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { UuidSchema } from "@marcopersi/shared";
 
 const router = Router();
@@ -39,7 +39,7 @@ router.post("/products/:id/image", upload.single("image"), async (req: Request, 
     const { buffer, mimetype, originalname } = req.file;
 
     // Check if product exists
-    const productExists = await pool.query("SELECT id FROM product WHERE id = $1", [id]);
+    const productExists = await getPool().query("SELECT id FROM product WHERE id = $1", [id]);
     if (productExists.rows.length === 0) {
       res.status(404).json({
         success: false,
@@ -48,7 +48,7 @@ router.post("/products/:id/image", upload.single("image"), async (req: Request, 
       return;
     }
 
-    await pool.query(
+    await getPool().query(
       "UPDATE product SET imageData = $1, imageContentType = $2, imageFilename = $3 WHERE id = $4",
       [buffer, mimetype, originalname, id]
     );
@@ -100,14 +100,14 @@ router.post("/products/load-images", async (req: Request, res: Response): Promis
     
     if (targetProductName) {
       try {
-        const productResult = await pool.query("SELECT id FROM product WHERE LOWER(productname) = LOWER($1)", [targetProductName]);
+        const productResult = await getPool().query("SELECT id FROM product WHERE LOWER(productname) = LOWER($1)", [targetProductName]);
         
         if (productResult.rows.length > 0) {
           const productId = productResult.rows[0].id;
           const imageBuffer = fs.readFileSync(filePath);
           const mimeType = `image/${path.extname(file).slice(1)}`;
           
-          await pool.query(
+          await getPool().query(
             "UPDATE product SET imageData = $1, imageContentType = $2, imageFilename = $3 WHERE id = $4",
             [imageBuffer, mimeType, file, productId]
           );
@@ -149,7 +149,7 @@ router.post("/products/csv", upload.single("csv"), (req: Request, res: Response)
 
       for (const row of results) {
         try {
-          await pool.query(
+          await getPool().query(
             "INSERT INTO product (name, brand, description, metalType, weight, purity, price, available, imageFilename) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             [row.name, row.brand, row.description, row.metalType, parseFloat(row.weight), parseFloat(row.purity), parseFloat(row.price), row.available === "true", row.imageFilename]
           );

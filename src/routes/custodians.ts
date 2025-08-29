@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig"; // Import the shared pool configuration
+import { getPool } from "../dbConfig"; // Import the shared pool configuration
 import { 
   CustodiansQuerySchema
 } from "@marcopersi/shared";
@@ -56,7 +56,7 @@ router.get("/custodians", async (req: Request, res: Response) => {
     
     // Get total count for pagination
     const countQuery = `SELECT COUNT(*) FROM custodian ${whereClause}`;
-    const countResult = await pool.query(countQuery, queryParams);
+    const countResult = await getPool().query(countQuery, queryParams);
     const totalCount = parseInt(countResult.rows[0].count);
     
     // Get paginated results
@@ -70,7 +70,7 @@ router.get("/custodians", async (req: Request, res: Response) => {
     `;
     queryParams.push(limit, offset);
     
-    const result = await pool.query(dataQuery, queryParams);
+    const result = await getPool().query(dataQuery, queryParams);
     const custodiansData = result.rows.map(mapDatabaseRowToCustodian);
     
     // Format response with pagination
@@ -115,7 +115,7 @@ router.post("/custodians", async (req: Request, res: Response) => {
     const custodianName = req.body.name.trim();
     
     // Check for duplicate custodian name
-    const duplicateCheck = await pool.query("SELECT id FROM custodian WHERE custodianName = $1", [custodianName]);
+    const duplicateCheck = await getPool().query("SELECT id FROM custodian WHERE custodianName = $1", [custodianName]);
     if (duplicateCheck.rows.length > 0) {
       return res.status(409).json({
         success: false,
@@ -124,7 +124,7 @@ router.post("/custodians", async (req: Request, res: Response) => {
     }
     
     // Insert new custodian (only fields that exist in the table)
-    const result = await pool.query(
+    const result = await getPool().query(
       "INSERT INTO custodian (custodianName) VALUES ($1) RETURNING *", 
       [custodianName]
     );
@@ -174,7 +174,7 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
     const updatedName = req.body.name ? req.body.name.trim() : undefined;
 
     // Check if custodian exists
-    const existingResult = await pool.query("SELECT id FROM custodian WHERE id = $1", [id]);
+    const existingResult = await getPool().query("SELECT id FROM custodian WHERE id = $1", [id]);
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ 
         success: false,
@@ -184,7 +184,7 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
 
     // Check for duplicate name if name is being updated
     if (updatedName) {
-      const duplicateCheck = await pool.query("SELECT id FROM custodian WHERE custodianName = $1 AND id != $2", [updatedName, id]);
+      const duplicateCheck = await getPool().query("SELECT id FROM custodian WHERE custodianName = $1 AND id != $2", [updatedName, id]);
       if (duplicateCheck.rows.length > 0) {
         return res.status(409).json({
           success: false,
@@ -221,7 +221,7 @@ router.put("/custodians/:id", async (req: Request, res: Response) => {
       RETURNING *
     `;
     
-    const result = await pool.query(updateQuery, updateValues);
+    const result = await getPool().query(updateQuery, updateValues);
     const custodianUpdatedData = mapDatabaseRowToCustodian(result.rows[0]);
     
     // Format response using shared schema
@@ -257,7 +257,7 @@ router.delete("/custodians/:id", async (req: Request, res: Response) => {
     }
     
     // Check if custodian exists and get name for response
-    const existingResult = await pool.query("SELECT id, custodianname FROM custodian WHERE id = $1", [id]);
+    const existingResult = await getPool().query("SELECT id, custodianname FROM custodian WHERE id = $1", [id]);
     if (existingResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -268,7 +268,7 @@ router.delete("/custodians/:id", async (req: Request, res: Response) => {
     const custodianName = existingResult.rows[0].custodianname;
     
     // Check for existing custody services referencing this custodian
-    const custodyServiceCheck = await pool.query("SELECT id FROM custodyService WHERE custodianId = $1 LIMIT 1", [id]);
+    const custodyServiceCheck = await getPool().query("SELECT id FROM custodyService WHERE custodianId = $1 LIMIT 1", [id]);
     if (custodyServiceCheck.rows.length > 0) {
       return res.status(409).json({ 
         success: false,
@@ -277,7 +277,7 @@ router.delete("/custodians/:id", async (req: Request, res: Response) => {
     }
     
     // Delete the custodian
-    await pool.query("DELETE FROM custodian WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM custodian WHERE id = $1", [id]);
     
     // Return success response with proper formatting
     const response = {
@@ -310,7 +310,7 @@ router.get("/custodians/:id", async (req: Request, res: Response) => {
       });
     }
     
-    const result = await pool.query("SELECT id, custodianname, createdat, updatedat FROM custodian WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT id, custodianname, createdat, updatedat FROM custodian WHERE id = $1", [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({

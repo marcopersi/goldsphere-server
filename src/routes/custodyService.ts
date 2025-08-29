@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig"; // Import the shared pool configuration
+import { getPool } from "../dbConfig"; // Import the shared pool configuration
 import { 
   CreateExtendedCustodyServiceRequestSchema,
   UpdateExtendedCustodyServiceRequestSchema,
@@ -74,7 +74,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       LEFT JOIN custodian c ON cs.custodianId = c.id
       ${whereClause}
     `;
-    const countResult = await pool.query(countQuery, queryParams);
+    const countResult = await getPool().query(countQuery, queryParams);
     const totalCount = parseInt(countResult.rows[0].count);
     
     // Get paginated results with enhanced data
@@ -92,7 +92,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
     `;
     queryParams.push(limit, offset);
     
-    const result = await pool.query(dataQuery, queryParams);
+    const result = await getPool().query(dataQuery, queryParams);
     
     // Map database results to proper format
     const custodyServicesData = result.rows.map(row => ({
@@ -153,7 +153,7 @@ router.post("/custodyServices", async (req: Request, res: Response) => {
     const custodyServiceData = validationResult.data;
     
     // Validate that custodian exists
-    const custodianCheck = await pool.query("SELECT id FROM custodian WHERE id = $1", [custodyServiceData.custodianId]);
+    const custodianCheck = await getPool().query("SELECT id FROM custodian WHERE id = $1", [custodyServiceData.custodianId]);
     if (custodianCheck.rows.length === 0) {
       return res.status(400).json({
         success: false,
@@ -162,7 +162,7 @@ router.post("/custodyServices", async (req: Request, res: Response) => {
     }
     
     // Get the currency ID from the currency code
-    const currencyResult = await pool.query("SELECT id FROM currency WHERE isocode3 = $1", [custodyServiceData.currency]);
+    const currencyResult = await getPool().query("SELECT id FROM currency WHERE isocode3 = $1", [custodyServiceData.currency]);
     if (currencyResult.rows.length === 0) {
       return res.status(400).json({
         success: false,
@@ -172,7 +172,7 @@ router.post("/custodyServices", async (req: Request, res: Response) => {
     const currencyId = currencyResult.rows[0].id;
     
     // Check for duplicate service name for the same custodian
-    const duplicateCheck = await pool.query(
+    const duplicateCheck = await getPool().query(
       "SELECT id FROM custodyService WHERE custodianId = $1 AND custodyServiceName = $2", 
       [custodyServiceData.custodianId, custodyServiceData.serviceName]
     );
@@ -184,7 +184,7 @@ router.post("/custodyServices", async (req: Request, res: Response) => {
     }
     
     // Insert new custody service with comprehensive data
-    const result = await pool.query(
+    const result = await getPool().query(
       `INSERT INTO custodyservice (
         custodianid, custodyservicename, fee, 
         paymentfrequency, currencyid, maxweight, createdat, updatedat
@@ -202,7 +202,7 @@ router.post("/custodyServices", async (req: Request, res: Response) => {
     );
     
     // Fetch the complete service data with joins
-    const serviceResult = await pool.query(`
+    const serviceResult = await getPool().query(`
       SELECT cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
              c.isocode3 as currency, cs.maxWeight, cs.createdAt, cs.updatedAt,
              cust.custodianName as custodianName
@@ -270,7 +270,7 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
     const custodyServiceData = validationResult.data;
     
     // Check if custody service exists
-    const existingService = await pool.query("SELECT * FROM custodyService WHERE id = $1", [id]);
+    const existingService = await getPool().query("SELECT * FROM custodyService WHERE id = $1", [id]);
     if (existingService.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -280,7 +280,7 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
     
     // Validate custodian exists if being updated
     if (custodyServiceData.custodianId && custodyServiceData.custodianId !== existingService.rows[0].custodianid) {
-      const custodianCheck = await pool.query("SELECT id FROM custodian WHERE id = $1", [custodyServiceData.custodianId]);
+      const custodianCheck = await getPool().query("SELECT id FROM custodian WHERE id = $1", [custodyServiceData.custodianId]);
       if (custodianCheck.rows.length === 0) {
         return res.status(400).json({
           success: false,
@@ -292,7 +292,7 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
     // Get the currency ID from the currency code if provided
     let currencyId = existingService.rows[0].currencyid;
     if (custodyServiceData.currency) {
-      const currencyResult = await pool.query("SELECT id FROM currency WHERE isocode3 = $1", [custodyServiceData.currency]);
+      const currencyResult = await getPool().query("SELECT id FROM currency WHERE isocode3 = $1", [custodyServiceData.currency]);
       if (currencyResult.rows.length === 0) {
         return res.status(400).json({
           success: false,
@@ -305,7 +305,7 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
     // Check for duplicate service name if being updated
     if (custodyServiceData.serviceName && custodyServiceData.serviceName !== existingService.rows[0].custodyservicename) {
       const targetCustodianId = custodyServiceData.custodianId || existingService.rows[0].custodianid;
-      const duplicateCheck = await pool.query(
+      const duplicateCheck = await getPool().query(
         "SELECT id FROM custodyService WHERE custodianId = $1 AND custodyServiceName = $2 AND id != $3", 
         [targetCustodianId, custodyServiceData.serviceName, id]
       );
@@ -379,10 +379,10 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
     }
     
     const updateQuery = `UPDATE custodyService SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
-    const result = await pool.query(updateQuery, updateValues);
+    const result = await getPool().query(updateQuery, updateValues);
     
     // Fetch the complete updated service data with joins
-    const serviceResult = await pool.query(`
+    const serviceResult = await getPool().query(`
       SELECT cs.id, cs.custodianId, cs.custodyServiceName, cs.fee, cs.paymentFrequency, 
              c.isocode3 as currency, cs.maxWeight, cs.createdAt, cs.updatedAt,
              cust.custodianName as custodianName
@@ -437,7 +437,7 @@ router.delete("/custodyServices/:id", async (req: Request, res: Response) => {
     }
     
     // Check if custody service exists
-    const existingService = await pool.query("SELECT id, custodyServiceName FROM custodyService WHERE id = $1", [id]);
+    const existingService = await getPool().query("SELECT id, custodyServiceName FROM custodyService WHERE id = $1", [id]);
     if (existingService.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -446,7 +446,7 @@ router.delete("/custodyServices/:id", async (req: Request, res: Response) => {
     }
     
     // Check for referential integrity - custody assignments
-    const assignmentCheck = await pool.query("SELECT COUNT(*) FROM custodyAssignment WHERE custodyServiceId = $1", [id]);
+    const assignmentCheck = await getPool().query("SELECT COUNT(*) FROM custodyAssignment WHERE custodyServiceId = $1", [id]);
     if (parseInt(assignmentCheck.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
@@ -456,7 +456,7 @@ router.delete("/custodyServices/:id", async (req: Request, res: Response) => {
     }
     
     // Perform soft delete by marking as inactive instead of hard delete
-    await pool.query("UPDATE custodyService SET isActive = false, updatedAt = CURRENT_TIMESTAMP WHERE id = $1", [id]);
+    await getPool().query("UPDATE custodyService SET isActive = false, updatedAt = CURRENT_TIMESTAMP WHERE id = $1", [id]);
     
     res.json({
       success: true,
@@ -497,7 +497,7 @@ router.get("/custodyServices/default", async (req: Request, res: Response) => {
       WHERE c.custodianname = 'Home Delivery'
     `;
 
-    const result = await pool.query(query);
+    const result = await getPool().query(query);
 
     // Validation: Ensure exactly one custodian named "Home Delivery"
     if (result.rows.length === 0) {
@@ -526,7 +526,7 @@ router.get("/custodyServices/default", async (req: Request, res: Response) => {
       WHERE custodianid = $1
     `;
     
-    const serviceCountResult = await pool.query(serviceCountQuery, [custodianId]);
+    const serviceCountResult = await getPool().query(serviceCountQuery, [custodianId]);
     const serviceCount = parseInt(serviceCountResult.rows[0].service_count);
 
     if (serviceCount === 0) {
@@ -593,7 +593,7 @@ router.get("/custodyServices/:id", async (req: Request, res: Response) => {
     }
     
     // Fetch custody service with joins for complete data
-    const result = await pool.query(`
+    const result = await getPool().query(`
       SELECT cs.id, cs.custodianId, cs.custodyServiceName,
              cs.fee, cs.paymentFrequency, c.isocode3 as currency, cs.maxWeight, 
              cs.createdAt, cs.updatedAt, cust.custodianName as custodianName
@@ -682,7 +682,7 @@ router.get("/custodians-with-services", async (req: Request, res: Response) => {
       ORDER BY c.custodianName ASC, cs.custodyServiceName ASC
     `;
     
-    const result = await pool.query(query, queryParams);
+    const result = await getPool().query(query, queryParams);
     
     // Group the results by custodian
     const custodiansMap = new Map();

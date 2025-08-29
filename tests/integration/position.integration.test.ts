@@ -1,16 +1,25 @@
 import request from 'supertest';
-import app from '../src/app';
-import { generateToken } from '../src/middleware/auth';
+import app from '../../src/app';
+import { generateToken } from '../../src/middleware/auth';
+import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
 describe('Position API', () => {
   let authToken: string;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    // Setup fresh test database with complete schema and data
+    await setupTestDatabase();
+    
     authToken = generateToken({
       id: 'test-user',
       email: 'test@goldsphere.vault',
       role: 'user'
     });
+  });
+
+  afterAll(async () => {
+    // Clean up test database
+    await teardownTestDatabase();
   });
 
   describe('GET /api/positions', () => {

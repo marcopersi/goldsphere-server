@@ -4,14 +4,15 @@
   "description": "The server including the business logic and integration for the goldsphere project",
   "main": "src/app.ts",
   "scripts": {
-    "test": "jest --testPathIgnorePatterns='tests/integration'",
-    "test:unit": "jest --testPathIgnorePatterns='tests/integration'",
+    "test": "jest tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
+    "test:unit": "jest tests/unit --testPathIgnorePatterns='tests/integration'",
     "test:integration": "jest tests/integration --testTimeout=60000",
+    "test:contracts": "jest tests/contracts",
     "test:all": "jest",
-    "test:watch": "jest --watch --testPathIgnorePatterns='tests/integration'",
-    "test:coverage": "jest --coverage --testPathIgnorePatterns='tests/integration'",
-    "test:ci": "jest --ci --coverage --watchAll=false --testPathIgnorePatterns='tests/integration'",
-    "test:orders": "jest tests/orders.unit.test.ts",
+    "test:watch": "jest --watch tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
+    "test:coverage": "jest --coverage tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
+    "test:ci": "jest --ci --coverage --watchAll=false tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
+    "test:orders": "jest tests/unit/orders.unit.test.ts",
     "test:payment-integration": "jest tests/integration/payment.integration.test.ts --testTimeout=60000",
     "test:orders-integration": "jest tests/integration/orders.integration.test.ts --testTimeout=30000",
     "test:payment-quick": "node scripts/test-payment-api.js",
@@ -31,7 +32,6 @@
     "install:dev": "dotenv -e .env.dev -- npm install",
     "install:test": "dotenv -e .env.test -- npm install",
   "install:prod": "dotenv -e .env.prod -- npm install",
-  "test:contracts": "jest tests/contracts/endpoints.contract.test.ts",
   "prepare": "husky install"
   },
   "repository": {
@@ -75,7 +75,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@marcopersi/shared": "^1.3.4",
+    "@marcopersi/shared": "1.3.11",
     "@types/bcrypt": "^6.0.0",
     "@types/stripe": "^8.0.416",
     "bcrypt": "^6.0.0",

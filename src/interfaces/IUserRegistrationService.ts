@@ -221,7 +221,7 @@ export interface CreateDocumentLogData {
   userId: string;
   originalFilename: string | null;
   processingStatus: string;
-  extractedFields: string[];
+  extractedFields: Record<string, any>;
   wasProcessed: boolean;
 }
 

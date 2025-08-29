@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig"; // Import the shared pool configuration
+import { getPool } from "../dbConfig"; // Import the shared pool configuration
 import { 
   Metal,
   ProductTypeEnum,
@@ -109,9 +109,9 @@ interface ReferenceDataResponse {
 router.get("/", async (req: Request, res: Response) => {
   try {
     // Get dynamic producers from database
-    const producersResult = await pool.query("SELECT id, producerName as name FROM producer ORDER BY producerName");
+    const producersResult = await getPool().query("SELECT id, producerName as name FROM producer ORDER BY producerName");
     // Get currencies from database with correct column names
-    const currenciesResult = await pool.query('SELECT isocode2, isocode3, isonumericcode FROM currency ORDER BY isocode3');
+    const currenciesResult = await getPool().query('SELECT isocode2, isocode3, isonumericcode FROM currency ORDER BY isocode3');
 
     // Combine database producers with enum producers for comprehensive list
     const databaseProducers = producersResult.rows.map(row => ({
@@ -186,7 +186,7 @@ router.get("/", async (req: Request, res: Response) => {
 // Issuing Countries Endpoints
 router.get("/issuingCountries", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry ORDER BY issuingCountryName");
+    const result = await getPool().query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry ORDER BY issuingCountryName");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching issuing countries:", error);
@@ -197,7 +197,7 @@ router.get("/issuingCountries", async (req: Request, res: Response) => {
 router.post("/issuingCountries", async (req: Request, res: Response) => {
   const { issuingCountryName,isoCode2 } = req.body;
   try {
-    const result = await pool.query("INSERT INTO issuingCountry (issuingCountryName, isoCode2) VALUES ($1, $2) RETURNING *", [issuingCountryName, isoCode2]);
+    const result = await getPool().query("INSERT INTO issuingCountry (issuingCountryName, isoCode2) VALUES ($1, $2) RETURNING *", [issuingCountryName, isoCode2]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding issuing country:", error);
@@ -210,7 +210,7 @@ router.put("/issuingCountries/:id", async (req: Request, res: Response) => {
   const { issuingCountryName } = req.body;
   const { isoCode2 } = req.body;
   try {
-    const result = await pool.query("UPDATE issuingCountry SET issuingCountryName = $1, isoCode2 = $2 updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [issuingCountryName, isoCode2, id]);
+    const result = await getPool().query("UPDATE issuingCountry SET issuingCountryName = $1, isoCode2 = $2 updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [issuingCountryName, isoCode2, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating issuing country:", error);
@@ -221,7 +221,7 @@ router.put("/issuingCountries/:id", async (req: Request, res: Response) => {
 router.delete("/issuingCountries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM issuingCountry WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM issuingCountry WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting issuing country:", error);
@@ -232,7 +232,7 @@ router.delete("/issuingCountries/:id", async (req: Request, res: Response) => {
 router.get("/issuingCountries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching issuing country:", error);
@@ -243,7 +243,7 @@ router.get("/issuingCountries/:id", async (req: Request, res: Response) => {
 // Metals Endpoints
 router.get("/metals", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, name, createdAt, updatedAt FROM metal ORDER BY name");
+    const result = await getPool().query("SELECT id, name, createdAt, updatedAt FROM metal ORDER BY name");
     console.info("metals returned: ", result.rows);
     res.json(result.rows);
   } catch (error) {
@@ -255,7 +255,7 @@ router.get("/metals", async (req: Request, res: Response) => {
 router.post("/metals", async (req: Request, res: Response) => {
   const { metalName } = req.body;
   try {
-    const result = await pool.query("INSERT INTO metal (name) VALUES ($1) RETURNING *", [metalName]);
+    const result = await getPool().query("INSERT INTO metal (name) VALUES ($1) RETURNING *", [metalName]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding metal:", error);
@@ -267,7 +267,7 @@ router.put("/metals/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { metalName } = req.body;
   try {
-    const result = await pool.query("UPDATE metal SET name = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [metalName, id]);
+    const result = await getPool().query("UPDATE metal SET name = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [metalName, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating metal:", error);
@@ -278,7 +278,7 @@ router.put("/metals/:id", async (req: Request, res: Response) => {
 router.delete("/metals/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM metal WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM metal WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting metal:", error);
@@ -289,7 +289,7 @@ router.delete("/metals/:id", async (req: Request, res: Response) => {
 router.get("/metals/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, name, createdAt, updatedAt FROM metal WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT id, name, createdAt, updatedAt FROM metal WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching metal:", error);
@@ -300,7 +300,7 @@ router.get("/metals/:id", async (req: Request, res: Response) => {
 // Product Types Endpoints
 router.get("/productTypes", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, productTypeName, createdAt, updatedAt FROM productType ORDER BY productTypeName");
+    const result = await getPool().query("SELECT id, productTypeName, createdAt, updatedAt FROM productType ORDER BY productTypeName");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching product types:", error);
@@ -311,7 +311,7 @@ router.get("/productTypes", async (req: Request, res: Response) => {
 router.post("/productTypes", async (req: Request, res: Response) => {
   const { productTypeName } = req.body;
   try {
-    const result = await pool.query("INSERT INTO productType (productTypeName) VALUES ($1) RETURNING *", [productTypeName]);
+    const result = await getPool().query("INSERT INTO productType (productTypeName) VALUES ($1) RETURNING *", [productTypeName]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding product type:", error);
@@ -323,7 +323,7 @@ router.put("/productTypes/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { productTypeName } = req.body;
   try {
-    const result = await pool.query("UPDATE productType SET productTypeName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [productTypeName, id]);
+    const result = await getPool().query("UPDATE productType SET productTypeName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [productTypeName, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating product type:", error);
@@ -334,7 +334,7 @@ router.put("/productTypes/:id", async (req: Request, res: Response) => {
 router.delete("/productTypes/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM productType WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM productType WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting product type:", error);
@@ -345,7 +345,7 @@ router.delete("/productTypes/:id", async (req: Request, res: Response) => {
 router.get("/productTypes/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, productTypeName, createdAt, updatedAt FROM productType WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT id, productTypeName, createdAt, updatedAt FROM productType WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching product type:", error);
@@ -356,7 +356,7 @@ router.get("/productTypes/:id", async (req: Request, res: Response) => {
 // producers Endpoints
 router.get("/producers", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT id, producerName, createdAt, updatedAt FROM producer ORDER BY producerName");
+    const result = await getPool().query("SELECT id, producerName, createdAt, updatedAt FROM producer ORDER BY producerName");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching producers:", error);
@@ -367,7 +367,7 @@ router.get("/producers", async (req: Request, res: Response) => {
 router.post("/producers", async (req: Request, res: Response) => {
   const { producerName } = req.body;
   try {
-    const result = await pool.query("INSERT INTO producer (producerName) VALUES ($1) RETURNING *", [producerName]);
+    const result = await getPool().query("INSERT INTO producer (producerName) VALUES ($1) RETURNING *", [producerName]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error adding producer:", error);
@@ -379,7 +379,7 @@ router.put("/producers/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { producerName } = req.body;
   try {
-    const result = await pool.query("UPDATE producer SET producerName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [producerName, id]);
+    const result = await getPool().query("UPDATE producer SET producerName = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [producerName, id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating producer:", error);
@@ -390,7 +390,7 @@ router.put("/producers/:id", async (req: Request, res: Response) => {
 router.delete("/producers/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await pool.query("DELETE FROM producer WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM producer WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
     console.error("Error deleting producer:", error);
@@ -401,7 +401,7 @@ router.delete("/producers/:id", async (req: Request, res: Response) => {
 router.get("/producers/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, producerName, createdAt, updatedAt FROM producer WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT id, producerName, createdAt, updatedAt FROM producer WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching producer:", error);
@@ -412,7 +412,7 @@ router.get("/producers/:id", async (req: Request, res: Response) => {
 
 router.get("/orderstatus", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT enumlabel AS orderstatus FROM pg_enum WHERE enumtypid = 'orderstatus'::regtype;");
+    const result = await getPool().query("SELECT enumlabel AS orderstatus FROM pg_enum WHERE enumtypid = 'orderstatus'::regtype;");
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching orderstatus:", error);

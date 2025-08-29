@@ -1,10 +1,27 @@
 import request from 'supertest';
-import app from '../src/app';
+import { setupTestDatabase, teardownTestDatabase } from './db-setup';
+
+let app: any;
+
+beforeAll(async () => {
+  // Setup fresh test database BEFORE importing app
+  await setupTestDatabase();
+  
+  // Import app AFTER database setup to ensure pool replacement takes effect  
+  app = (await import('../../src/app')).default;
+});
+
+afterAll(async () => {
+  // Clean up test database
+  await teardownTestDatabase();
+});
 
 describe('API Documentation Endpoints', () => {
+
   describe('GET /health', () => {
     it('should return health status', async () => {
-      const response = await request(app)
+      const response = await 
+      request(app as any)
         .get('/health')
         .expect(200);
 
@@ -18,7 +35,8 @@ describe('API Documentation Endpoints', () => {
 
   describe('GET /info', () => {
     it('should return API information', async () => {
-      const response = await request(app)
+      const response = await 
+      request(app as any)
         .get('/info')
         .expect(200);
 
@@ -33,7 +51,8 @@ describe('API Documentation Endpoints', () => {
 
   describe('GET /api-spec', () => {
     it('should return OpenAPI specification', async () => {
-      const response = await request(app)
+      const response = await 
+      request(app as any)
         .get('/api-spec')
         .expect(200);
 
@@ -48,7 +67,8 @@ describe('API Documentation Endpoints', () => {
 
   describe('GET /docs', () => {
     it('should serve Swagger UI HTML', async () => {
-      const response = await request(app)
+      const response = await 
+      request(app as any)
         .get('/docs')
         .expect(200);
 
@@ -59,7 +79,8 @@ describe('API Documentation Endpoints', () => {
 
   describe('GET /api-spec.yaml', () => {
     it('should return OpenAPI specification in YAML format', async () => {
-      const response = await request(app)
+      const response = await 
+      request(app as any)
         .get('/api-spec.yaml')
         .expect(200);
 
@@ -70,37 +91,40 @@ describe('API Documentation Endpoints', () => {
   });
 });
 
-describe('CORS Configuration', () => {
-  it('should handle preflight OPTIONS request', async () => {
-    await request(app)
-      .options('/api/products')
-      .set('Origin', 'http://localhost:3333')
-      .set('Access-Control-Request-Method', 'GET')
-      .expect(204);
+  describe('CORS Configuration', () => {
+    it('should handle preflight OPTIONS request', async () => {
+      // @ts-ignore - app is initialized in beforeAll
+      await 
+      request(app as any)
+        .options('/health')
+        .set('Origin', 'http://localhost:3333')
+        .set('Access-Control-Request-Method', 'GET')
+        .expect(204);
+    });
+
+    it('should allow requests from allowed origins', async () => {
+      // @ts-ignore - app is initialized in beforeAll
+      const response = await request(app as any)
+        .get('/health')
+        .set('Origin', 'http://localhost:3333')
+        .expect(200);
+
+      expect(response.header['access-control-allow-origin']).toBe('http://localhost:3333');
+    });
   });
 
-  it('should allow requests from allowed origins', async () => {
-    const response = await request(app)
-      .get('/health')
-      .set('Origin', 'http://localhost:3333')
-      .expect(200);
-
-    expect(response.header['access-control-allow-origin']).toBe('http://localhost:3333');
-  });
-});
-
-describe('Rate Limiting', () => {
-  it('should allow requests within rate limit', async () => {
-    await request(app)
-      .get('/health')
-      .expect(200);
-  });
-
-  // Note: This test might be flaky in CI environments
+  describe('Rate Limiting', () => {
+    it('should allow requests within rate limit', async () => {
+      // @ts-ignore - app is initialized in beforeAll  
+      await request(app as any)
+        .get('/health')
+        .expect(200);
+    });  // Note: This test might be flaky in CI environments
   it('should handle rate limiting gracefully', async () => {
     // Make a bunch of requests to potentially trigger rate limiting
     const requests = Array(10).fill(null).map(() => 
-      request(app).get('/health')
+      
+      request(app as any).get('/health')
     );
 
     const responses = await Promise.all(requests);
@@ -114,7 +138,8 @@ describe('Rate Limiting', () => {
 
 describe('Error Handling', () => {
   it('should return 404 for non-existent routes', async () => {
-    const response = await request(app)
+    const response = await 
+      request(app as any)
       .get('/non-existent-route')
       .expect(404);
 
@@ -124,7 +149,8 @@ describe('Error Handling', () => {
   });
 
   it('should handle malformed JSON gracefully', async () => {
-    await request(app)
+    await 
+      request(app as any)
       .post('/api/products/validate')
       .set('Content-Type', 'application/json')
       .send('{"invalid": json}')
@@ -136,7 +162,8 @@ describe('Error Handling', () => {
 
 describe('Security Headers', () => {
   it('should include security headers', async () => {
-    const response = await request(app)
+    const response = await 
+      request(app as any)
       .get('/health')
       .expect(200);
 

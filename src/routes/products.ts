@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { 
   // Validation schemas from product-schemas  
   ProductSchema,
@@ -198,7 +198,7 @@ router.get("/", async (req: Request, res: Response) => {
       ${whereClause}
     `;
     
-    const countResult = await pool.query(countQuery, queryParams);
+    const countResult = await getPool().query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].total);
     
     // Get products with enhanced data selection
@@ -235,7 +235,7 @@ router.get("/", async (req: Request, res: Response) => {
     `;
     
     queryParams.push(limit, offset);
-    const result = await pool.query(dataQuery, queryParams);
+    const result = await getPool().query(dataQuery, queryParams);
     
     // Transform database results with enhanced validation
     const products: ProductResponse[] = result.rows.map(row => ({
@@ -349,7 +349,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       });
     }
 
-    const result = await pool.query(`
+    const result = await getPool().query(`
       SELECT 
         product.id, 
         product.name AS productname, 
@@ -463,7 +463,7 @@ router.get("/price/:id", async (req: Request, res: Response) => {
       });
     }
 
-    const result = await pool.query("SELECT id, price, currency FROM product WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT id, price, currency FROM product WHERE id = $1", [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ 
@@ -527,7 +527,7 @@ router.post("/prices", async (req: Request, res: Response) => {
     const placeholders = productIds.map((_: unknown, index: number) => `$${index + 1}`).join(", ");
     const sql = `SELECT id, price, currency FROM product WHERE id IN (${placeholders})`;
 
-    const result = await pool.query(sql, productIds);
+    const result = await getPool().query(sql, productIds);
     const priceArray = result.rows.map(row => ({ 
       id: row.id, 
       price: parseFloat(row.price) || 0,
@@ -579,7 +579,7 @@ router.put("/:id", async (req: Request, res: Response) => {
     const productData = validationResult.data;
     
     // Check if product exists
-    const existingResult = await pool.query("SELECT id FROM product WHERE id = $1", [id]);
+    const existingResult = await getPool().query("SELECT id FROM product WHERE id = $1", [id]);
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ 
         success: false,
@@ -591,16 +591,16 @@ router.put("/:id", async (req: Request, res: Response) => {
     const validationPromises: Promise<any>[] = [];
     
     if (productData.metalId) {
-      validationPromises.push(pool.query("SELECT id FROM metal WHERE id = $1", [productData.metalId]));
+      validationPromises.push(getPool().query("SELECT id FROM metal WHERE id = $1", [productData.metalId]));
     }
     if (productData.productTypeId) {
-      validationPromises.push(pool.query("SELECT id FROM productType WHERE id = $1", [productData.productTypeId]));
+      validationPromises.push(getPool().query("SELECT id FROM productType WHERE id = $1", [productData.productTypeId]));
     }
     if (productData.producerId) {
-      validationPromises.push(pool.query("SELECT id FROM producer WHERE id = $1", [productData.producerId]));
+      validationPromises.push(getPool().query("SELECT id FROM producer WHERE id = $1", [productData.producerId]));
     }
     if (productData.issuingCountryId) {
-      validationPromises.push(pool.query("SELECT id FROM issuingCountry WHERE id = $1", [productData.issuingCountryId]));
+      validationPromises.push(getPool().query("SELECT id FROM issuingCountry WHERE id = $1", [productData.issuingCountryId]));
     }
     
     if (validationPromises.length > 0) {
@@ -721,10 +721,10 @@ router.put("/:id", async (req: Request, res: Response) => {
       WHERE id = $${paramIndex}
     `;
     
-    await pool.query(updateQuery, updateValues);
+    await getPool().query(updateQuery, updateValues);
     
     // Fetch and return the updated product with enhanced response formatting
-    const productResult = await pool.query(`
+    const productResult = await getPool().query(`
       SELECT 
         product.id, 
         product.name AS productname, 
@@ -832,7 +832,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
     }
     
     // Check if product exists
-    const existingResult = await pool.query("SELECT id, name FROM product WHERE id = $1", [id]);
+    const existingResult = await getPool().query("SELECT id, name FROM product WHERE id = $1", [id]);
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ 
         success: false,
@@ -843,7 +843,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
     const productName = existingResult.rows[0].name;
     
     // Check for existing orders referencing this product
-    const orderCheck = await pool.query("SELECT id FROM orders WHERE productId = $1 LIMIT 1", [id]);
+    const orderCheck = await getPool().query("SELECT id FROM orders WHERE productId = $1 LIMIT 1", [id]);
     if (orderCheck.rows.length > 0) {
       return res.status(409).json({ 
         success: false,
@@ -852,7 +852,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
     }
     
     // Delete the product
-    await pool.query("DELETE FROM product WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM product WHERE id = $1", [id]);
     
     // Return success response with proper formatting
     const response = {
@@ -889,10 +889,10 @@ router.post("/", async (req: Request, res: Response) => {
     
     // Validate referenced entities exist
     const [metalResult, typeResult, producerResult, countryResult] = await Promise.all([
-      pool.query("SELECT id FROM metal WHERE id = $1", [productData.metalId]),
-      pool.query("SELECT id FROM productType WHERE id = $1", [productData.productTypeId]),
-      pool.query("SELECT id FROM producer WHERE id = $1", [productData.producerId]),
-      productData.issuingCountryId ? pool.query("SELECT id FROM issuingCountry WHERE id = $1", [productData.issuingCountryId]) : null
+      getPool().query("SELECT id FROM metal WHERE id = $1", [productData.metalId]),
+      getPool().query("SELECT id FROM productType WHERE id = $1", [productData.productTypeId]),
+      getPool().query("SELECT id FROM producer WHERE id = $1", [productData.producerId]),
+      productData.issuingCountryId ? getPool().query("SELECT id FROM issuingCountry WHERE id = $1", [productData.issuingCountryId]) : null
     ]);
     
     if (metalResult.rows.length === 0) {
@@ -924,7 +924,7 @@ router.post("/", async (req: Request, res: Response) => {
     }
     
     // Insert new product with comprehensive data mapping
-    const insertResult = await pool.query(`
+    const insertResult = await getPool().query(`
       INSERT INTO product (
         name, producttypeid, metalid, issuingcountryid, producerid,
         weight, weightunit, purity, price, currency, year,
@@ -962,7 +962,7 @@ router.post("/", async (req: Request, res: Response) => {
     const newProductId = insertResult.rows[0].id;
     
     // Fetch and return the complete product with enhanced response formatting
-    const productResult = await pool.query(`
+    const productResult = await getPool().query(`
       SELECT 
         product.id, 
         product.name AS productname, 
@@ -1142,7 +1142,7 @@ router.get("/:id/image", async (req: Request, res: Response) => {
       });
     }
 
-    const result = await pool.query(
+    const result = await getPool().query(
       "SELECT imageData, imageContentType, imageFilename FROM product WHERE id = $1 AND imageData IS NOT NULL",
       [id]
     );

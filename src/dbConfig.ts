@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const pool = new Pool({
+let pool = new Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
   user: process.env.DB_USER,
@@ -20,5 +20,12 @@ const pool = new Pool({
     connectionTimeoutMillis: 5000,
   })
 });
+
+// Allow pool to be replaced for testing
+export const setPool = (newPool: Pool) => {
+  pool = newPool;
+};
+
+export const getPool = () => pool;
 
 export default pool;

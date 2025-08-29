@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { 
   UuidSchema
 } from "@marcopersi/shared";
@@ -27,12 +27,12 @@ router.get("/users", async (req: Request, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = (page - 1) * limit;
 
-    const result = await pool.query(
+    const result = await getPool().query(
       "SELECT id, username, email, createdat, updatedat FROM users ORDER BY username LIMIT $1 OFFSET $2", 
       [limit, offset]
     );
     
-    const countResult = await pool.query("SELECT COUNT(*) FROM users");
+    const countResult = await getPool().query("SELECT COUNT(*) FROM users");
     const totalCount = parseInt(countResult.rows[0].count);
     
     res.json({
@@ -71,7 +71,7 @@ router.post("/users", async (req: Request, res: Response) => {
     const { username, email, passwordhash } = validation.data;
     
     // Check for duplicate username or email
-    const duplicateCheck = await pool.query(
+    const duplicateCheck = await getPool().query(
       "SELECT id FROM users WHERE username = $1 OR email = $2", 
       [username, email]
     );
@@ -83,7 +83,7 @@ router.post("/users", async (req: Request, res: Response) => {
       });
     }
 
-    const result = await pool.query(
+    const result = await getPool().query(
       "INSERT INTO users (username, email, passwordhash) VALUES ($1, $2, $3) RETURNING id, username, email, createdat, updatedat", 
       [username, email, passwordhash]
     );
@@ -130,7 +130,7 @@ router.put("/users/:id", async (req: Request, res: Response) => {
     const updates = validation.data;
 
     // Check if user exists
-    const userExists = await pool.query("SELECT id FROM users WHERE id = $1", [id]);
+    const userExists = await getPool().query("SELECT id FROM users WHERE id = $1", [id]);
     if (userExists.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -155,7 +155,7 @@ router.put("/users/:id", async (req: Request, res: Response) => {
       duplicateValues.push(id);
       const duplicateQuery = `SELECT id FROM users WHERE (${duplicateConditions.join(" OR ")}) AND id != $${duplicateValues.length}`;
       
-      const duplicateCheck = await pool.query(duplicateQuery, duplicateValues);
+      const duplicateCheck = await getPool().query(duplicateQuery, duplicateValues);
       if (duplicateCheck.rows.length > 0) {
         return res.status(409).json({
           success: false,
@@ -199,7 +199,7 @@ router.put("/users/:id", async (req: Request, res: Response) => {
       RETURNING id, username, email, createdat, updatedat
     `;
 
-    const result = await pool.query(updateQuery, updateValues);
+    const result = await getPool().query(updateQuery, updateValues);
     
     res.json({
       success: true,
@@ -231,7 +231,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
     }
 
     // Check if user exists
-    const userExists = await pool.query("SELECT id, username FROM users WHERE id = $1", [id]);
+    const userExists = await getPool().query("SELECT id, username FROM users WHERE id = $1", [id]);
     if (userExists.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -240,7 +240,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
     }
 
     // Check for referential integrity (orders, portfolios, etc.)
-    const orderCheck = await pool.query("SELECT COUNT(*) as count FROM orders WHERE userid = $1", [id]);
+    const orderCheck = await getPool().query("SELECT COUNT(*) as count FROM orders WHERE userid = $1", [id]);
     if (parseInt(orderCheck.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
@@ -248,7 +248,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
       });
     }
 
-    const portfolioCheck = await pool.query("SELECT COUNT(*) as count FROM portfolio WHERE ownerid = $1", [id]);
+    const portfolioCheck = await getPool().query("SELECT COUNT(*) as count FROM portfolio WHERE ownerid = $1", [id]);
     if (parseInt(portfolioCheck.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
@@ -256,7 +256,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
       });
     }
 
-    await pool.query("DELETE FROM users WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM users WHERE id = $1", [id]);
     
     res.json({
       success: true,
@@ -286,7 +286,7 @@ router.get("/users/:id", async (req: Request, res: Response) => {
       });
     }
 
-    const result = await pool.query(
+    const result = await getPool().query(
       "SELECT id, username, email, createdat, updatedat FROM users WHERE id = $1", 
       [id]
     );

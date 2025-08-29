@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { Transaction } from "@marcopersi/shared";
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { z } from "zod";
 
 
@@ -145,7 +145,7 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
       WHERE ${whereClause}
     `;
     
-    const countResult = await pool.query(countQuery, queryParams);
+    const countResult = await getPool().query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].total);
 
     // Validate sort column to prevent SQL injection
@@ -188,7 +188,7 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
     `;
 
     queryParams.push(limit, offset);
-    const result = await pool.query(query, queryParams);
+    const result = await getPool().query(query, queryParams);
 
     // Transform database results to proper transaction format
     const transactions: Transaction[] = result.rows.map(row => ({
@@ -279,7 +279,7 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
     const { positionId, type, date, quantity, price, fees = 0, notes } = validationResult.data;
 
     // Verify position exists and get user ownership
-    const positionCheck = await pool.query(
+    const positionCheck = await getPool().query(
       "SELECT user_id, productid FROM positions WHERE id = $1", 
       [positionId]
     );
@@ -298,7 +298,7 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
     const productId = positionCheck.rows[0].productid;
 
     // Get product information for transaction enrichment
-    const productInfo = await pool.query(`
+    const productInfo = await getPool().query(`
       SELECT 
         p.id,
         p.productname,
@@ -320,7 +320,7 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
     // Additional business rule validations
     if (type === 'sell') {
       // For sell transactions, verify user has enough quantity
-      const positionQuantityResult = await pool.query(
+      const positionQuantityResult = await getPool().query(
         "SELECT quantity FROM positions WHERE id = $1",
         [positionId]
       );
@@ -355,7 +355,7 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
         createdat::text
     `;
 
-    const result = await pool.query(query, [
+    const result = await getPool().query(query, [
       positionId, 
       userId, 
       type, 
@@ -463,7 +463,7 @@ router.get("/transactions/:id", async (req: Request, res: Response): Promise<voi
       WHERE t.id = $1
     `;
 
-    const result = await pool.query(query, [id]);
+    const result = await getPool().query(query, [id]);
     
     if (result.rows.length === 0) {
       res.status(404).json({ 

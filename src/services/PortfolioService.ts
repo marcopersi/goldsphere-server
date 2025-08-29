@@ -1,4 +1,4 @@
-import pool from '../dbConfig';
+import { getPool } from '../dbConfig';
 import { PositionSchema, CommonPaginationSchema } from '@marcopersi/shared';
 import IPortfolioService, { ListPortfoliosOptions, PortfolioSummary, PortfolioWithPositions } from '../interfaces/IPortfolioService';
 
@@ -36,7 +36,7 @@ const fetchProductForPosition = async (productId: string) => {
     LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId
     WHERE product.id = $1
   `;
-  const result = await pool.query(productQuery, [productId]);
+  const result = await getPool().query(productQuery, [productId]);
   if (result.rows.length === 0) {
     throw new Error(`Product not found: ${productId}`);
   }
@@ -93,7 +93,7 @@ const mapRowToPosition = async (row: any) => {
       JOIN custodian c ON cs.custodianId = c.id
       WHERE cs.id = $1
     `;
-    const custodyResult = await pool.query(custodyQuery, [row.custodyserviceid]);
+    const custodyResult = await getPool().query(custodyQuery, [row.custodyserviceid]);
     if (custodyResult.rows.length > 0) {
       const custodyRow = custodyResult.rows[0];
       custody = {
@@ -189,8 +189,8 @@ export class PortfolioService implements IPortfolioService {
     const countQuery = `SELECT COUNT(*) as count ${baseQuery}`;
 
     const [dataResult, countResult] = await Promise.all([
-      pool.query(dataQuery, params),
-      pool.query(countQuery, params)
+      getPool().query(dataQuery, params),
+      getPool().query(countQuery, params)
     ]);
 
     const total = parseInt(countResult.rows[0]?.count || '0', 10);
@@ -256,7 +256,7 @@ export class PortfolioService implements IPortfolioService {
       WHERE p.id = $1
     `;
 
-    const result = await pool.query(query, [portfolioId]);
+    const result = await getPool().query(query, [portfolioId]);
     if (result.rows.length === 0) return null;
     const row = result.rows[0];
     const summary: PortfolioSummary = {
@@ -281,7 +281,7 @@ export class PortfolioService implements IPortfolioService {
     const summary = await this.getPortfolioById(portfolioId);
     if (!summary) return null;
 
-    const positionsResult = await pool.query(
+    const positionsResult = await getPool().query(
       `SELECT * FROM position WHERE portfolioId = $1 ORDER BY createdat DESC`,
       [portfolioId]
     );

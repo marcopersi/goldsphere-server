@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import dotenv from "dotenv";
 import app from "./app";
-import pool from "./dbConfig";
+import { getPool } from "./dbConfig";
 
 dotenv.config();
 
@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 8080;
 async function checkDatabaseConnection(): Promise<boolean> {
   try {
     console.log("🔍 Checking database connection...");
-    const client = await pool.connect();
+    const client = await getPool().connect();
     await client.query('SELECT 1');
     client.release();
     console.log("✅ Database connection successful!");

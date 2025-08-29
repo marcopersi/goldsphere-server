@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { 
   PositionSchema} from "@marcopersi/shared";
 
@@ -12,10 +12,10 @@ router.get("/positions", async (req: Request, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || '20', 10)));
     const offset = (page - 1) * limit;
 
-    const countResult = await pool.query(`SELECT COUNT(*) as total FROM position`);
+    const countResult = await getPool().query(`SELECT COUNT(*) as total FROM position`);
     const total = parseInt(countResult.rows[0]?.total || '0', 10);
 
-    const result = await pool.query(
+    const result = await getPool().query(
       `SELECT * FROM position ORDER BY createdat DESC LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
@@ -68,7 +68,7 @@ const fetchProductForPosition = async (productId: string) => {
     WHERE product.id = $1
   `;
   
-  const result = await pool.query(productQuery, [productId]);
+  const result = await getPool().query(productQuery, [productId]);
   if (result.rows.length === 0) {
     throw new Error(`Product not found: ${productId}`);
   }
@@ -115,7 +115,7 @@ const mapDatabaseRowToPosition = async (row: any) => {
       JOIN custodian c ON cs.custodianId = c.id
       WHERE cs.id = $1
     `;
-    const custodyResult = await pool.query(custodyQuery, [row.custodyserviceid]);
+    const custodyResult = await getPool().query(custodyQuery, [row.custodyserviceid]);
     if (custodyResult.rows.length > 0) {
       const custodyRow = custodyResult.rows[0];
       custody = {
@@ -184,7 +184,7 @@ const mapDatabaseRowToPosition = async (row: any) => {
  */
 router.get("/portfolios/:portfolioId/positions", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(`
+    const result = await getPool().query(`
       SELECT * FROM position 
       WHERE portfolioId = $1 
       ORDER BY createdat DESC
@@ -245,7 +245,7 @@ router.get("/portfolios/:portfolioId/positions", async (req: Request, res: Respo
 router.get("/positions/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("SELECT * FROM position WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT * FROM position WHERE id = $1", [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Position not found" });

@@ -4,7 +4,8 @@ import cors from "cors";
 import helmet from "helmet";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import pool from "./dbConfig";
+import { getPool } from "./dbConfig";
+import { updateSwaggerSpec } from "./config/swagger";
 import portfolioRoutes from "./routes/portfolio";
 import positionRoutes from "./routes/position";
 import productRoutes from "./routes/products";
@@ -58,7 +59,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
   try {
     // Check database for user
-    const result = await pool.query("SELECT id, username, email, passwordhash FROM users WHERE email = $1", [email]);
+    const result = await getPool().query("SELECT id, username, email, passwordhash FROM users WHERE email = $1", [email]);
     
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Invalid credentials" });
@@ -107,7 +108,7 @@ app.get("/api/auth/validate", authMiddleware, (req: any, res: any) => {
 app.get("/health", async (req: any, res: any) => {
   try {
     // Test database connection
-    const dbResult = await pool.query('SELECT 1 as db_check');
+    const dbResult = await getPool().query('SELECT 1 as db_check');
     const dbHealthy = dbResult.rows[0]?.db_check === 1;
     
     res.json({
@@ -177,7 +178,143 @@ app.get("/docs", (req: any, res: any) => {
 
 app.get("/api-spec.yaml", (req: any, res: any) => {
   res.setHeader('Content-Type', 'application/x-yaml');
-  res.send('openapi: 3.0.0\ninfo:\n  title: GoldSphere API\n  version: 1.0.0\npaths: {}');
+  const spec = updateSwaggerSpec(req);
+  const yamlContent = `openapi: ${spec.openapi}
+info:
+  title: ${spec.info.title}
+  version: ${spec.info.version}
+  description: ${spec.info.description}
+servers:${spec.servers.map((server: any) => `
+  - url: ${server.url}
+    description: ${server.description}`).join('')}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+                  user:
+                    type: object
+  /products:
+    get:
+      tags: [Products]
+      summary: Get all products
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
+    post:
+      tags: [Products]
+      summary: Create a new product
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type, metal, weight, price]
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                metal:
+                  type: string
+                weight:
+                  type: number
+                price:
+                  type: number
+      responses:
+        '201':
+          description: Product created successfully
+  /users:
+    get:
+      tags: [Users]
+      summary: Get all users (Admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    email:
+                      type: string
+                    username:
+                      type: string`;
+  res.send(yamlContent);
+});
+
+app.get("/api-spec.json", (req: any, res: any) => {
+  res.setHeader('Content-Type', 'application/json');
+  const spec = updateSwaggerSpec(req);
+  res.json(spec);
 });
 
 // Public routes

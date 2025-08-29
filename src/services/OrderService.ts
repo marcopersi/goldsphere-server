@@ -6,7 +6,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { IProductService } from "../interfaces/IProductService";
 import { ICalculationService } from "../interfaces/ICalculationService";
 import { IOrderService, CreateOrderRequest, CreateOrderResult } from "../interfaces/IOrderService";
@@ -92,7 +92,7 @@ export class OrderService implements IOrderService {
    */
   async getOrderById(orderId: string): Promise<Order | null> {
     try {
-      const result = await pool.query(
+      const result = await getPool().query(
         `SELECT o.id, o.userid, o.type, o.orderstatus, o.createdat, o.updatedat,
                 oi.id as itemid, oi.productid, oi.quantity, oi.totalprice, oi.unitprice,
                 oi.productname
@@ -147,7 +147,7 @@ export class OrderService implements IOrderService {
         throw new Error(`Invalid status transition from ${currentOrder.status} to ${newStatus}`);
       }
 
-      const result = await pool.query(
+      const result = await getPool().query(
         `UPDATE orders 
          SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP 
          WHERE id = $2`,
@@ -236,7 +236,7 @@ export class OrderService implements IOrderService {
       `;
       updateValues.push(orderId);
 
-      await pool.query(updateQuery, updateValues);
+      await getPool().query(updateQuery, updateValues);
 
       // Return updated order
       const updatedOrder = await this.getOrderById(orderId);
@@ -354,7 +354,7 @@ export class OrderService implements IOrderService {
   private async saveOrderToDatabase(order: Order): Promise<void> {
     try {
       // Insert main order record with correct column names
-      await pool.query(
+      await getPool().query(
         `INSERT INTO orders (
           id, userid, type, orderstatus, custodyserviceid, createdat, updatedat
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -371,7 +371,7 @@ export class OrderService implements IOrderService {
 
       // Insert order items into order_items table
       for (const item of order.items) {
-        await pool.query(
+        await getPool().query(
           `INSERT INTO order_items (
             orderid, productid, productname, quantity, unitprice, totalprice, createdat
           ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -449,7 +449,7 @@ export class OrderService implements IOrderService {
       ${whereClause}
     `;
     
-    const countResult = await pool.query(countQuery, queryParams);
+    const countResult = await getPool().query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].total);
     
     // Get orders with pagination
@@ -468,7 +468,7 @@ export class OrderService implements IOrderService {
     `;
     
     queryParams.push(limit, offset);
-    const result = await pool.query(dataQuery, queryParams);
+    const result = await getPool().query(dataQuery, queryParams);
     
     // Group database rows by order ID and convert to Order objects
     const ordersMap = new Map<string, any[]>();

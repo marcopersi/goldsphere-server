@@ -1,6 +1,20 @@
 import request from "supertest";
-import app from "../src/app";
-import pool from "../src/dbConfig";
+import { setupTestDatabase, teardownTestDatabase } from './db-setup';
+
+let app: any;
+
+beforeAll(async () => {
+  // Setup fresh test database BEFORE importing app
+  await setupTestDatabase();
+  
+  // Import app AFTER database setup to ensure pool replacement takes effect  
+  app = (await import('../../src/app')).default;
+});
+
+afterAll(async () => {
+  // Clean up test database
+  await teardownTestDatabase();
+});
 
 describe("Custody Management API", () => {
   let authToken: string;
@@ -17,87 +31,6 @@ describe("Custody Management API", () => {
     if (loginResponse.status === 200) {
       authToken = loginResponse.body.token;
     }
-  });
-
-  afterAll(async () => {
-    await pool.end();
-  });
-
-  describe("References API - Custody Data", () => {
-    it("should return custody-related reference data without authentication", async () => {
-      const response = await request(app)
-        .get("/api/");
-
-      // The endpoint should work or return a meaningful error
-      expect([200, 500].includes(response.status)).toBe(true);
-      
-      if (response.status === 200) {
-        expect(response.body.success).toBe(true);
-        expect(response.body.data).toBeDefined();
-        
-        // Check custody-related data
-        expect(response.body.data.custodians).toBeDefined();
-        expect(response.body.data.paymentFrequencies).toBeDefined();
-        expect(response.body.data.custodyServiceTypes).toBeDefined();
-        
-        // Validate custodians structure
-        expect(Array.isArray(response.body.data.custodians)).toBe(true);
-        if (response.body.data.custodians.length > 0) {
-          const custodian = response.body.data.custodians[0];
-          expect(custodian).toHaveProperty("value");
-          expect(custodian).toHaveProperty("name");
-        }
-        
-        // Validate payment frequencies structure
-        expect(Array.isArray(response.body.data.paymentFrequencies)).toBe(true);
-        if (response.body.data.paymentFrequencies.length > 0) {
-          const frequency = response.body.data.paymentFrequencies[0];
-          expect(frequency).toHaveProperty("value");
-          expect(frequency).toHaveProperty("displayName");
-          expect(frequency).toHaveProperty("description");
-        }
-        
-        // Validate custody service types structure
-        expect(Array.isArray(response.body.data.custodyServiceTypes)).toBe(true);
-        if (response.body.data.custodyServiceTypes.length > 0) {
-          const serviceType = response.body.data.custodyServiceTypes[0];
-          expect(serviceType).toHaveProperty("value");
-          expect(serviceType).toHaveProperty("displayName");
-          expect(serviceType).toHaveProperty("description");
-        }
-      } else {
-        // If database connection fails in test environment, that's expected
-        console.log("Database connection failed in test environment - this is expected");
-        expect(response.body).toHaveProperty("error");
-      }
-    });
-
-    it("should return currencies with correct structure", async () => {
-      const response = await request(app)
-        .get("/api/");
-
-      // The endpoint should work or return a meaningful error
-      expect([200, 500].includes(response.status)).toBe(true);
-      
-      if (response.status === 200) {
-        expect(response.body.data.currencies).toBeDefined();
-        expect(Array.isArray(response.body.data.currencies)).toBe(true);
-        
-        if (response.body.data.currencies.length > 0) {
-          const currency = response.body.data.currencies[0];
-          expect(currency).toHaveProperty("isoCode2");
-          expect(currency).toHaveProperty("isoCode3");
-          expect(currency).toHaveProperty("isoNumericCode");
-          expect(typeof currency.isoCode2).toBe("string");
-          expect(typeof currency.isoCode3).toBe("string");
-          expect(typeof currency.isoNumericCode).toBe("number");
-        }
-      } else {
-        // If database connection fails in test environment, that's expected
-        console.log("Database connection failed in test environment - this is expected");
-        expect(response.body).toHaveProperty("error");
-      }
-    });
   });
 
   describe("Custodians API", () => {

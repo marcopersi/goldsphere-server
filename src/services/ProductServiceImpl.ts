@@ -5,7 +5,7 @@
  * availability checking, and order item enrichment.
  */
 
-import pool from "../dbConfig";
+import { getPool } from "../dbConfig";
 import { IProductService, EnrichedOrderItem } from "../interfaces/IProductService";
 
 export class ProductServiceImpl implements IProductService {
@@ -18,7 +18,7 @@ export class ProductServiceImpl implements IProductService {
       WHERE id = $1
     `;
     
-    const result = await pool.query(query, [productId]);
+    const result = await getPool().query(query, [productId]);
     
     if (result.rows.length === 0) {
       throw new Error(`Product not found: ${productId}`);
