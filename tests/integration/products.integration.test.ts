@@ -53,7 +53,7 @@ describe('Products API', () => {
       unitOfMeasure: 'grams',
       purity: 0.9167,
       price: 2150.50,
-      currency: 'USD',
+      currency: 'CHF',
       productYear: 2024,
       description: 'Official gold bullion coin of the United States',
       imageFilename: 'gold-eagle.jpg',

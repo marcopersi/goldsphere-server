@@ -24,8 +24,8 @@ describe("Custody Management API", () => {
     const loginResponse = await request(app)
       .post("/api/auth/login")
       .send({
-        email: "test@example.com",
-        password: "password123"
+        email: "bank.technical@goldsphere.vault",
+        password: "GoldspherePassword"
       });
     
     if (loginResponse.status === 200) {
@@ -70,7 +70,7 @@ describe("Custody Management API", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .send({});
 
-      expect(invalidResponse.status).toBe(500); // Should be validation error
+      expect(invalidResponse.status).toBe(400); // Should be validation error
 
       // Test valid request structure (may fail on DB constraints, but schema should be valid)
       const validResponse = await request(app)
@@ -123,7 +123,7 @@ describe("Custody Management API", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .send({});
 
-      expect(invalidResponse.status).toBe(500); // Should be validation error
+      expect(invalidResponse.status).toBe(400); // Should be validation error
 
       // Test valid request structure
       const validResponse = await request(app)
@@ -135,7 +135,7 @@ describe("Custody Management API", () => {
           serviceType: "segregated-storage",
           fee: 100.00,
           paymentFrequency: "monthly",
-          currency: "USD",
+          currency: "CHF",
           maxWeight: 1000
         });
 

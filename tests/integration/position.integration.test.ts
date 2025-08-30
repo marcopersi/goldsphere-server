@@ -1,6 +1,5 @@
 import request from 'supertest';
 import app from '../../src/app';
-import { generateToken } from '../../src/middleware/auth';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
 describe('Position API', () => {
@@ -10,11 +9,17 @@ describe('Position API', () => {
     // Setup fresh test database with complete schema and data
     await setupTestDatabase();
     
-    authToken = generateToken({
-      id: 'test-user',
-      email: 'test@goldsphere.vault',
-      role: 'user'
-    });
+    // Get auth token for protected endpoints
+    const loginResponse = await request(app)
+      .post("/api/auth/login")
+      .send({
+        email: "bank.technical@goldsphere.vault",
+        password: "GoldspherePassword"
+      });
+    
+    if (loginResponse.status === 200) {
+      authToken = loginResponse.body.token;
+    }
   });
 
   afterAll(async () => {

@@ -97,7 +97,7 @@ async function createPaymentIntent() {
     
     const paymentData = {
       amount: 2500, // $25.00
-      currency: 'USD',
+      currency: 'CHF',
       orderId: TEST_ORDER_ID,
       description: 'Quick Test - 1oz Gold Bar Purchase',
       metadata: {
@@ -229,7 +229,7 @@ async function testAuthenticationValidation() {
     try {
       await axios.post(`${BASE_URL}/api/payments/intent`, {
         amount: 1000,
-        currency: 'USD',
+        currency: 'CHF',
         orderId: 'test'
       });
       log('Authentication validation failed - request succeeded without token', 'error');
@@ -246,7 +246,7 @@ async function testAuthenticationValidation() {
     try {
       await axios.post(`${BASE_URL}/api/payments/intent`, {
         amount: 1000,
-        currency: 'USD',
+        currency: 'CHF',
         orderId: 'test'
       }, {
         headers: {

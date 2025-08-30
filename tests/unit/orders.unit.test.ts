@@ -4,7 +4,7 @@
  * Tests order logic without database dependencies.
  * For integration         taxes: 370.00,
         totalAmount: 4970.00,
-        currency: CurrencyEnum.USD,
+        currency: CurrencyEnum.CHF,
         shippingAddress: {s that require database access,
  * see tests/integration/orders.integration.test.ts
  */
@@ -37,7 +37,7 @@ describe('Orders Unit Tests', () => {
         subtotal: 4000.00,
         taxes: 320.00,
         totalAmount: 4320.00,
-        currency: CurrencyEnum.USD.isoCode3,
+        currency: CurrencyEnum.CHF.isoCode3,
         notes: 'Test order',
         createdAt: new Date(),
         updatedAt: new Date()
@@ -50,7 +50,7 @@ describe('Orders Unit Tests', () => {
       expect(validOrder.status).toBe(OrderStatus.PENDING.value);
       expect(validOrder.items).toHaveLength(1);
       expect(validOrder.totalAmount).toBe(4320.00);
-      expect(validOrder.currency).toBe(CurrencyEnum.USD.isoCode3);
+      expect(validOrder.currency).toBe(CurrencyEnum.CHF.isoCode3);
     });
 
     it('should handle orders with multiple items', () => {
@@ -81,7 +81,7 @@ describe('Orders Unit Tests', () => {
         subtotal: 4500.00,
         taxes: 360.00,
         totalAmount: 4860.00,
-        currency: CurrencyEnum.USD.isoCode3,
+        currency: CurrencyEnum.CHF.isoCode3,
         createdAt: new Date(),
         updatedAt: new Date()
       };

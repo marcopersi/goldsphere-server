@@ -97,7 +97,7 @@ CREATE_ORDER_RESPONSE=$(curl -s -X POST "$SERVER_URL/api/orders" \
     \"fees\": 0,
     \"taxes\": 0,
     \"totalAmount\": $TOTAL_PRICE,
-    \"currency\": \"USD\",
+    \"currency\": \"CHF\",
     \"shippingAddress\": {
       \"street\": \"123 Test St\",
       \"city\": \"Test City\",

@@ -29,7 +29,7 @@ const paymentController = new PaymentController();
  *               currency:
  *                 type: string
  *                 description: Currency code
- *                 example: "usd"
+ *                 example: "CHF"
  *               customerId:
  *                 type: string
  *                 description: Stripe customer ID

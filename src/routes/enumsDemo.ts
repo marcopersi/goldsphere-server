@@ -62,9 +62,9 @@ router.get("/demo", async (req: Request, res: Response) => {
           isoNumericCode: currency.isoNumericCode,
           toString: currency.toString()
         })),
-        usdExample: {
-          fromIsoCode3: CurrencyEnum.fromIsoCode3('USD'),
-          fromNumericCode: CurrencyEnum.fromNumericCode(840)
+        chfExample: {
+          fromIsoCode3: CurrencyEnum.fromIsoCode3('CHF'),
+          fromNumericCode: CurrencyEnum.fromNumericCode(756)
         }
       },
       producers: {

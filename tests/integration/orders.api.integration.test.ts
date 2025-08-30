@@ -154,7 +154,7 @@ describe("Orders API", () => {
       // Create order for processing tests
       const orderInput = {
         type: 'buy',
-        currency: 'USD',
+        currency: 'CHF',
         items: [{ productId: testProductId, quantity: 2 }]
       };
 

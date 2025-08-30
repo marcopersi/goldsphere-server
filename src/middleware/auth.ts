@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import pool from '../dbConfig';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -28,7 +29,17 @@ export function verifyToken(token: string): JWTPayload {
   return jwt.verify(token, JWT_SECRET) as JWTPayload;
 }
 
-export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+async function verifyUserInDatabase(userId: string): Promise<boolean> {
+  try {
+    const result = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('Database verification error:', error);
+    return false;
+  }
+}
+
+export async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers['authorization'];
   const token = authHeader?.split(' ')[1]; // Bearer TOKEN
 
@@ -42,6 +53,17 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
 
   try {
     const decoded = verifyToken(token);
+    
+    // Verify user exists in database
+    const userExists = await verifyUserInDatabase(decoded.id);
+    if (!userExists) {
+      res.status(401).json({ 
+        error: 'Invalid token',
+        details: 'User no longer exists'
+      });
+      return;
+    }
+    
     req.user = {
       id: decoded.id,
       email: decoded.email,
@@ -68,7 +90,7 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
   }
 }
 
-export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export async function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers['authorization'];
   const token = authHeader?.split(' ')[1];
 
@@ -79,11 +101,18 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
 
   try {
     const decoded = verifyToken(token);
-    req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      role: decoded.role
-    };
+    
+    // Verify user exists in database
+    const userExists = await verifyUserInDatabase(decoded.id);
+    if (userExists) {
+      req.user = {
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role
+      };
+    } else {
+      console.warn('Token valid but user no longer exists:', decoded.id);
+    }
   } catch (error) {
     // For optional auth, we don't reject invalid tokens, just ignore them
     console.warn('Invalid token in optional auth:', (error as Error).message);

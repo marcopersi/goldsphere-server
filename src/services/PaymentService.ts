@@ -168,8 +168,8 @@ export class PaymentService {
         refund: {
           id: stripeRefund.id,
           amount: stripeRefund.amount,
-          currency: stripeRefund.currency.toUpperCase() as 'USD' | 'EUR' | 'GBP' | 'CHF',
-          status: (stripeRefund.status as 'succeeded' | 'canceled' | 'pending' | 'failed') || 'pending',
+          currency: stripeRefund.currency.toUpperCase() as 'USD' | 'EUR' | 'GBP' | 'CHF', //FIXME get rid of hardcoded shits
+          status: (stripeRefund.status as 'succeeded' | 'canceled' | 'pending' | 'failed') || 'pending', //FIXME get rid of hardcoded shits
           reason: stripeRefund.reason || 'requested_by_customer',
           createdAt: new Date(stripeRefund.created * 1000)
         }
@@ -215,7 +215,7 @@ export class PaymentService {
       id: stripePI.id,
       clientSecret: stripePI.client_secret || '',
       amount: stripePI.amount,
-      currency: stripePI.currency.toUpperCase() as 'USD' | 'EUR' | 'GBP' | 'CHF',
+      currency: stripePI.currency.toUpperCase() as 'USD' | 'EUR' | 'GBP' | 'CHF', //FIXME avoid hardcoded shit
       status: stripePI.status,
       orderId: stripePI.metadata?.orderId || '',
       customerId: stripePI.customer as string || undefined,

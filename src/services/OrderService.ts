@@ -70,7 +70,7 @@ export class OrderService implements IOrderService {
         unitPrice: item.unitPrice,
         totalPrice: item.totalPrice
       })),
-      currency: "USD", //FIXME get currency from request, if there is non yet, we add one
+      currency: "CHF", //FIXME get currency from request, if there is non yet, we add one
       subtotal: calculation.subtotal,
       taxes: calculation.taxes || 0,
       totalAmount: calculation.totalAmount,
@@ -452,18 +452,66 @@ export class OrderService implements IOrderService {
     const countResult = await getPool().query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].total);
     
-    // Get orders with pagination
+    // Get orders with pagination including rich product and custody data
     const dataQuery = `
-      SELECT o.*, 
-             oi.productid,
-             oi.productname,
-             oi.quantity,
-             oi.unitprice,
-             oi.totalprice
+      SELECT 
+        o.id as order_id,
+        o.userid as order_user_id,
+        o.type as order_type,
+        o.orderstatus as order_status,
+        o.payment_status as payment_status,
+        o.createdat as order_created_at,
+        o.updatedat as order_updated_at,
+        o.custodyserviceid as order_custody_service_id,
+        
+        -- Order items
+        oi.id as item_id,
+        oi.productid as item_product_id,
+        oi.productname as item_product_name,
+        oi.quantity as item_quantity,
+        oi.unitprice as item_unit_price,
+        oi.totalprice as item_total_price,
+        
+        -- Product details
+        p.name as product_name,
+        p.price as product_current_price,
+        p.currency as product_currency,
+        p.weight as product_weight,
+        p.weightunit as product_weight_unit,
+        p.purity as product_purity,
+        p.year as product_year,
+        
+        -- Product related data
+        pt.producttypename as product_type,
+        m.name as product_metal,
+        ic.issuingcountryname as product_country,
+        pr.producername as product_producer,
+        
+        -- Custody service details
+        cs.id as custody_service_id,
+        cs.custodyservicename as custody_service_name,
+        cs.fee as custody_service_fee,
+        cs.paymentfrequency as custody_service_payment_frequency,
+        
+        -- Custody service currency
+        curr.isocode3 as custody_service_currency,
+        
+        -- Custodian information
+        cust.id as custodian_id,
+        cust.custodianname as custodian_name
+        
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.orderid
+      LEFT JOIN product p ON oi.productid = p.id
+      LEFT JOIN producttype pt ON p.producttypeid = pt.id
+      LEFT JOIN metal m ON p.metalid = m.id
+      LEFT JOIN issuingcountry ic ON p.issuingcountryid = ic.id
+      LEFT JOIN producer pr ON p.producerid = pr.id
+      LEFT JOIN custodyservice cs ON o.custodyserviceid = cs.id
+      LEFT JOIN custodian cust ON cs.custodianid = cust.id
+      LEFT JOIN currency curr ON cs.currencyid = curr.id
       ${whereClause}
-      ORDER BY o.createdat DESC
+      ORDER BY o.createdat DESC, oi.createdat ASC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     
@@ -473,10 +521,10 @@ export class OrderService implements IOrderService {
     // Group database rows by order ID and convert to Order objects
     const ordersMap = new Map<string, any[]>();
     result.rows.forEach((row: any) => {
-      if (!ordersMap.has(row.id)) {
-        ordersMap.set(row.id, []);
+      if (!ordersMap.has(row.order_id)) {
+        ordersMap.set(row.order_id, []);
       }
-      ordersMap.get(row.id)!.push(row);
+      ordersMap.get(row.order_id)!.push(row);
     });
     
     const orders = Array.from(ordersMap.values()).map(rows => OrderService.mapDatabaseRowsToOrder(rows));
@@ -508,16 +556,32 @@ export class OrderService implements IOrderService {
    
     const firstRow = rows[0];
     
-    // Group rows by order items
+    // Group rows by order items with rich product data
     const items = rows
-      .filter(row => row.productid) // Filter out rows without items
+      .filter(row => row.item_product_id) // Filter out rows without items
       .map(row => ({
-        id: row.itemid || uuidv4(), // Use item ID from database or generate UUID
-        productId: row.productid,
-        productName: row.productname || `Product ${row.productid}`,
-        quantity: parseFloat(row.quantity || '0'),
-        unitPrice: parseFloat(row.unitprice || '0'),
-        totalPrice: parseFloat(row.totalprice || '0')
+        id: row.item_id || uuidv4(),
+        productId: row.item_product_id,
+        productName: row.item_product_name || row.product_name || `Product ${row.item_product_id}`,
+        quantity: parseFloat(row.item_quantity || '0'),
+        unitPrice: parseFloat(row.item_unit_price || '0'),
+        totalPrice: parseFloat(row.item_total_price || '0'),
+        certificateRequested: false, // Default for now
+        // Rich product information
+        product: {
+          id: row.item_product_id,
+          name: row.product_name || row.item_product_name || 'Unknown Product',
+          type: row.product_type || 'Unknown',
+          metal: row.product_metal || 'Unknown',
+          weight: parseFloat(row.product_weight || '0'),
+          weightUnit: row.product_weight_unit || 'grams',
+          purity: parseFloat(row.product_purity || '0'),
+          price: parseFloat(row.product_current_price || row.item_unit_price || '0'),
+          currency: row.product_currency || 'USD',
+          producer: row.product_producer || 'Unknown',
+          country: row.product_country || 'Unknown',
+          year: parseInt(row.product_year || '0')
+        }
       }));
 
     // Calculate missing fields if not in database
@@ -525,38 +589,38 @@ export class OrderService implements IOrderService {
     const taxes = 0; // Default for now
     const totalAmount = subtotal + taxes;
 
-    // DEBUG: Log mapping process
-    console.log(`🔍 DEBUG mapDatabaseRowsToOrder:`, {
-      firstRowKeys: Object.keys(firstRow),
-      firstRowId: firstRow.id,
-      firstRowUserId: firstRow.userid,
-      firstRowStatus: firstRow.orderstatus,
-      firstRowType: firstRow.type
-    });
+    // Map custody service information
+    const custodyService = firstRow.custody_service_id ? {
+      id: firstRow.custody_service_id,
+      name: firstRow.custody_service_name,
+      fee: parseFloat(firstRow.custody_service_fee || '0'),
+      paymentFrequency: firstRow.custody_service_payment_frequency,
+      currency: firstRow.custody_service_currency || 'USD'
+    } : null;
+
+    // Map custodian information
+    const custodian = firstRow.custodian_id ? {
+      id: firstRow.custodian_id,
+      name: firstRow.custodian_name
+    } : null;
 
     const mappedOrder = {
-      id: firstRow.id,
-      userId: firstRow.userid,  // Database has lowercase 'userid' 
-      type: (firstRow.type === "buy" || firstRow.type === "sell") ? firstRow.type : "buy",
-      status: firstRow.orderstatus || "pending",  // Database has lowercase 'orderstatus' //FIXME WHY || pending, this is wrong! 
-      orderNumber: firstRow.ordernumber || `ORD-${firstRow.id.slice(0, 8).toUpperCase()}`,
+      id: firstRow.order_id,
+      userId: firstRow.order_user_id,
+      type: (firstRow.order_type === "buy" || firstRow.order_type === "sell") ? firstRow.order_type : "buy",
+      status: firstRow.order_status || "pending",
+      orderNumber: firstRow.ordernumber || `ORD-${firstRow.order_id.slice(0, 8).toUpperCase()}`,
       items: items,
-      currency: "USD", //FIXME: Get currency from database
+      currency: firstRow.product_currency || "USD", // Use product currency or default to USD
       subtotal: subtotal,
       taxes: taxes,
       totalAmount: totalAmount,
-      createdAt: new Date(firstRow.createdat),
-      updatedAt: new Date(firstRow.updatedat)
+      custodyService: custodyService,
+      custodian: custodian,
+      paymentStatus: firstRow.payment_status || 'pending',
+      createdAt: new Date(firstRow.order_created_at),
+      updatedAt: new Date(firstRow.order_updated_at)
     } as Order;
-
-    // DEBUG: Log final mapped order
-    console.log(`🔍 DEBUG Final mapped order:`, {
-      id: mappedOrder.id,
-      userId: mappedOrder.userId,
-      status: mappedOrder.status,
-      type: mappedOrder.type,
-      itemsCount: mappedOrder.items.length
-    });
 
     return mappedOrder;
   }

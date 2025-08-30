@@ -38,8 +38,8 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
 
   // Map database values to string literals (shared package expects strings)
   const orderType = (firstRow.type as "buy" | "sell") || "buy";
-  const orderStatus = firstRow.orderstatus || "pending";  // Database has lowercase 'orderstatus'
-  const currency = "USD";
+  const orderStatus = firstRow.orderStatus;  // Database has lowercase 'orderstatus'
+  const currency = firstRow.currency; 
 
   // Calculate missing fields if not in database
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -199,15 +199,15 @@ router.get("/orders/my", async (req: Request, res: Response) => {
       type: type as string
     });
     
-    // Return data using shared schema with user context
-    const userResponse = OrderApiListResponseSchema.parse({
+    // Return enhanced data directly without schema validation that strips rich data
+    const userResponse = {
       success: true,
-      orders: ordersResult.orders,  // Changed from "data" to "orders"
+      orders: ordersResult.orders,
       pagination: ordersResult.pagination,
       user: {
         id: authenticatedUser.id
       }
-    });
+    };
     
     res.json(userResponse);
   } catch (error) {
@@ -1000,23 +1000,23 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
         .filter(row => row.item_id) // Only rows with actual items
         .map(row => ({
           id: row.item_id,
-          quantity: parseFloat(row.item_quantity || '0'),
-          unitPrice: parseFloat(row.item_unit_price || '0'),
-          totalPrice: parseFloat(row.item_total_price || '0'),
+          quantity: parseFloat(row.item_quantity),
+          unitPrice: parseFloat(row.item_unit_price),
+          totalPrice: parseFloat(row.item_total_price),
           
           // Full product details
           product: {
             id: row.item_product_id,
             name: row.product_name || row.item_product_name, // Use stored name if product lookup fails
-            type: row.product_type || 'Unknown',
-            metal: row.product_metal || 'Unknown',
-            weight: parseFloat(row.product_weight || '0'),
-            weightUnit: row.product_weight_unit || 'grams',
-            purity: parseFloat(row.product_purity || '0'),
-            price: parseFloat(row.product_current_price || '0'),
-            currency: row.product_currency || 'USD',
-            producer: row.product_producer || 'Unknown',
-            country: row.product_country || 'Unknown',
+            type: row.product_type,
+            metal: row.product_metal,
+            weight: parseFloat(row.product_weight),
+            weightUnit: row.product_weight_unit,
+            purity: parseFloat(row.product_purity),
+            price: parseFloat(row.product_current_price),
+            currency: row.product_currency,
+            producer: row.product_producer,
+            country: row.product_country,
             year: row.product_year || new Date().getFullYear()
           }
         })),
@@ -1025,9 +1025,9 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
       custodyService: firstRow.custody_service_id ? {
         id: firstRow.custody_service_id,
         name: firstRow.custody_service_name,
-        fee: parseFloat(firstRow.custody_service_fee || '0'),
+        fee: parseFloat(firstRow.custody_service_fee),
         paymentFrequency: firstRow.custody_service_payment_frequency,
-        currency: firstRow.custody_service_currency || 'USD'
+        currency: firstRow.custody_service_currency
       } : null,
       
       // Custodian information
@@ -1041,7 +1041,7 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
         .filter(row => row.item_id)
         .reduce((sum, row) => sum + parseFloat(row.item_total_price || '0'), 0),
       taxes: 0, // TODO: Calculate actual taxes
-      currency: firstRow.product_currency || 'USD',
+      currency: firstRow.product_currency,
       totalAmount: 0 // Will be calculated below
     };
 

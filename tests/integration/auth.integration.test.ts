@@ -86,12 +86,18 @@ describe('Authentication Endpoints', () => {
   describe('GET /api/auth/validate', () => {
     let validToken: string;
 
-    beforeEach(() => {
-      validToken = generateToken({
-        id: 'test-user',
-        email: 'test@goldsphere.vault',
-        role: 'user'
-      });
+    beforeEach(async () => {
+      // Use a real user from the database for token validation tests
+      // Get the bank technical user that we know exists in test database
+      const userResult = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'bank.technical@goldsphere.vault',
+          password: 'GoldspherePassword'
+        })
+        .expect(200);
+
+      validToken = userResult.body.token;
     });
 
     it('should validate valid token', async () => {
@@ -102,7 +108,7 @@ describe('Authentication Endpoints', () => {
 
       expect(response.body).toHaveProperty('success', true);
       expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('email', 'test@goldsphere.vault');
+      expect(response.body.user).toHaveProperty('email', 'bank.technical@goldsphere.vault');
     });
 
     it('should reject request without token', async () => {
@@ -129,6 +135,23 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(response.body).toHaveProperty('error', 'Access token required');
+    });
+
+    it('should reject token for non-existent user (security fix)', async () => {
+      // Create a token for a user that doesn't exist in database
+      const fakeToken = generateToken({
+        id: 'fake-user-id',
+        email: 'fake@example.com', 
+        role: 'user'
+      });
+
+      const response = await request(app)
+        .get('/api/auth/validate')
+        .set('Authorization', `Bearer ${fakeToken}`)
+        .expect(401);
+
+      expect(response.body).toHaveProperty('error', 'Invalid token');
+      expect(response.body).toHaveProperty('details', 'User not found or has been deactivated');
     });
   });
 
