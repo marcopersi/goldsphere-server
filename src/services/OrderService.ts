@@ -93,11 +93,18 @@ export class OrderService implements IOrderService {
   async getOrderById(orderId: string): Promise<Order | null> {
     try {
       const result = await getPool().query(
-        `SELECT o.id, o.userid, o.type, o.orderstatus, o.createdat, o.updatedat,
+        `SELECT o.id, o.userid, o.type, o.orderstatus, o.createdat, o.updatedat, o.payment_status,
+                o.custodyserviceid,
                 oi.id as itemid, oi.productid, oi.quantity, oi.totalprice, oi.unitprice,
-                oi.productname
+                oi.productname,
+                p.currency,
+                cs.custodyservicename,
+                cust.id as custodianid, cust.custodianname
          FROM orders o
          LEFT JOIN order_items oi ON o.id = oi.orderid  
+         LEFT JOIN product p ON oi.productid = p.id
+         LEFT JOIN custodyservice cs ON o.custodyserviceid = cs.id
+         LEFT JOIN custodian cust ON cs.custodianid = cust.id
          WHERE o.id = $1
          ORDER BY oi.createdat`,
         [orderId]
@@ -549,6 +556,113 @@ export class OrderService implements IOrderService {
   /**
    * Map database rows to Order object
    */
+  /**
+   * Extract basic order information from database row
+   */
+  private static mapBasicOrderInfo(row: any): {
+    id: string;
+    userId: string;
+    type: string;
+    status: string;
+    paymentStatus: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } {
+    return {
+      id: row.id,
+      userId: row.userid,
+      type: row.type,
+      status: row.orderstatus,
+      paymentStatus: row.payment_status || 'pending',
+      createdAt: new Date(row.createdat),
+      updatedAt: new Date(row.updatedat)
+    };
+  }
+
+  /**
+   * Extract order items from database rows
+   */
+  private static mapOrderItems(rows: any[]): Array<{
+    id: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    certificateRequested: boolean;
+  }> {
+    return rows
+      .filter(row => row.itemid) // Only rows with actual items
+      .map(row => ({
+        id: row.itemid,
+        productId: row.productid,
+        productName: row.productname,
+        quantity: parseFloat(row.quantity || '0'),
+        unitPrice: parseFloat(row.unitprice || '0'),
+        totalPrice: parseFloat(row.totalprice || '0'),
+        certificateRequested: false
+      }));
+  }
+
+  /**
+   * Calculate order totals from items
+   */
+  private static calculateOrderTotals(items: Array<{ totalPrice: number }>): {
+    subtotal: number;
+    taxes: number;
+    totalAmount: number;
+  } {
+    const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+    const taxes = 0; // TODO: Calculate actual taxes
+    const totalAmount = subtotal + taxes;
+    
+    return { subtotal, taxes, totalAmount };
+  }
+
+  /**
+   * Extract custody service information from database row
+   */
+  private static mapCustodyService(row: any): {
+    id: string;
+    name: string;
+  } | null {
+    if (!row.custodyserviceid) {
+      return null;
+    }
+    
+    return {
+      id: row.custodyserviceid,
+      name: row.custodyservicename || 'Unknown Custody Service'
+    };
+  }
+
+  /**
+   * Extract custodian information from database row
+   */
+  private static mapCustodian(row: any): {
+    id: string;
+    name: string;
+  } | null {
+    if (!row.custodianid) {
+      return null;
+    }
+    
+    return {
+      id: row.custodianid,
+      name: row.custodianname || 'Unknown Custodian'
+    };
+  }
+
+  /**
+   * Generate order number from order ID
+   */
+  private static generateOrderNumber(orderId: string): string {
+    return `ORD-${orderId.slice(0, 8).toUpperCase()}`;
+  }
+
+  /**
+   * Map database rows to complete Order object
+   */
   private static mapDatabaseRowsToOrder(rows: any[]): Order {
     if (rows.length === 0) {
       throw new Error('No rows to map');
@@ -556,73 +670,42 @@ export class OrderService implements IOrderService {
    
     const firstRow = rows[0];
     
-    // Group rows by order items with rich product data
-    const items = rows
-      .filter(row => row.item_product_id) // Filter out rows without items
-      .map(row => ({
-        id: row.item_id || uuidv4(),
-        productId: row.item_product_id,
-        productName: row.item_product_name || row.product_name || `Product ${row.item_product_id}`,
-        quantity: parseFloat(row.item_quantity || '0'),
-        unitPrice: parseFloat(row.item_unit_price || '0'),
-        totalPrice: parseFloat(row.item_total_price || '0'),
-        certificateRequested: false, // Default for now
-        // Rich product information
-        product: {
-          id: row.item_product_id,
-          name: row.product_name || row.item_product_name || 'Unknown Product',
-          type: row.product_type || 'Unknown',
-          metal: row.product_metal || 'Unknown',
-          weight: parseFloat(row.product_weight || '0'),
-          weightUnit: row.product_weight_unit || 'grams',
-          purity: parseFloat(row.product_purity || '0'),
-          price: parseFloat(row.product_current_price || row.item_unit_price || '0'),
-          currency: row.product_currency || 'USD',
-          producer: row.product_producer || 'Unknown',
-          country: row.product_country || 'Unknown',
-          year: parseInt(row.product_year || '0')
-        }
-      }));
+    // Extract basic order info
+    const basicInfo = this.mapBasicOrderInfo(firstRow);
+    
+    // Extract items
+    const items = this.mapOrderItems(rows);
+    
+    // Calculate totals
+    const totals = this.calculateOrderTotals(items);
+    
+    // Extract custody info
+    const custodyService = this.mapCustodyService(firstRow);
+    const custodian = this.mapCustodian(firstRow);
+    
+    // Generate order number
+    const orderNumber = this.generateOrderNumber(basicInfo.id);
+    
+    // Get currency from first product or default
+    const currency = firstRow.currency || 'USD';
 
-    // Calculate missing fields if not in database
-    const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-    const taxes = 0; // Default for now
-    const totalAmount = subtotal + taxes;
-
-    // Map custody service information
-    const custodyService = firstRow.custody_service_id ? {
-      id: firstRow.custody_service_id,
-      name: firstRow.custody_service_name,
-      fee: parseFloat(firstRow.custody_service_fee || '0'),
-      paymentFrequency: firstRow.custody_service_payment_frequency,
-      currency: firstRow.custody_service_currency || 'USD'
-    } : null;
-
-    // Map custodian information
-    const custodian = firstRow.custodian_id ? {
-      id: firstRow.custodian_id,
-      name: firstRow.custodian_name
-    } : null;
-
-    const mappedOrder = {
-      id: firstRow.order_id,
-      userId: firstRow.order_user_id,
-      type: (firstRow.order_type === "buy" || firstRow.order_type === "sell") ? firstRow.order_type : "buy",
-      status: firstRow.order_status || "pending",
-      orderNumber: firstRow.ordernumber || `ORD-${firstRow.id.slice(0, 8).toUpperCase()}`,
+    return {
+      id: basicInfo.id,
+      userId: basicInfo.userId,
+      type: basicInfo.type,
+      status: basicInfo.status,
+      orderNumber: orderNumber,
       items: items,
-      currency: firstRow.product_currency || "USD", // Use product currency or default to USD
-      subtotal: subtotal,
-      taxes: taxes,
-      totalAmount: totalAmount,
+      currency: currency,
+      subtotal: totals.subtotal,
+      taxes: totals.taxes,
+      totalAmount: totals.totalAmount,
       custodyService: custodyService,
       custodian: custodian,
-      paymentStatus: firstRow.payment_status || 'pending',
-      createdAt: new Date(firstRow.order_created_at),
-      updatedAt: new Date(firstRow.order_updated_at)
+      paymentStatus: basicInfo.paymentStatus,
+      createdAt: basicInfo.createdAt,
+      updatedAt: basicInfo.updatedAt
     } as Order;
-
-    return mappedOrder;
   }
 
   /**
