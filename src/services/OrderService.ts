@@ -609,7 +609,7 @@ export class OrderService implements IOrderService {
       userId: firstRow.order_user_id,
       type: (firstRow.order_type === "buy" || firstRow.order_type === "sell") ? firstRow.order_type : "buy",
       status: firstRow.order_status || "pending",
-      orderNumber: firstRow.ordernumber || `ORD-${firstRow.order_id.slice(0, 8).toUpperCase()}`,
+      orderNumber: firstRow.ordernumber || `ORD-${firstRow.id.slice(0, 8).toUpperCase()}`,
       items: items,
       currency: firstRow.product_currency || "USD", // Use product currency or default to USD
       subtotal: subtotal,
