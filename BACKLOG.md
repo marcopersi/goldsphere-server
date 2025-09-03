@@ -117,6 +117,18 @@
 - [ ] **Monitoring**: Add application monitoring and alerting
 - [ ] **Code Coverage**: Increase test coverage to 100%
 
+### Code Architecture Improvements
+- [ ] **Service Layer Refactoring**: Separate business logic from route handlers
+  - **Current Issue**: Business logic mixed into route handlers (e.g., products.ts)
+  - **Goal**: Create clean Service Layer with interfaces and dependency injection
+  - **Priority**: Medium - improves maintainability and testability
+  - **Affected Areas**: Products, Orders, Users, Portfolio management
+  - **Pattern**: Interface -> Service Implementation -> Repository -> Database
+- [ ] **Repository Pattern**: Extract database operations into repository classes
+- [ ] **Dependency Injection**: Implement proper DI container for better testing
+- [ ] **Error Handling Middleware**: Centralized error handling and logging
+- [ ] **Validation Middleware**: Extract validation logic into reusable middleware
+
 ### Documentation & Compliance
 - [ ] **Security Documentation**: Document security policies and procedures
 - [ ] **API documentation**: Complete OpenAPI/Swagger documentation

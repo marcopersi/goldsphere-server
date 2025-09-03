@@ -15,6 +15,7 @@ import usersRoutes from "./routes/users";
 import custodiansRoutes from "./routes/custodians";
 import custodyServiceRoutes from "./routes/custodyService";
 import ordersRoutes from "./routes/orders";
+import producersRoutes from "./routes/producers";
 import transactionRoutes from "./routes/transactions";
 import paymentsRoutes from "./routes/payments";
 import adminRoutes from "./routes/admin";
@@ -319,6 +320,7 @@ app.get("/api-spec.json", (req: any, res: any) => {
 
 // Public routes
 app.use("/api/products", productRoutes);
+app.use("/api/producers", producersRoutes);
 app.use("/api", referencesRoutes);
 app.use("/api/enums", enumsDemoRoutes);
 app.use("/api/auth", registrationRoutes);

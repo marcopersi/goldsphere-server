@@ -211,6 +211,7 @@ router.get("/", async (req: Request, res: Response) => {
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
         issuingCountry.isoCode2 AS countrycode, 
+        producer.id AS producerid,
         producer.producerName AS producer, 
         product.weight AS fineweight, 
         product.weightUnit AS unitofmeasure, 
@@ -252,6 +253,7 @@ router.get("/", async (req: Request, res: Response) => {
       purity: parseFloat(row.purity),
       price: parseFloat(row.price),
       currency: row.currency,
+      producerId: row.producerid,
       producer: row.producer,
       country: (row.countrycode || '').toLowerCase(),
       year: row.productyear || undefined,
@@ -358,6 +360,7 @@ router.get("/:id", async (req: Request, res: Response) => {
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
         issuingCountry.isocode2 AS countrycode, 
+        producer.id AS producerid,
         producer.producername AS producer, 
         product.weight AS fineweight, 
         product.weightunit AS unitofmeasure, 
@@ -410,6 +413,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       purity: parseFloat(row.purity),
       price: parseFloat(row.price),
       currency: row.currency,
+      producerId: row.producerid,
       producer: row.producer,
       country: (row.countrycode || '').toLowerCase(),
       year: row.productyear,
@@ -733,6 +737,7 @@ router.put("/:id", async (req: Request, res: Response) => {
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
         issuingCountry.isocode2 AS countrycode, 
+        producer.id AS producerid,
         producer.producername AS producer, 
         product.weight AS fineweight, 
         product.weightunit AS unitofmeasure,
@@ -778,6 +783,7 @@ router.put("/:id", async (req: Request, res: Response) => {
       purity: parseFloat(row.purity),
       price: parseFloat(row.price),
       currency: row.currency,
+      producerId: row.producerid,
       producer: row.producer,
       country: (row.countrycode || '').toLowerCase(),
       year: row.productyear || undefined,
@@ -843,7 +849,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
     const productName = existingResult.rows[0].name;
     
     // Check for existing orders referencing this product
-    const orderCheck = await getPool().query("SELECT id FROM orders WHERE productId = $1 LIMIT 1", [id]);
+    const orderCheck = await getPool().query("SELECT id FROM order_items WHERE productid = $1 LIMIT 1", [id]);
     if (orderCheck.rows.length > 0) {
       return res.status(409).json({ 
         success: false,
@@ -971,6 +977,7 @@ router.post("/", async (req: Request, res: Response) => {
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
         issuingCountry.isocode2 AS countrycode, 
+        producer.id AS producerid,
         producer.producername AS producer, 
         product.weight AS fineweight, 
         product.weightunit AS unitofmeasure, 
@@ -1016,6 +1023,7 @@ router.post("/", async (req: Request, res: Response) => {
       purity: parseFloat(row.purity),
       price: parseFloat(row.price),
       currency: row.currency,
+      producerId: row.producerid,
       producer: row.producer,
       country: (row.countrycode || '').toLowerCase(),
       year: row.productyear || undefined,
