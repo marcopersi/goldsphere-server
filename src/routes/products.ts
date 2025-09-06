@@ -4,74 +4,14 @@ import {
   // Validation schemas from product-schemas  
   ProductSchema,
   // Enhanced query parameters schema (will create server-specific version)
-  PaginationSchema
+  PaginationSchema,
+  ProductCreateRequestSchema,
+  ProductUpdateRequestSchema,
+  ProductsQuerySchema,
+  ProductApiResponseSchema,
+  ProductApiListResponseSchema
 } from "@marcopersi/shared";
 import { z } from 'zod';
-
-// Enhanced server-specific query parameters schema for products endpoint
-const ProductsQuerySchema = z.object({
-  page: z.string().optional().transform(val => val ? Math.max(1, parseInt(val)) || 1 : 1),
-  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, parseInt(val))) || 20 : 20),
-  search: z.string().optional(),
-  metal: z.string().optional(),
-  type: z.string().optional(), 
-  producer: z.string().optional(),
-  country: z.string().optional(),
-  inStock: z.string().optional().transform(val => {
-    if (val === 'true') return true;
-    if (val === 'false') return false;
-    return undefined;
-  }),
-  minPrice: z.string().optional().transform(val => val ? Math.max(0, parseFloat(val)) || undefined : undefined),
-  maxPrice: z.string().optional().transform(val => val ? Math.max(0, parseFloat(val)) || undefined : undefined),
-  sortBy: z.enum(['name', 'price', 'createdAt', 'updatedAt']).optional().default('createdAt'),
-  sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
-});
-
-// Product creation/update request schema 
-const ProductCreateRequestSchema = z.object({
-  productName: z.string().min(1, 'Product name is required'),
-  productTypeId: z.string().uuid(),
-  metalId: z.string().uuid(),
-  issuingCountryId: z.string().uuid().optional(),
-  producerId: z.string().uuid(),
-  fineWeight: z.number().positive('Weight must be positive'),
-  unitOfMeasure: z.string().min(1, 'Unit of measure is required'),
-  purity: z.number().min(0).max(1, 'Purity must be between 0 and 1').optional(),
-  price: z.number().min(0, 'Price must be non-negative'),
-  currency: z.string().length(3, 'Currency must be 3 characters').optional(),
-  productYear: z.number().int().min(1000).max(new Date().getFullYear() + 1).optional(),
-  description: z.string().optional(),
-  imageFilename: z.string().optional(),
-  inStock: z.boolean().optional().default(true),
-  stockQuantity: z.number().int().min(0).optional().default(0),
-  minimumOrderQuantity: z.number().int().positive().optional().default(1),
-  premiumPercentage: z.number().min(0).optional(),
-  diameter: z.number().positive().optional(),
-  thickness: z.number().positive().optional(),
-  mintage: z.number().int().positive().optional(),
-  certification: z.string().optional(),
-  tags: z.array(z.string()).optional()
-});
-
-const ProductUpdateRequestSchema = ProductCreateRequestSchema.partial();
-
-// Product API response schemas
-const ProductApiResponseSchema = z.object({
-  success: z.literal(true),
-  data: ProductSchema,
-  message: z.string().optional()
-});
-
-const ProductApiListResponseSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
-    products: z.array(z.any()), // Simplified to avoid type conflicts
-    pagination: PaginationSchema
-  }),
-  message: z.string().optional(),
-  filters: z.record(z.string(), z.any()).optional()
-});
 
 // Types inferred from schemas
 type ProductResponse = z.infer<typeof ProductSchema>;

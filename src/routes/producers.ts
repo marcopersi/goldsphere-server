@@ -1,24 +1,12 @@
 import { Router, Request, Response } from "express";
 import { getPool } from "../dbConfig";
-import { z } from 'zod';
+import { 
+  ProducerCreateRequestSchema,
+  ProducerUpdateRequestSchema,
+  ProducersQuerySchema
+} from "@marcopersi/shared";
 
 const router = Router();
-
-// Producer creation/update request schema 
-const ProducerCreateRequestSchema = z.object({
-  producerName: z.string().min(1, 'Producer name is required')
-});
-
-const ProducerUpdateRequestSchema = ProducerCreateRequestSchema.partial();
-
-// Enhanced query parameters for producers
-const ProducersQuerySchema = z.object({
-  page: z.string().optional().transform(val => val ? Math.max(1, parseInt(val)) || 1 : 1),
-  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, parseInt(val))) || 20 : 20),
-  search: z.string().optional(),
-  sortBy: z.enum(['name', 'createdAt', 'updatedAt']).optional().default('name'),
-  sortOrder: z.enum(['asc', 'desc']).optional().default('asc')
-});
 
 /**
  * @swagger
