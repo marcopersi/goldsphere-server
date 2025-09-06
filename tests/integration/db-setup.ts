@@ -44,6 +44,11 @@ export async function setupTestDatabase(): Promise<Pool> {
   // Replace the global dbConfig immediately after setup
   await replaceGlobalDbConfig();
   
+  // Register teardown function globally for emergency cleanup
+  if ((global as any).registerTeardown) {
+    (global as any).registerTeardown(teardownTestDatabase);
+  }
+  
   return testDbPool;
 }
 
@@ -168,8 +173,14 @@ export async function teardownTestDatabase(): Promise<void> {
   if (testDbPool && testDbName) {
     console.log(`🧹 Cleaning up test database: ${testDbName}`);
     
-    await testDbPool.end();
-    testDbPool = null;
+    try {
+      // Force close all connections to the test database
+      await testDbPool.end();
+    } catch (error) {
+      console.warn('⚠️  Error closing test database pool:', error);
+    } finally {
+      testDbPool = null;
+    }
     
     // Connect to postgres to drop test database
     const postgresPool = new Pool({
@@ -181,17 +192,87 @@ export async function teardownTestDatabase(): Promise<void> {
     });
 
     try {
+      // Terminate all connections to the test database before dropping
+      await postgresPool.query(`
+        SELECT pg_terminate_backend(pid) 
+        FROM pg_stat_activity 
+        WHERE datname = $1 AND pid <> pg_backend_pid()
+      `, [testDbName]);
+      
+      // Drop the test database
       await postgresPool.query(`DROP DATABASE IF EXISTS "${testDbName}"`);
       console.log(`✅ Test database ${testDbName} cleaned up successfully!`);
     } catch (error) {
-      console.warn('⚠️  Failed to cleanup test database:', error);
+      console.error('❌ Failed to cleanup test database:', error);
+      // Still try to clean up the pool and reset state
     } finally {
-      await postgresPool.end();
+      try {
+        await postgresPool.end();
+      } catch (poolError) {
+        console.warn('⚠️  Error closing postgres pool:', poolError);
+      }
       testDbName = null;
     }
+  } else {
+    console.log('💡 No test database to clean up (already cleaned or never created)');
   }
 }
 
 export function getTestPool(): Pool | null {
   return testDbPool;
+}
+
+/**
+ * Clean up all test databases that might be left over from previous failed runs
+ * This function can be called manually or as part of CI cleanup
+ */
+export async function cleanupAllTestDatabases(): Promise<void> {
+  console.log('🧹 Cleaning up all leftover test databases...');
+  
+  const postgresPool = new Pool({
+    host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT) || 5432,
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
+    database: 'postgres',
+  });
+
+  try {
+    // Find all databases that match our test database naming pattern
+    const result = await postgresPool.query(`
+      SELECT datname 
+      FROM pg_database 
+      WHERE datname LIKE 'goldsphere_test_%'
+    `);
+    
+    const testDatabases = result.rows.map(row => row.datname);
+    console.log(`Found ${testDatabases.length} test databases to clean up`);
+    
+    for (const dbName of testDatabases) {
+      try {
+        // Terminate all connections to the database
+        await postgresPool.query(`
+          SELECT pg_terminate_backend(pid) 
+          FROM pg_stat_activity 
+          WHERE datname = $1 AND pid <> pg_backend_pid()
+        `, [dbName]);
+        
+        // Drop the database
+        await postgresPool.query(`DROP DATABASE IF EXISTS "${dbName}"`);
+        console.log(`✅ Cleaned up test database: ${dbName}`);
+      } catch (error) {
+        console.warn(`⚠️  Failed to cleanup database ${dbName}:`, error);
+      }
+    }
+    
+    console.log('🎉 All test database cleanup completed!');
+  } catch (error) {
+    console.error('❌ Failed to query for test databases:', error);
+  } finally {
+    try {
+      await postgresPool.end();
+    } catch (poolError) {
+      console.warn('⚠️  Error closing postgres pool in cleanup:', poolError);
+    }
+  }
 }

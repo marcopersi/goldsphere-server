@@ -19,6 +19,44 @@ process.env.DB_PASSWORD = process.env.DB_PASSWORD || 'postgres'; // Use local pa
 // Increase timeout for async operations
 jest.setTimeout(30000);
 
+// Global cleanup for integration tests
+// This ensures database cleanup even if tests fail
+let teardownFunction: (() => Promise<void>) | null = null;
+
+// Allow integration tests to register their teardown function
+(global as any).registerTeardown = (fn: () => Promise<void>) => {
+  teardownFunction = fn;
+};
+
+// Global teardown - called when Jest process is about to exit
+process.on('exit', () => {
+  console.log('🧹 Jest process exiting - performing global cleanup...');
+});
+
+process.on('SIGINT', async () => {
+  console.log('🛑 SIGINT received - performing emergency cleanup...');
+  if (teardownFunction) {
+    try {
+      await teardownFunction();
+    } catch (error) {
+      console.error('❌ Emergency cleanup failed:', error);
+    }
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('🛑 SIGTERM received - performing emergency cleanup...');
+  if (teardownFunction) {
+    try {
+      await teardownFunction();
+    } catch (error) {
+      console.error('❌ Emergency cleanup failed:', error);
+    }
+  }
+  process.exit(0);
+});
+
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,

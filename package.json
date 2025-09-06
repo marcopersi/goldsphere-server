@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
     "test:unit": "jest tests/unit --testPathIgnorePatterns='tests/integration'",
-    "test:integration": "jest tests/integration --testTimeout=60000",
+    "test:integration": "jest tests/integration --testTimeout=60000 --runInBand",
+    "test:integration:cleanup": "node scripts/cleanup-test-databases.js",
     "test:contracts": "jest tests/contracts",
     "test:all": "jest",
     "test:watch": "jest --watch tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",

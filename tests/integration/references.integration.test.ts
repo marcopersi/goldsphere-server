@@ -18,18 +18,6 @@ afterAll(async () => {
 
 describe("References API", () => {
 
-  beforeAll(async () => {
-    // Setup fresh test database BEFORE importing app
-    await setupTestDatabase();
-    
-    // Import app AFTER database setup to ensure pool replacement takes effect  
-    app = (await import('../../src/app')).default;
-  });
-
-  afterAll(async () => {
-    await teardownTestDatabase();
-  });
-
   describe("GET /api/", () => {
     it("should return reference data without authentication", async () => {
       const response = await request(app)
