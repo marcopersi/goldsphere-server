@@ -5,19 +5,36 @@ import {
 
 const router = Router();
 
-// GET all positions with optional pagination
+// GET all positions with optional pagination and status filtering
 router.get("/positions", async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, parseInt((req.query.page as string) || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || '20', 10)));
     const offset = (page - 1) * limit;
+    
+    // Status filter: 'active' (default), 'closed', or 'all'
+    const statusFilter = (req.query.status as string) || 'active';
+    
+    let whereClause = '';
+    let queryParams: any[] = [limit, offset];
+    
+    if (statusFilter === 'active') {
+      whereClause = "WHERE status = 'active'";
+    } else if (statusFilter === 'closed') {
+      whereClause = "WHERE status = 'closed'";
+    } else if (statusFilter !== 'all') {
+      return res.status(400).json({ 
+        error: "Invalid status filter. Must be 'active', 'closed', or 'all'" 
+      });
+    }
+    // For 'all' status, whereClause remains empty
 
-    const countResult = await getPool().query(`SELECT COUNT(*) as total FROM position`);
+    const countResult = await getPool().query(`SELECT COUNT(*) as total FROM position ${whereClause}`);
     const total = parseInt(countResult.rows[0]?.total || '0', 10);
 
     const result = await getPool().query(
-      `SELECT * FROM position ORDER BY createdat DESC LIMIT $1 OFFSET $2`,
-      [limit, offset]
+      `SELECT * FROM position ${whereClause} ORDER BY createdat DESC LIMIT $1 OFFSET $2`,
+      queryParams
     );
 
     const positions = await Promise.all(result.rows.map(row => mapDatabaseRowToPosition(row)));
@@ -31,7 +48,13 @@ router.get("/positions", async (req: Request, res: Response) => {
       hasPrev: page > 1
     };
 
-    res.json({ positions, pagination });
+    res.json({ 
+      positions, 
+      pagination,
+      filters: {
+        status: statusFilter
+      }
+    });
   } catch (error) {
     console.error("Error fetching positions:", error);
     res.status(500).json({ error: "Failed to fetch positions", details: (error as Error).message });

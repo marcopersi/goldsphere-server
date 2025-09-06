@@ -491,10 +491,17 @@ router.post("/orders/:id/process", async (req: Request, res: Response) => {
         portfolioId = await createPortfolioForUser(currentOrder.userId);
       }
       
-      // Create positions for the shipped order
+      // Handle positions based on order type
       if (portfolioId) {
-        await insertPositionFromOrder(currentOrder, portfolioId);
-        console.log(`Created positions for order ${currentOrder.id} in portfolio ${portfolioId}`);
+        if (currentOrder.type === "buy") {
+          // For buy orders: add to positions
+          await insertPositionFromOrder(currentOrder, portfolioId);
+          console.log(`Created/consolidated positions for BUY order ${currentOrder.id} in portfolio ${portfolioId}`);
+        } else if (currentOrder.type === "sell") {
+          // For sell orders: subtract from positions
+          await reducePositionFromOrder(currentOrder, portfolioId);
+          console.log(`Reduced positions for SELL order ${currentOrder.id} in portfolio ${portfolioId}`);
+        }
       } else {
         console.error(`Failed to create or find portfolio for user ${currentOrder.userId}`);
       }
@@ -1198,29 +1205,51 @@ const findExistingPosition = async (
   productId: string, 
   portfolioId: string, 
   custodyServiceId: string | null
-): Promise<any> => {
+): Promise<{ active: any; closed: any }> => {
   try {
-    let result;
+    let activeResult, closedResult;
+    
     if (custodyServiceId === null) {
-      // Handle NULL comparison properly
-      result = await getPool().query(
+      // Find active position
+      activeResult = await getPool().query(
         `SELECT * FROM position 
          WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid IS NULL AND status = 'active'`,
         [userId, productId, portfolioId]
       );
+      
+      // Find closed position (for potential reactivation)
+      closedResult = await getPool().query(
+        `SELECT * FROM position 
+         WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid IS NULL AND status = 'closed'
+         ORDER BY closeddate DESC LIMIT 1`,
+        [userId, productId, portfolioId]
+      );
     } else {
-      result = await getPool().query(
+      // Find active position
+      activeResult = await getPool().query(
         `SELECT * FROM position 
          WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid = $4 AND status = 'active'`,
         [userId, productId, portfolioId, custodyServiceId]
       );
+      
+      // Find closed position (for potential reactivation)
+      closedResult = await getPool().query(
+        `SELECT * FROM position 
+         WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND custodyserviceid = $4 AND status = 'closed'
+         ORDER BY closeddate DESC LIMIT 1`,
+        [userId, productId, portfolioId, custodyServiceId]
+      );
     }
     
-    console.log(`🔍 CONSOLIDATION CHECK: userId=${userId}, productId=${productId}, custodyServiceId=${custodyServiceId} → Found ${result.rows.length} existing positions`);
-    return result.rows.length > 0 ? result.rows[0] : null;
+    console.log(`🔍 POSITION CHECK: userId=${userId}, productId=${productId}, custodyServiceId=${custodyServiceId} → Active: ${activeResult.rows.length}, Closed: ${closedResult.rows.length}`);
+    
+    return {
+      active: activeResult.rows.length > 0 ? activeResult.rows[0] : null,
+      closed: closedResult.rows.length > 0 ? closedResult.rows[0] : null
+    };
   } catch (error) {
     console.error(`❌ Error finding existing position:`, error);
-    return null;
+    return { active: null, closed: null };
   }
 };
 
@@ -1250,6 +1279,29 @@ const consolidatePosition = async (existingPosition: any, newQuantity: number, n
     return result.rows[0];
   } catch (error) {
     console.error(`Error consolidating position ${existingPosition.id}:`, error);
+    throw error;
+  }
+};
+
+// Reactivate closed position with fresh start (ignore previous transaction history)
+const reactivatePosition = async (closedPosition: any, newQuantity: number, newPrice: number): Promise<any> => {
+  try {
+    console.log(`🔄 REACTIVATING POSITION ${closedPosition.id}:`, {
+      previous: { quantity: parseFloat(closedPosition.quantity), price: parseFloat(closedPosition.purchaseprice) },
+      fresh: { quantity: newQuantity, price: newPrice },
+      note: "Previous transaction history ignored - fresh start"
+    });
+
+    const result = await getPool().query(
+      `UPDATE position 
+       SET quantity = $1, purchaseprice = $2, marketprice = $3, status = 'active', purchasedate = CURRENT_TIMESTAMP, updatedat = CURRENT_TIMESTAMP
+       WHERE id = $4 RETURNING *`,
+      [newQuantity, newPrice, newPrice, closedPosition.id]
+    );
+
+    return result.rows[0];
+  } catch (error) {
+    console.error(`Error reactivating position ${closedPosition.id}:`, error);
     throw error;
   }
 };
@@ -1289,16 +1341,21 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
 
     // Create or consolidate positions for each order item
     for (const item of order.items) {
-      // Check if position already exists for consolidation
-      const existingPosition = await findExistingPosition(order.userId, item.productId, portfolioId, custodyServiceId);
+      // Check if position already exists for consolidation or reactivation
+      const positionResult = await findExistingPosition(order.userId, item.productId, portfolioId, custodyServiceId);
       
       let position: any;
       
-      if (existingPosition) {
-        // CONSOLIDATE: Update existing position
-        console.log(`🔄 Found existing position ${existingPosition.id} for consolidation`);
-        position = await consolidatePosition(existingPosition, item.quantity, item.unitPrice);
+      if (positionResult.active) {
+        // CONSOLIDATE: Update existing active position
+        console.log(`🔄 Found existing active position ${positionResult.active.id} for consolidation`);
+        position = await consolidatePosition(positionResult.active, item.quantity, item.unitPrice);
         console.log(`✅ Consolidated position ${position.id}: ${position.quantity} units at avg $${parseFloat(position.purchaseprice).toFixed(2)}`);
+      } else if (positionResult.closed) {
+        // REACTIVATE: Reactivate closed position with fresh start (ignore previous average)
+        console.log(`🔄 Found closed position ${positionResult.closed.id} for reactivation`);
+        position = await reactivatePosition(positionResult.closed, item.quantity, item.unitPrice);
+        console.log(`✅ Reactivated position ${position.id}: ${position.quantity} units at $${parseFloat(position.purchaseprice).toFixed(2)}`);
       } else {
         // CREATE NEW: No existing position found
         const positionId = uuidv4();
@@ -1384,5 +1441,106 @@ const createPortfolioForUser = async (userId: string): Promise<string | null> =>
     return null;
   }
 }
+
+// Reduce position quantities for sell orders
+const reducePositionFromOrder = async (order: Order, portfolioId: string) => {
+  try {
+    if (!order.items || order.items.length === 0) {
+      console.warn(`No order items found for sell order ${order.id}`);
+      return [];
+    }
+
+    const updatedPositions = [];
+
+    for (const item of order.items) {
+      // Find existing active position for this product (exclude closed positions)
+      const existingPositionResult = await getPool().query(
+        `SELECT * FROM public.position 
+         WHERE userid = $1 AND productid = $2 AND portfolioid = $3 AND quantity > 0 AND status = 'active'
+         ORDER BY createdat ASC
+         LIMIT 1`,
+        [order.userId, item.productId, portfolioId]
+      );
+
+      if (existingPositionResult.rows.length === 0) {
+        throw new Error(`Cannot sell ${item.quantity} units of product ${item.productId}: No position found`);
+      }
+
+      const existingPosition = existingPositionResult.rows[0];
+      
+      if (existingPosition.quantity < item.quantity) {
+        throw new Error(`Cannot sell ${item.quantity} units of product ${item.productId}: Only ${existingPosition.quantity} units available`);
+      }
+
+      // Reduce the position quantity
+      const newQuantity = existingPosition.quantity - item.quantity;
+      
+      if (newQuantity === 0) {
+        // Set position status to 'closed' instead of deleting
+        const updateResult = await getPool().query(
+          `UPDATE public.position 
+           SET quantity = $1, status = 'closed', updatedat = CURRENT_TIMESTAMP 
+           WHERE id = $2 
+           RETURNING *`,
+          [0, existingPosition.id]
+        );
+        
+        const closedPosition = updateResult.rows[0];
+        updatedPositions.push(closedPosition);
+        console.log(`� Closed position ${existingPosition.id} (quantity reduced to 0)`);
+      } else {
+        // Update position with reduced quantity
+        const updateResult = await getPool().query(
+          `UPDATE public.position 
+           SET quantity = $1, updatedat = CURRENT_TIMESTAMP 
+           WHERE id = $2 
+           RETURNING *`,
+          [newQuantity, existingPosition.id]
+        );
+        
+        const updatedPosition = updateResult.rows[0];
+        updatedPositions.push(updatedPosition);
+        console.log(`📉 Reduced position ${existingPosition.id}: ${existingPosition.quantity} → ${newQuantity} units`);
+      }
+
+      // Create sell transaction record
+      await createSellTransactionForPosition(existingPosition, order, item);
+    }
+
+    console.log(`🎉 SELL ORDER SUMMARY: Processed ${order.items.length} sell items for order ${order.id}`);
+    return updatedPositions;
+  } catch (error) {
+    console.error(`❌ Error reducing positions from sell order ${order.id}:`, error);
+    throw error;
+  }
+};
+
+// Create sell transaction record
+const createSellTransactionForPosition = async (position: any, order: Order, item: any) => {
+  try {
+    const transactionId = uuidv4();
+    const result = await getPool().query(
+      `INSERT INTO public.transactions(
+        id, positionid, userid, type, date, quantity, price, createdat)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        transactionId,
+        position.id,
+        order.userId,
+        'sell',
+        new Date(),
+        item.quantity,
+        item.unitPrice || item.price || 0, // Use fallback for price
+        new Date()
+      ]
+    );
+    
+    console.log(`📝 Created sell transaction ${transactionId} for position ${position.id}`);
+    return result.rows[0];
+  } catch (error) {
+    console.error(`❌ Error creating sell transaction:`, error);
+    throw error;
+  }
+};
 
 export default router;
