@@ -46,16 +46,14 @@ const UpdateOrderResponseSchema = OrderApiResponseSchema;
 
 const OrderApiListResponseSchema = z.object({
   success: z.literal(true),
-  data: z.object({
-    orders: z.array(z.any()),
-    pagination: z.object({
-      page: z.number(),
-      limit: z.number(),
-      total: z.number(),
-      totalPages: z.number(),
-      hasNext: z.boolean(),
-      hasPrevious: z.boolean()
-    })
+  orders: z.array(z.any()),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+    hasNext: z.boolean(),
+    hasPrevious: z.boolean()
   }),
   message: z.string().optional()
 });
@@ -189,7 +187,7 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
     // Return comprehensive admin response using shared schema
     const adminResponse = OrderApiListResponseSchema.parse({
       success: true,
-      orders: ordersResult.orders,  // Changed from "data" to "orders"
+      orders: ordersResult.orders,
       pagination: ordersResult.pagination,
       statistics: {
         totalOrders: parseInt(stats.totalorders),
@@ -313,7 +311,7 @@ router.get("/orders", async (req: Request, res: Response) => {
     // Return data using shared schema with context
     const response = OrderApiListResponseSchema.parse({
       success: true,
-      orders: ordersResult.orders,  // Changed from "data" to "orders"
+      orders: ordersResult.orders,
       pagination: ordersResult.pagination,
       context: responseContext
     });

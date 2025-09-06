@@ -59,6 +59,69 @@ describe("Orders API", () => {
         expect(typeof response.body.pagination).toBe('object');
       }
     });
+
+    it("should return correct flat response structure (prevent double nesting regression)", async () => {
+      if (!authToken) {
+        return;
+      }
+
+      const response = await request(app)
+        .get("/api/orders?page=1&limit=5")
+        .set("Authorization", `Bearer ${authToken}`);
+
+      expect(response.status).toBe(200);
+      
+      // Validate top-level structure - should be flat, not nested under 'data'
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('orders');
+      expect(response.body).toHaveProperty('pagination');
+      
+      // Ensure NO double nesting - these should NOT exist
+      expect(response.body).not.toHaveProperty('data.orders');
+      expect(response.body).not.toHaveProperty('data.pagination');
+      expect(response.body.data).toBeUndefined();
+      
+      // Validate orders array structure
+      expect(Array.isArray(response.body.orders)).toBe(true);
+      
+      // Validate pagination object structure
+      const pagination = response.body.pagination;
+      expect(pagination).toHaveProperty('page');
+      expect(pagination).toHaveProperty('limit');
+      expect(pagination).toHaveProperty('total');
+      expect(pagination).toHaveProperty('totalPages');
+      expect(pagination).toHaveProperty('hasNext');
+      expect(pagination).toHaveProperty('hasPrevious');
+      
+      // If there are orders, validate order structure
+      if (response.body.orders.length > 0) {
+        const firstOrder = response.body.orders[0];
+        expect(firstOrder).toHaveProperty('id');
+        expect(firstOrder).toHaveProperty('userId');
+        expect(firstOrder).toHaveProperty('type');
+        expect(firstOrder).toHaveProperty('status');
+        expect(firstOrder).toHaveProperty('orderNumber');
+        expect(firstOrder).toHaveProperty('items');
+        expect(firstOrder).toHaveProperty('currency');
+        expect(firstOrder).toHaveProperty('subtotal');
+        expect(firstOrder).toHaveProperty('taxes');
+        expect(firstOrder).toHaveProperty('totalAmount');
+        expect(firstOrder).toHaveProperty('createdAt');
+        expect(firstOrder).toHaveProperty('updatedAt');
+        
+        // Validate order items structure
+        expect(Array.isArray(firstOrder.items)).toBe(true);
+        if (firstOrder.items.length > 0) {
+          const firstItem = firstOrder.items[0];
+          expect(firstItem).toHaveProperty('id');
+          expect(firstItem).toHaveProperty('productId');
+          expect(firstItem).toHaveProperty('productName');
+          expect(firstItem).toHaveProperty('quantity');
+          expect(firstItem).toHaveProperty('unitPrice');
+          expect(firstItem).toHaveProperty('totalPrice');
+        }
+      }
+    });
   });
 
   describe("POST /api/orders", () => {
