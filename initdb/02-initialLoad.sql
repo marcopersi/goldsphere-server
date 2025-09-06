@@ -91,10 +91,10 @@ INSERT INTO producer (producerName, createdat) VALUES
 -- Insert users for testing and system operations
 -- Passwords: bank.technical@goldsphere.vault = "GoldspherePassword", admin@goldsphere.vault = "admin123"
 -- See CREDENTIALS.md for all system passwords
-INSERT INTO users (userName, email, passwordHash, createdat)
+INSERT INTO users (username, email, passwordHash, role, email_verified, identity_verified, terms_version, terms_accepted_at, createdat, updatedat)
 VALUES
-    ('Bank Technical User', 'bank.technical@goldsphere.vault', '$2b$10$Qpvbznj0phc/iumR0YcUVezf0eWV6wR0j34KxK/WLR1VwGv8Wgmj6', CURRENT_TIMESTAMP),
-    ('Admin User', 'admin@goldsphere.vault', '$2b$10$oWWBsW3k27.FHsrPkSp4quWD.hqcdk917aHcA9R4ITeU04uImejA2', CURRENT_TIMESTAMP);
+    ('Bank Technical User', 'bank.technical@goldsphere.vault', '$2b$10$Qpvbznj0phc/iumR0YcUVezf0eWV6wR0j34KxK/WLR1VwGv8Wgmj6', 'user', TRUE, TRUE, '1.0', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('Admin User', 'admin@goldsphere.vault', '$2b$10$oWWBsW3k27.FHsrPkSp4quWD.hqcdk917aHcA9R4ITeU04uImejA2', 'admin', TRUE, TRUE, '1.0', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Insert basic custody services including home delivery option
 INSERT INTO custodyService (custodianId, custodyServiceName, fee, paymentFrequency, currencyId, maxWeight, createdat)

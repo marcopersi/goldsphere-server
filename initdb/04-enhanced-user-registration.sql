@@ -1,15 +1,6 @@
 -- Enhanced User Registration Schema Extensions
 -- This file adds the necessary tables and columns for the comprehensive user registration system
 
--- First, let's add missing columns to the existing users table
-ALTER TABLE users 
-ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'customer' CHECK (role IN ('customer', 'admin', 'user')),
-ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS identity_verified BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS terms_version VARCHAR(50),
-ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
-
 -- Create user_profiles table for detailed personal information
 CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

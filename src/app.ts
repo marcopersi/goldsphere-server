@@ -73,6 +73,9 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Update last_login timestamp
+    await getPool().query("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
+
     // Generate JWT token with role
     const userRole = user.email.includes('admin') ? 'admin' : 'user';
     const token = jwt.sign(

@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT,
     email TEXT NOT NULL UNIQUE,
     passwordHash TEXT NOT NULL,
+    role VARCHAR(50) DEFAULT 'customer' CHECK (role IN ('customer', 'admin', 'user')),
+    email_verified BOOLEAN DEFAULT FALSE,
+    identity_verified BOOLEAN DEFAULT FALSE,
+    terms_version VARCHAR(50) DEFAULT '1.0',
+    terms_accepted_at TIMESTAMP,
+    last_login TIMESTAMP,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
