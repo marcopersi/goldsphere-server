@@ -12,6 +12,8 @@
 import { 
   Order,
   OrderStatus,
+  OrderType,
+  OrderSource,
   CurrencyEnum
 } from "@marcopersi/shared";
 
@@ -22,8 +24,9 @@ describe('Orders Unit Tests', () => {
         id: '12345678-1234-1234-1234-123456789abc',
         orderNumber: 'ORD-2024-001',
         userId: '87654321-4321-4321-4321-cba987654321',
-        type: 'buy',
-        status: OrderStatus.PENDING.value,
+        type: OrderType.BUY,
+        status: OrderStatus.PENDING,
+        source: OrderSource.values()[0],
         items: [
           {
             id: 'item-123',
@@ -46,8 +49,8 @@ describe('Orders Unit Tests', () => {
       // Test that the order has all required properties
       expect(validOrder.id).toBeDefined();
       expect(validOrder.userId).toBeDefined();
-      expect(validOrder.type).toBe('buy');
-      expect(validOrder.status).toBe(OrderStatus.PENDING.value);
+      expect(validOrder.type).toBe(OrderType.BUY);
+      expect(validOrder.status).toBe(OrderStatus.PENDING);
       expect(validOrder.items).toHaveLength(1);
       expect(validOrder.totalAmount).toBe(4320.00);
       expect(validOrder.currency).toBe(CurrencyEnum.CHF.isoCode3);
@@ -58,8 +61,9 @@ describe('Orders Unit Tests', () => {
         id: '87654321-4321-4321-4321-cba987654321',
         orderNumber: 'ORD-2024-002',
         userId: '12345678-1234-1234-1234-123456789abc',
-        type: 'buy',
-        status: OrderStatus.PENDING.value,
+        type: OrderType.BUY,
+        status: OrderStatus.PENDING,
+        source: OrderSource.values()[0],
         items: [
           {
             id: 'item-456',
