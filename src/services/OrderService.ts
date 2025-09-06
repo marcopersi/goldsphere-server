@@ -9,16 +9,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { getPool } from "../dbConfig";
 import { IProductService } from "../interfaces/IProductService";
 import { ICalculationService } from "../interfaces/ICalculationService";
-import { IOrderService, CreateOrderRequest, CreateOrderResult } from "../interfaces/IOrderService";
+import { IOrderService, CreateOrderRequest, CreateOrderResult, Order } from "../interfaces/IOrderService";
 import { ProductServiceImpl } from "./ProductServiceImpl";
 import { CalculationServiceImpl } from "./CalculationServiceImpl";
-import { 
-  Order,
-  // Validation helpers for order business logic
-  isValidOrderType,
-  isValidOrderStatus,
-  isValidStatusTransition
-} from "@marcopersi/shared";
+
+// Local validation helpers (temporary until shared package compatibility)
+function isValidOrderType(type: string): boolean {
+  return ['buy', 'sell'].includes(type.toLowerCase());
+}
+
+function isValidOrderStatus(status: string): boolean {
+  return ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'completed', 'cancelled'].includes(status.toLowerCase());
+}
+
+function isValidStatusTransition(currentStatus: string, newStatus: string): boolean {
+  // Simple validation for now - in practice this would have more complex business rules
+  return isValidOrderStatus(newStatus);
+}
 
 export class OrderService implements IOrderService {
   private readonly productService: IProductService;

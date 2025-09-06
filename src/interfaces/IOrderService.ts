@@ -5,7 +5,28 @@
  * Allows for multiple implementations (production, mock, test) with same interface.
  */
 
-import { Order } from "@marcopersi/shared";
+// Local Order interface (temporary until full shared package compatibility)
+export interface Order {
+  id: string;
+  userId: string;
+  type: "buy" | "sell";
+  status: string;
+  orderNumber: string;
+  items: Array<{
+    id: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
+  currency: string;
+  subtotal: number;
+  taxes: number;
+  totalAmount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface CreateOrderRequest {
   userId: string;

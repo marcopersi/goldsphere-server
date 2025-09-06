@@ -153,8 +153,8 @@ describe("Orders API", () => {
 
       // Create order for processing tests
       const orderInput = {
+        userId: testUserId,
         type: 'buy',
-        currency: 'CHF',
         items: [{ productId: testProductId, quantity: 2 }]
       };
 
@@ -162,6 +162,12 @@ describe("Orders API", () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${authToken}`)
         .send(orderInput);
+      
+      if (response.status !== 201) {
+        console.error('Order creation failed:', response.status, response.body);
+        throw new Error(`Failed to create test order: ${response.status}`);
+      }
+      
       processOrderId = response.body.data.id;
     });
 

@@ -1,19 +1,64 @@
 import { Router, Request, Response } from "express";
 import { getPool } from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  Order,
-  OrderQueryParamsSchema,
-  // Validation schemas for order operations
-  CreateOrderInputSchema,
-  UpdateOrderRequestSchema,
-  // API response schemas for consistent formatting
-  OrderApiResponseSchema,
-  CreateOrderResponseSchema,
-  UpdateOrderResponseSchema,
-  OrderApiListResponseSchema
-} from "@marcopersi/shared";
+import { z } from 'zod';
 import { OrderService } from "../services/OrderService";
+import { Order } from "../interfaces/IOrderService";
+
+// Local validation schemas (temporary until full shared package compatibility)
+const OrderQueryParamsSchema = z.object({
+  page: z.string().optional().transform(val => val ? Math.max(1, parseInt(val)) || 1 : 1),
+  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, parseInt(val))) || 20 : 20),
+  status: z.string().optional(),
+  type: z.enum(['buy', 'sell']).optional(),
+  userId: z.string().optional(), // Add userId for admin queries
+  sortBy: z.enum(['createdAt', 'updatedAt', 'status', 'totalAmount']).optional().default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
+});
+
+const CreateOrderInputSchema = z.object({
+  userId: z.string().uuid(),
+  type: z.enum(['buy', 'sell']),
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    quantity: z.number().positive()
+  })).min(1),
+  shippingAddress: z.any().optional(),
+  paymentMethod: z.any().optional(),
+  notes: z.string().optional()
+});
+
+const UpdateOrderRequestSchema = z.object({
+  status: z.string().optional(),
+  notes: z.string().optional(),
+  type: z.enum(['buy', 'sell']).optional()
+});
+
+// Response schemas
+const OrderApiResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.any(),
+  message: z.string().optional()
+});
+
+const CreateOrderResponseSchema = OrderApiResponseSchema;
+const UpdateOrderResponseSchema = OrderApiResponseSchema;
+
+const OrderApiListResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    orders: z.array(z.any()),
+    pagination: z.object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+      hasNext: z.boolean(),
+      hasPrevious: z.boolean()
+    })
+  }),
+  message: z.string().optional()
+});
 
 const router = Router();
 
@@ -303,7 +348,7 @@ router.post("/orders", async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: "Invalid order data",
-        details: validationResult.error.errors
+        details: validationResult.error.issues
       });
     }
 
@@ -552,7 +597,7 @@ router.put("/orders/:id", async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: "Invalid order update request",
-        details: validationResult.error.errors
+        details: validationResult.error.issues
       });
     }
 
