@@ -12,13 +12,13 @@ import {
 
 const router = Router();
 
-// Response interfaces
+// Response interfaces TODO must go to  shared package
 interface ReferenceData {
   metals: Array<{ symbol: string; name: string }>;
   productTypes: Array<{ name: string }>;
   countries: Array<{ code: string; name: string }>;
   producers: Array<{ id: string; name: string }>;
-  currencies: Array<{ isoCode2: string; isoCode3: string; isoNumericCode: number }>;
+  currencies: Array<{ id: string; isoCode2: string; isoCode3: string; isoNumericCode: number }>;
   custodians: Array<{ value: string; name: string }>;
   paymentFrequencies: Array<{ value: string; displayName: string; description: string }>;
   custodyServiceTypes: Array<{ value: string; displayName: string; description: string }>;
@@ -111,7 +111,7 @@ router.get("/", async (req: Request, res: Response) => {
     // Get dynamic producers from database
     const producersResult = await getPool().query("SELECT id, producerName as name FROM producer ORDER BY producerName");
     // Get currencies from database with correct column names
-    const currenciesResult = await getPool().query('SELECT isocode2, isocode3, isonumericcode FROM currency ORDER BY isocode3');
+    const currenciesResult = await getPool().query('SELECT id, isocode2, isocode3, isonumericcode FROM currency ORDER BY isocode3');
 
     // Combine database producers with enum producers for comprehensive list
     const databaseProducers = producersResult.rows.map(row => ({
@@ -147,6 +147,7 @@ router.get("/", async (req: Request, res: Response) => {
       })),
       producers: allProducers,
       currencies: currenciesResult.rows.map(row => ({
+        id: row.id,
         isoCode2: row.isocode2,
         isoCode3: row.isocode3,
         isoNumericCode: row.isonumericcode
@@ -405,6 +406,93 @@ router.get("/producers/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching producer:", error);
     res.status(500).json({ error: "Failed to fetch producer", details: (error as Error).message });
+  }
+});
+
+// Currencies Endpoints
+router.get("/currencies", async (req: Request, res: Response) => {
+  try {
+    const result = await getPool().query("SELECT id, isocode2, isocode3, isonumericcode, createdAt, updatedAt FROM currency ORDER BY isocode3");
+    res.json(result.rows.map(row => ({
+      id: row.id,
+      isoCode2: row.isocode2,
+      isoCode3: row.isocode3,
+      isoNumericCode: row.isonumericcode,
+      createdAt: row.createdat,
+      updatedAt: row.updatedat
+    })));
+  } catch (error) {
+    console.error("Error fetching currencies:", error);
+    res.status(500).json({ error: "Failed to fetch currencies", details: (error as Error).message });
+  }
+});
+
+router.post("/currencies", async (req: Request, res: Response) => {
+  const { isoCode2, isoCode3, isoNumericCode } = req.body;
+  try {
+    const result = await getPool().query("INSERT INTO currency (isocode2, isocode3, isonumericcode) VALUES ($1, $2, $3) RETURNING *", [isoCode2, isoCode3, isoNumericCode]);
+    res.status(201).json({
+      id: result.rows[0].id,
+      isoCode2: result.rows[0].isocode2,
+      isoCode3: result.rows[0].isocode3,
+      isoNumericCode: result.rows[0].isonumericcode,
+      createdAt: result.rows[0].createdat,
+      updatedAt: result.rows[0].updatedat
+    });
+  } catch (error) {
+    console.error("Error adding currency:", error);
+    res.status(500).json({ error: "Failed to add currency", details: (error as Error).message });
+  }
+});
+
+router.put("/currencies/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { isoCode2, isoCode3, isoNumericCode } = req.body;
+  try {
+    const result = await getPool().query("UPDATE currency SET isocode2 = $1, isocode3 = $2, isonumericcode = $3, updatedat = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *", [isoCode2, isoCode3, isoNumericCode, id]);
+    res.json({
+      id: result.rows[0].id,
+      isoCode2: result.rows[0].isocode2,
+      isoCode3: result.rows[0].isocode3,
+      isoNumericCode: result.rows[0].isonumericcode,
+      createdAt: result.rows[0].createdat,
+      updatedAt: result.rows[0].updatedat
+    });
+  } catch (error) {
+    console.error("Error updating currency:", error);
+    res.status(500).json({ error: "Failed to update currency", details: (error as Error).message });
+  }
+});
+
+router.delete("/currencies/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    await getPool().query("DELETE FROM currency WHERE id = $1", [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting currency:", error);
+    res.status(500).json({ error: "Failed to delete currency", details: (error as Error).message });
+  }
+});
+
+router.get("/currencies/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const result = await getPool().query("SELECT id, isocode2, isocode3, isonumericcode, createdAt, updatedAt FROM currency WHERE id = $1", [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Currency not found" });
+    }
+    res.json({
+      id: result.rows[0].id,
+      isoCode2: result.rows[0].isocode2,
+      isoCode3: result.rows[0].isocode3,
+      isoNumericCode: result.rows[0].isonumericcode,
+      createdAt: result.rows[0].createdat,
+      updatedAt: result.rows[0].updatedat
+    });
+  } catch (error) {
+    console.error("Error fetching currency:", error);
+    res.status(500).json({ error: "Failed to fetch currency", details: (error as Error).message });
   }
 });
 
