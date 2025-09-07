@@ -21,9 +21,21 @@ afterAll(async () => {
   await teardownTestDatabase();
 });
 
+// Helper function to get a valid country ID for testing
+const getCountryIdByCode = async (isoCode: string): Promise<string> => {
+  const query = `SELECT id FROM country WHERE isocode2 = $1 LIMIT 1`;
+  const result = await getPool().query(query, [isoCode]);
+  if (result.rows.length === 0) {
+    throw new Error(`Country with ISO code ${isoCode} not found in test database`);
+  }
+  return result.rows[0].id;
+};
+
 // Helper function to generate unique test data for each test
-const generateValidRegistrationData = () => {
+const generateValidRegistrationData = async () => {
   const uniqueId = Date.now() + Math.random().toString(36).substr(2, 9);
+  const germanyCountryId = await getCountryIdByCode('DE');
+  
   return {
     personalInfo: {
       title: 'Herr' as const,
@@ -34,7 +46,7 @@ const generateValidRegistrationData = () => {
       password: 'SecurePassword123!',
     },
     address: {
-      country: 'DE',
+      countryId: germanyCountryId,
       postalCode: '10115',
       city: 'Berlin',
       state: 'Berlin',
@@ -60,7 +72,7 @@ describe('Enhanced User Registration API', () => {
   describe('POST /api/auth/register', () => {
     describe('Successful Registration', () => {
       it('should register a new user with complete data', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         
         const response = await request(app)
           .post('/api/auth/register')
@@ -77,7 +89,7 @@ describe('Enhanced User Registration API', () => {
               firstName: testData.personalInfo.firstName,
               lastName: testData.personalInfo.lastName,
               address: {
-                country: testData.address.country,
+                countryId: testData.address.countryId,
                 postalCode: testData.address.postalCode,
                 city: testData.address.city,
                 state: testData.address.state,
@@ -100,7 +112,7 @@ describe('Enhanced User Registration API', () => {
       });
 
       it('should register without optional document info', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         delete (testData as any).documentInfo;
 
         const response = await request(app)
@@ -113,7 +125,7 @@ describe('Enhanced User Registration API', () => {
       });
 
       it('should register with null title', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         testData.personalInfo.title = null as any;
 
         const response = await request(app)
@@ -128,7 +140,7 @@ describe('Enhanced User Registration API', () => {
 
     describe('Validation Errors', () => {
       it('should reject invalid email format', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         testData.personalInfo.email = 'invalid-email';
 
         const response = await request(app)
@@ -141,7 +153,7 @@ describe('Enhanced User Registration API', () => {
       });
 
       it('should reject weak password', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         testData.personalInfo.password = '123';
 
         const response = await request(app)
@@ -154,25 +166,21 @@ describe('Enhanced User Registration API', () => {
       });
 
       it('should reject missing required fields', async () => {
-        const incompleteData = {
-          personalInfo: {
-            firstName: 'John',
-            // Missing lastName, birthDate, email, password
-          },
-          // Missing address and consent
-        };
+        const testData = await generateValidRegistrationData();
+        (testData.personalInfo as any).email = undefined;
 
         const response = await request(app)
           .post('/api/auth/register')
-          .send(incompleteData)
+          .send(testData)
           .expect(400);
 
-        expect(response.body.success).toBe(false);
+        expect(response.body).toHaveProperty('success', false);
+        expect(response.body).toHaveProperty('error');
         expect(response.body.code).toBe('VALIDATION_ERROR');
       });
 
       it('should reject consent disagreement', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         testData.consent.agreeToTerms = false;
 
         const response = await request(app)
@@ -188,14 +196,14 @@ describe('Enhanced User Registration API', () => {
     describe('Business Logic Errors', () => {
       it('should reject duplicate email registration', async () => {
         // First registration
-        const testData1 = generateValidRegistrationData();
+        const testData1 = await generateValidRegistrationData();
         await request(app)
           .post('/api/auth/register')
           .send(testData1)
           .expect(201);
 
         // Attempt duplicate registration with same email
-        const testData2 = generateValidRegistrationData();
+        const testData2 = await generateValidRegistrationData();
         testData2.personalInfo.email = testData1.personalInfo.email; // Same email
         testData2.personalInfo.firstName = 'Different';
         testData2.personalInfo.lastName = 'Person';
@@ -212,7 +220,7 @@ describe('Enhanced User Registration API', () => {
 
     describe('Security Features', () => {
       it('should hash the password (not stored in plain text)', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         const testEmail = testData.personalInfo.email;
         const testPassword = testData.personalInfo.password;
 
@@ -230,8 +238,8 @@ describe('Enhanced User Registration API', () => {
       });
 
       it('should generate unique verification tokens', async () => {
-        const testData1 = generateValidRegistrationData();
-        const testData2 = generateValidRegistrationData();
+        const testData1 = await generateValidRegistrationData();
+        const testData2 = await generateValidRegistrationData();
 
         await request(app).post('/api/auth/register').send(testData1).expect(201);
         await request(app).post('/api/auth/register').send(testData2).expect(201);
@@ -246,7 +254,7 @@ describe('Enhanced User Registration API', () => {
 
     describe('Response Format', () => {
       it('should return JWT token with proper structure', async () => {
-        const testData = generateValidRegistrationData();
+        const testData = await generateValidRegistrationData();
         
         const response = await request(app)
           .post('/api/auth/register')
@@ -272,7 +280,7 @@ describe('Enhanced User Registration API', () => {
 
     it('should return exists=true for registered email', async () => {
       // Register a user first
-      const testData = generateValidRegistrationData();
+      const testData = await generateValidRegistrationData();
       await request(app)
         .post('/api/auth/register')
         .send(testData)
@@ -327,7 +335,8 @@ describe('Enhanced User Registration API', () => {
     });
 
     it('should update verification token for existing user', async () => {
-      const testData = generateValidRegistrationData();
+      // Register a user first
+      const testData = await generateValidRegistrationData();
 
       // Register user
       await request(app)

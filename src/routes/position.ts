@@ -75,7 +75,7 @@ const fetchProductForPosition = async (productId: string) => {
       product.price,
       product.currency,
       producer.producerName AS producer,
-      issuingCountry.issuingCountryName AS country,
+      country.countryName AS country,
       product.year AS productyear,
       product.description,
       product.imageFilename AS imageurl,
@@ -87,7 +87,7 @@ const fetchProductForPosition = async (productId: string) => {
     JOIN productType ON productType.id = product.productTypeId 
     JOIN metal ON metal.id = product.metalId 
     JOIN producer ON producer.id = product.producerId
-    LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId
+    LEFT JOIN country ON country.id = product.countryId
     WHERE product.id = $1
   `;
   

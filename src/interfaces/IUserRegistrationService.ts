@@ -209,7 +209,7 @@ export interface CreateUserProfileData {
 
 export interface CreateUserAddressData {
   userId: string;
-  country: string;
+  countryId: string;
   postalCode: string;
   city: string;
   state: string;

@@ -3,5 +3,5 @@
         "connectionId": "actics",
         "projectKey": "marcopersi_goldsphere-server"
     },
-    "chat.agent.maxRequests": 35
+    "chat.agent.maxRequests": 70
 }

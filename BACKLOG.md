@@ -73,7 +73,58 @@
 
 ---
 
-## 🎯 **Other Security & Quality Issues Identified**
+## � **CRITICAL ISSUES IDENTIFIED IN CODE REVIEW** (URGENT)
+
+### Database Schema Inconsistencies & Hardcoded Values
+- [ ] **🚨 Hardcoded Country Validation in Registration**: `registration.ts` contains hardcoded list of country codes instead of using database/API
+  - **Issue**: Hardcoded array `VALID_COUNTRY_CODES` bypasses database integrity
+  - **Risk**: Country codes can become stale, mismatch with database reality
+  - **Fix**: Replace with dynamic validation against country table or remove validation
+  - **Location**: `src/types/registration.ts` lines 186-200
+- [ ] **Schema Validation Mismatch**: Different field names between database and validation schemas
+  - **Issue**: `countryId` vs various country field naming inconsistencies
+  - **Risk**: Runtime validation errors, data corruption
+  - **Fix**: Standardize field naming across all schemas and database
+- [ ] **Missing Error Boundary Protection**: No global error handling for schema validation failures
+  - **Risk**: Unhandled exceptions can crash server
+  - **Fix**: Add comprehensive error boundary middleware
+
+### Audit Trail Implementation Gaps
+- [ ] **🚨 Inconsistent Audit Trail Usage**: Some operations use audit trail, others don't
+  - **Issue**: OrderService optionally accepts audit user, but many calls don't provide it
+  - **Risk**: Incomplete audit trail, compliance issues
+  - **Fix**: Make audit trail mandatory for all operations or have clear fallback strategy
+  - **Affected**: Order creation, position updates, producer changes
+- [ ] **Missing Audit Trail for Critical Operations**: Producer updates, product changes lack audit
+  - **Risk**: No accountability for business-critical data changes
+  - **Fix**: Implement audit trail for all CRUD operations
+- [ ] **Audit Trail Schema Design**: Current implementation mixes optional and required audit
+  - **Issue**: Overloaded method signatures, unclear when audit is required
+  - **Fix**: Consistent pattern - either always audit or clear separation
+
+### Test Infrastructure Problems
+- [ ] **Test Database Naming Conflicts**: Tests may interfere with each other
+  - **Issue**: Test database names use timestamp but could still conflict
+  - **Risk**: Flaky tests, data corruption between test runs
+  - **Fix**: Add process ID to test database names, better cleanup
+- [ ] **Missing Test Coverage for Edge Cases**: Shared package integration edge cases
+  - **Issue**: Limited testing of schema validation edge cases
+  - **Risk**: Production validation failures
+  - **Fix**: Add comprehensive schema validation tests
+
+### Performance & Resource Issues
+- [ ] **Database Connection Pool Sizing**: Pool configuration not tuned for test vs production
+  - **Issue**: Fixed pool size may not be optimal for different environments
+  - **Risk**: Connection exhaustion, poor performance
+  - **Fix**: Environment-specific pool configuration
+- [ ] **Memory Leaks in Test Suite**: Test database pools may not be properly cleaned up
+  - **Issue**: Jest warning about operations after test completion
+  - **Risk**: Memory leaks, CI/CD resource exhaustion
+  - **Fix**: Proper async cleanup in test teardown
+
+---
+
+## �🎯 **Other Security & Quality Issues Identified**
 
 ### Authentication & Authorization
 - [ ] **Hardcoded Credentials**: Remove hardcoded credentials from code/configs

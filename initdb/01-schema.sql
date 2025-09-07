@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS custodian CASCADE;
 DROP TABLE IF EXISTS product CASCADE;
 DROP TABLE IF EXISTS portfolio CASCADE;
 DROP TABLE IF EXISTS producer CASCADE;
-DROP TABLE IF EXISTS issuingCountry CASCADE;
+DROP TABLE IF EXISTS country CASCADE;
 DROP TABLE IF EXISTS productType CASCADE;
 DROP TABLE IF EXISTS metal CASCADE;
 DROP TABLE IF EXISTS currency CASCADE;
@@ -26,53 +26,7 @@ CREATE TYPE paymentFrequency AS ENUM ('daily', 'weekly', 'monthly', 'quarterly',
 CREATE TYPE orderStatus AS ENUM ('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'completed', 'cancelled');
 CREATE TYPE unitOfMeasure as ENUM ('grams', 'troy_ounces', 'kilograms');
 
--- Create tables without foreign key references first
-CREATE TABLE IF NOT EXISTS currency (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    isocode2 CHAR(2) NOT NULL,
-    isocode3 CHAR(3) NOT NULL UNIQUE,
-    isonumericcode INT NOT NULL UNIQUE,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS custodian (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    custodianname TEXT NOT NULL UNIQUE,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS producer (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    producername TEXT NOT NULL UNIQUE,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS metal (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    symbol CHAR(2) NOT NULL UNIQUE,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS issuingCountry (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    issuingcountryname TEXT NOT NULL,
-    isocode2 CHAR(2) NOT NULL,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS productType (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    producttypename TEXT NOT NULL,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
+-- Create users table first (since other tables reference it for audit trail)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT,
@@ -85,10 +39,74 @@ CREATE TABLE IF NOT EXISTS users (
     terms_accepted_at TIMESTAMP,
     last_login TIMESTAMP,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
 );
 
--- Create tables with foreign key references
+-- Create lookup tables with audit trail columns
+CREATE TABLE IF NOT EXISTS currency (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    isocode2 CHAR(2) NOT NULL,
+    isocode3 CHAR(3) NOT NULL UNIQUE,
+    isonumericcode INT NOT NULL UNIQUE,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS custodian (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    custodianname TEXT NOT NULL UNIQUE,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS country (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    countryname TEXT NOT NULL,
+    isocode2 CHAR(2) NOT NULL,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS producer (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    producername TEXT NOT NULL UNIQUE,
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    countryId UUID REFERENCES country(id),
+    websiteURL TEXT,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS metal (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    symbol CHAR(2) NOT NULL UNIQUE,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS productType (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    producttypename TEXT NOT NULL,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
+);
+
+-- Create tables with foreign key references to other lookup tables
 CREATE TABLE IF NOT EXISTS custodyService (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     custodianid UUID NOT NULL REFERENCES custodian(id) ON DELETE CASCADE,
@@ -98,7 +116,9 @@ CREATE TABLE IF NOT EXISTS custodyService (
     currencyid UUID NOT NULL REFERENCES currency(id),
     maxweight NUMERIC(12, 2),
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS product (
@@ -106,7 +126,7 @@ CREATE TABLE IF NOT EXISTS product (
     name TEXT NOT NULL,
     producttypeid UUID NOT NULL REFERENCES productType(id),
     metalid UUID NOT NULL REFERENCES metal(id),
-    issuingcountryid UUID REFERENCES issuingCountry(id),
+    countryid UUID REFERENCES country(id),
     producerid UUID NOT NULL REFERENCES producer(id),
     weight NUMERIC(12, 4) NOT NULL,
     weightunit unitOfMeasure NOT NULL DEFAULT 'troy_ounces',
@@ -128,9 +148,10 @@ CREATE TABLE IF NOT EXISTS product (
     thickness NUMERIC(8, 2),
     mintage INTEGER,
     certification TEXT,
-    tags TEXT[],
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
 );
 
 -- New Portfolio Management Tables (matching @goldsphere/shared types)
@@ -141,7 +162,9 @@ CREATE TABLE IF NOT EXISTS portfolio (
     portfolioname TEXT NOT NULL,
     ownerid UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS position (
@@ -158,7 +181,9 @@ CREATE TABLE IF NOT EXISTS position (
     closeddate TIMESTAMP,
     notes TEXT,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -171,7 +196,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     price NUMERIC(10,2) NOT NULL,
     fees NUMERIC(10,2) DEFAULT 0,
     notes TEXT,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -184,7 +210,9 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_status VARCHAR(50) DEFAULT 'pending', -- pending, paid, failed, refunded
     paid_at TIMESTAMP,
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
@@ -195,10 +223,70 @@ CREATE TABLE IF NOT EXISTS order_items (
     quantity NUMERIC NOT NULL,
     unitprice NUMERIC,
     totalprice NUMERIC NOT NULL,
-    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdBy UUID REFERENCES users(id),
+    updatedBy UUID REFERENCES users(id)
 );
 
 -- Index for payment lookups
 CREATE INDEX IF NOT EXISTS idx_orders_payment_intent_id ON orders(payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
+
+-- Audit trail indexes for performance
+CREATE INDEX IF NOT EXISTS idx_orders_created_by ON orders(createdBy);
+CREATE INDEX IF NOT EXISTS idx_orders_updated_by ON orders(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_position_created_by ON position(createdBy);
+CREATE INDEX IF NOT EXISTS idx_position_updated_by ON position(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_portfolio_created_by ON portfolio(createdBy);
+CREATE INDEX IF NOT EXISTS idx_portfolio_updated_by ON portfolio(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_by ON transactions(createdBy);
+CREATE INDEX IF NOT EXISTS idx_users_created_by ON users(createdBy);
+CREATE INDEX IF NOT EXISTS idx_users_updated_by ON users(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_product_created_by ON product(createdBy);
+CREATE INDEX IF NOT EXISTS idx_product_updated_by ON product(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_order_items_created_by ON order_items(createdBy);
+CREATE INDEX IF NOT EXISTS idx_order_items_updated_by ON order_items(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_custodian_created_by ON custodian(createdBy);
+CREATE INDEX IF NOT EXISTS idx_custodian_updated_by ON custodian(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_producer_created_by ON producer(createdBy);
+CREATE INDEX IF NOT EXISTS idx_producer_updated_by ON producer(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_currency_created_by ON currency(createdBy);
+CREATE INDEX IF NOT EXISTS idx_currency_updated_by ON currency(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_metal_created_by ON metal(createdBy);
+CREATE INDEX IF NOT EXISTS idx_metal_updated_by ON metal(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_country_created_by ON country(createdBy);
+CREATE INDEX IF NOT EXISTS idx_country_updated_by ON country(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_product_type_created_by ON productType(createdBy);
+CREATE INDEX IF NOT EXISTS idx_product_type_updated_by ON productType(updatedBy);
+CREATE INDEX IF NOT EXISTS idx_custody_service_created_by ON custodyService(createdBy);
+CREATE INDEX IF NOT EXISTS idx_custody_service_updated_by ON custodyService(updatedBy);
+
+-- Comments for documentation
+COMMENT ON COLUMN orders.createdBy IS 'User ID who created this order';
+COMMENT ON COLUMN orders.updatedBy IS 'User ID who last updated this order';
+COMMENT ON COLUMN position.createdBy IS 'User ID who created this position';
+COMMENT ON COLUMN position.updatedBy IS 'User ID who last updated this position';
+COMMENT ON COLUMN portfolio.createdBy IS 'User ID who created this portfolio';
+COMMENT ON COLUMN portfolio.updatedBy IS 'User ID who last updated this portfolio';
+COMMENT ON COLUMN transactions.createdBy IS 'User ID who created this transaction';
+COMMENT ON COLUMN users.createdBy IS 'User ID who created this user (for admin user creation)';
+COMMENT ON COLUMN users.updatedBy IS 'User ID who last updated this user';
+COMMENT ON COLUMN product.createdBy IS 'User ID who created this product';
+COMMENT ON COLUMN product.updatedBy IS 'User ID who last updated this product';
+COMMENT ON COLUMN order_items.createdBy IS 'User ID who created this order item';
+COMMENT ON COLUMN order_items.updatedBy IS 'User ID who last updated this order item';
+COMMENT ON COLUMN custodian.createdBy IS 'User ID who created this custodian';
+COMMENT ON COLUMN custodian.updatedBy IS 'User ID who last updated this custodian';
+COMMENT ON COLUMN producer.createdBy IS 'User ID who created this producer';
+COMMENT ON COLUMN producer.updatedBy IS 'User ID who last updated this producer';
+COMMENT ON COLUMN currency.createdBy IS 'User ID who created this currency';
+COMMENT ON COLUMN currency.updatedBy IS 'User ID who last updated this currency';
+COMMENT ON COLUMN metal.createdBy IS 'User ID who created this metal';
+COMMENT ON COLUMN metal.updatedBy IS 'User ID who last updated this metal';
+COMMENT ON COLUMN country.createdBy IS 'User ID who created this country';
+COMMENT ON COLUMN country.updatedBy IS 'User ID who last updated this country';
+COMMENT ON COLUMN productType.createdBy IS 'User ID who created this product type';
+COMMENT ON COLUMN productType.updatedBy IS 'User ID who last updated this product type';
+COMMENT ON COLUMN custodyService.createdBy IS 'User ID who created this custody service';
+COMMENT ON COLUMN custodyService.updatedBy IS 'User ID who last updated this custody service';
 

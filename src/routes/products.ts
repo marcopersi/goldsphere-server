@@ -92,7 +92,7 @@ router.get("/", async (req: Request, res: Response) => {
     }
     
     if (country) {
-      whereConditions.push(`issuingCountry.isoCode2 ILIKE $${paramIndex}`);
+      whereConditions.push(`country.isoCode2 ILIKE $${paramIndex}`);
       queryParams.push(`%${country}%`);
       paramIndex++;
     }
@@ -133,7 +133,7 @@ router.get("/", async (req: Request, res: Response) => {
       FROM product 
       JOIN productType ON productType.id = product.productTypeId 
       JOIN metal ON metal.id = product.metalId 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
+      LEFT JOIN country ON country.id = product.countryId 
       JOIN producer ON producer.id = product.producerId
       ${whereClause}
     `;
@@ -150,7 +150,7 @@ router.get("/", async (req: Request, res: Response) => {
         metal.id AS metalid,
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
-        issuingCountry.isoCode2 AS countrycode, 
+        country.isoCode2 AS countrycode, 
         producer.id AS producerid,
         producer.producerName AS producer, 
         product.weight AS fineweight, 
@@ -168,7 +168,7 @@ router.get("/", async (req: Request, res: Response) => {
       FROM product 
       JOIN productType ON productType.id = product.productTypeId 
       JOIN metal ON metal.id = product.metalId 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingCountryId 
+      LEFT JOIN country ON country.id = product.countryId 
       JOIN producer ON producer.id = product.producerId
       ${whereClause}
       ${orderClause}
@@ -299,7 +299,7 @@ router.get("/:id", async (req: Request, res: Response) => {
         metal.id AS metalid,
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
-        issuingCountry.isocode2 AS countrycode, 
+        country.isocode2 AS countrycode, 
         producer.id AS producerid,
         producer.producername AS producer, 
         product.weight AS fineweight, 
@@ -318,13 +318,12 @@ router.get("/:id", async (req: Request, res: Response) => {
         product.thickness,
         product.mintage,
         product.certification,
-        product.tags,
         product.createdat,
         product.updatedat
       FROM product 
       JOIN productType ON productType.id = product.producttypeid 
       JOIN metal ON metal.id = product.metalid 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingcountryid 
+      LEFT JOIN country ON country.id = product.countryid 
       JOIN producer ON producer.id = product.producerid
       WHERE product.id = $1
     `, [id]);
@@ -369,7 +368,6 @@ router.get("/:id", async (req: Request, res: Response) => {
         mintage: row.mintage,
         certification: row.certification
       },
-      tags: row.tags || [],
       createdAt: row.createdat || new Date().toISOString(),
       updatedAt: row.updatedat || new Date().toISOString()
     };
@@ -543,8 +541,8 @@ router.put("/:id", async (req: Request, res: Response) => {
     if (productData.producerId) {
       validationPromises.push(getPool().query("SELECT id FROM producer WHERE id = $1", [productData.producerId]));
     }
-    if (productData.issuingCountryId) {
-      validationPromises.push(getPool().query("SELECT id FROM issuingCountry WHERE id = $1", [productData.issuingCountryId]));
+    if (productData.countryId) {
+      validationPromises.push(getPool().query("SELECT id FROM country WHERE id = $1", [productData.countryId]));
     }
     
     if (validationPromises.length > 0) {
@@ -576,9 +574,9 @@ router.put("/:id", async (req: Request, res: Response) => {
       updateFields.push(`metalid = $${paramIndex++}`);
       updateValues.push(productData.metalId);
     }
-    if (productData.issuingCountryId !== undefined) {
-      updateFields.push(`issuingcountryid = $${paramIndex++}`);
-      updateValues.push(productData.issuingCountryId);
+    if (productData.countryId !== undefined) {
+      updateFields.push(`countryid = $${paramIndex++}`);
+      updateValues.push(productData.countryId);
     }
     if (productData.producerId !== undefined) {
       updateFields.push(`producerid = $${paramIndex++}`);
@@ -641,10 +639,6 @@ router.put("/:id", async (req: Request, res: Response) => {
       updateFields.push(`certification = $${paramIndex++}`);
       updateValues.push(productData.certification);
     }
-    if (productData.tags !== undefined) {
-      updateFields.push(`tags = $${paramIndex++}`);
-      updateValues.push(productData.tags);
-    }
     
     // Always update updatedAt
     updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
@@ -676,7 +670,7 @@ router.put("/:id", async (req: Request, res: Response) => {
         metal.id AS metalid,
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
-        issuingCountry.isocode2 AS countrycode, 
+        country.isocode2 AS countrycode, 
         producer.id AS producerid,
         producer.producername AS producer, 
         product.weight AS fineweight, 
@@ -695,13 +689,12 @@ router.put("/:id", async (req: Request, res: Response) => {
         product.thickness,
         product.mintage,
         product.certification,
-        product.tags,
         product.createdat,
         product.updatedat
       FROM product 
       JOIN productType ON productType.id = product.producttypeid 
       JOIN metal ON metal.id = product.metalid 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingcountryid 
+      LEFT JOIN country ON country.id = product.countryid 
       JOIN producer ON producer.id = product.producerid
       WHERE product.id = $1
     `, [id]);
@@ -739,7 +732,6 @@ router.put("/:id", async (req: Request, res: Response) => {
         mintage: row.mintage,
         certification: row.certification
       },
-      tags: row.tags || [],
       createdAt: row.createdat || new Date().toISOString(),
       updatedAt: row.updatedat || new Date().toISOString()
     };
@@ -838,7 +830,7 @@ router.post("/", async (req: Request, res: Response) => {
       getPool().query("SELECT id FROM metal WHERE id = $1", [productData.metalId]),
       getPool().query("SELECT id FROM productType WHERE id = $1", [productData.productTypeId]),
       getPool().query("SELECT id FROM producer WHERE id = $1", [productData.producerId]),
-      productData.issuingCountryId ? getPool().query("SELECT id FROM issuingCountry WHERE id = $1", [productData.issuingCountryId]) : null
+      productData.countryId ? getPool().query("SELECT id FROM country WHERE id = $1", [productData.countryId]) : null
     ]);
     
     if (metalResult.rows.length === 0) {
@@ -862,7 +854,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
     
-    if (productData.issuingCountryId && countryResult && countryResult.rows.length === 0) {
+    if (productData.countryId && countryResult && countryResult.rows.length === 0) {
       return res.status(400).json({ 
         success: false,
         error: "Invalid country ID" 
@@ -872,19 +864,19 @@ router.post("/", async (req: Request, res: Response) => {
     // Insert new product with comprehensive data mapping
     const insertResult = await getPool().query(`
       INSERT INTO product (
-        name, producttypeid, metalid, issuingcountryid, producerid,
+        name, producttypeid, metalid, countryid, producerid,
         weight, weightunit, purity, price, currency, year,
         description, imagefilename, instock, stockquantity, minimumorderquantity,
-        premiumpercentage, diameter, thickness, mintage, certification, tags
+        premiumpercentage, diameter, thickness, mintage, certification
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-        $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+        $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
       ) RETURNING id
     `, [
       productData.productName,
       productData.productTypeId,
       productData.metalId,
-      productData.issuingCountryId,
+      (productData as any).countryId,
       productData.producerId,
       productData.fineWeight,
       productData.unitOfMeasure,
@@ -901,8 +893,7 @@ router.post("/", async (req: Request, res: Response) => {
       productData.diameter,
       productData.thickness,
       productData.mintage,
-      productData.certification,
-      productData.tags || []
+      productData.certification
     ]);
     
     const newProductId = insertResult.rows[0].id;
@@ -916,7 +907,7 @@ router.post("/", async (req: Request, res: Response) => {
         metal.id AS metalid,
         metal.name AS metalname, 
         metal.symbol AS metalsymbol,
-        issuingCountry.isocode2 AS countrycode, 
+        country.isocode2 AS countrycode, 
         producer.id AS producerid,
         producer.producername AS producer, 
         product.weight AS fineweight, 
@@ -935,13 +926,12 @@ router.post("/", async (req: Request, res: Response) => {
         product.thickness,
         product.mintage,
         product.certification,
-        product.tags,
         product.createdat,
         product.updatedat
       FROM product 
       JOIN productType ON productType.id = product.producttypeid 
       JOIN metal ON metal.id = product.metalid 
-      LEFT JOIN issuingCountry ON issuingCountry.id = product.issuingcountryid 
+      LEFT JOIN country ON country.id = product.countryid 
       JOIN producer ON producer.id = product.producerid
       WHERE product.id = $1
     `, [newProductId]);
@@ -979,7 +969,6 @@ router.post("/", async (req: Request, res: Response) => {
         mintage: row.mintage || undefined,
         certification: row.certification || undefined
       },
-      tags: row.tags || [],
       createdAt: row.createdat || new Date().toISOString(),
       updatedAt: row.updatedat || new Date().toISOString()
     };

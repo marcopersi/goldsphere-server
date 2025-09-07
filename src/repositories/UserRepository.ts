@@ -79,7 +79,7 @@ export class UserRepository implements IUserRepository {
     const query = `
       INSERT INTO user_addresses (
         user_id, 
-        country, 
+        countryId, 
         postal_code, 
         city, 
         state, 
@@ -93,7 +93,7 @@ export class UserRepository implements IUserRepository {
 
     const values = [
       addressData.userId,
-      addressData.country,
+      addressData.countryId,
       addressData.postalCode,
       addressData.city,
       addressData.state,
@@ -295,7 +295,7 @@ export class UserRepository implements IUserRepository {
     return {
       id: row.id,
       userid: row.user_id,
-      country: row.country,
+      countryId: row.countryid,
       postalcode: row.postal_code,
       city: row.city,
       state: row.state,

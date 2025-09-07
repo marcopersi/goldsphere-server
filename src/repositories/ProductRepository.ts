@@ -46,7 +46,7 @@ export class ProductRepository implements IProductRepository {
       
       let countryId: string | undefined;
       if (country) {
-        const countryQuery = 'SELECT id FROM issuingcountry WHERE issuingcountryname = $1';
+        const countryQuery = 'SELECT id FROM country WHERE countryname = $1';
         const countryResult = await pool.query(countryQuery, [country]);
         
         if (countryResult.rows.length === 0) {
@@ -86,7 +86,7 @@ export class ProductRepository implements IProductRepository {
       
       const query = `
         INSERT INTO product (
-          id, name, producttypeid, metalid, issuingcountryid, producerid,
+          id, name, producttypeid, metalid, countryid, producerid,
           weight, weightunit, purity, price, currency, year, description,
           imageurl, imagefilename, instock, stockquantity, minimumorderquantity,
           premiumpercentage, createdat, updatedat
@@ -135,12 +135,12 @@ export class ProductRepository implements IProductRepository {
         pt.producttypename,
         m.name as metal_name,
         pr.producername,
-        ic.issuingcountryname
+        c.countryname
       FROM product p
       LEFT JOIN producttype pt ON p.producttypeid = pt.id
       LEFT JOIN metal m ON p.metalid = m.id  
       LEFT JOIN producer pr ON p.producerid = pr.id
-      LEFT JOIN issuingcountry ic ON p.issuingcountryid = ic.id
+      LEFT JOIN country c ON p.countryid = c.id
       WHERE p.id = $1
     `;
     
@@ -165,7 +165,7 @@ export class ProductRepository implements IProductRepository {
       price: parseFloat(row.price),
       currency: row.currency,
       producer: row.producername || row.producer,
-      country: row.issuingcountryname || null,
+      country: row.countryname || null,
       year: row.year,
       description: row.description,
       imageUrl: row.imageurl,

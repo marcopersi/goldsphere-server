@@ -101,7 +101,8 @@ router.get("/", async (req: Request, res: Response) => {
     const sortColumn = {
       name: 'producerName',
       createdAt: 'createdAt',
-      updatedAt: 'updatedAt'
+      updatedAt: 'updatedAt',
+      status: 'status'
     }[sortBy] || 'producerName';
 
     const orderClause = `ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
@@ -120,6 +121,9 @@ router.get("/", async (req: Request, res: Response) => {
       SELECT 
         id,
         producerName,
+        status,
+        countryId,
+        websiteURL,
         createdAt,
         updatedAt
       FROM producer 
@@ -134,6 +138,9 @@ router.get("/", async (req: Request, res: Response) => {
     const producers = result.rows.map(row => ({
       id: row.id,
       producerName: row.producername,
+      status: row.status,
+      countryId: row.countryid,
+      websiteURL: row.websiteurl,
       createdAt: row.createdat,
       updatedAt: row.updatedat
     }));
@@ -242,12 +249,21 @@ router.post("/", async (req: Request, res: Response) => {
     // Insert new producer
     const insertResult = await getPool().query(`
       INSERT INTO producer (
-        producerName
+        producerName,
+        status,
+        countryId,
+        websiteURL
       ) VALUES (
-        $1
-      ) RETURNING id, producerName, createdAt, updatedAt
+        $1,
+        COALESCE($2, 'active'),
+        $3,
+        $4
+      ) RETURNING id, producerName, status, countryId, websiteURL, createdAt, updatedAt
     `, [
-      producerData.producerName
+      producerData.producerName,
+      (producerData as any).status,
+      (producerData as any).countryId,
+      (producerData as any).websiteURL
     ]);
 
     const newProducer = insertResult.rows[0];
@@ -257,6 +273,9 @@ router.post("/", async (req: Request, res: Response) => {
       data: {
         id: newProducer.id,
         producerName: newProducer.producername,
+        status: newProducer.status,
+        countryId: newProducer.countryid,
+        websiteURL: newProducer.websiteurl,
         createdAt: newProducer.createdat,
         updatedAt: newProducer.updatedat
       },
@@ -318,6 +337,9 @@ router.get("/:id", async (req: Request, res: Response) => {
       SELECT 
         id,
         producerName,
+        status,
+        countryId,
+        websiteURL,
         createdAt,
         updatedAt
       FROM producer 
@@ -338,6 +360,9 @@ router.get("/:id", async (req: Request, res: Response) => {
       data: {
         id: producer.id,
         producerName: producer.producername,
+        status: producer.status,
+        countryId: producer.countryid,
+        websiteURL: producer.websiteurl,
         createdAt: producer.createdat,
         updatedAt: producer.updatedat
       }
@@ -469,7 +494,7 @@ router.put("/:id", async (req: Request, res: Response) => {
       UPDATE producer 
       SET ${updateFields.join(', ')}
       WHERE id = $${paramIndex}
-      RETURNING id, producerName, createdAt, updatedAt
+      RETURNING id, producerName, status, countryId, websiteURL, createdAt, updatedAt
     `;
 
     const result = await getPool().query(updateQuery, updateValues);
@@ -480,6 +505,9 @@ router.put("/:id", async (req: Request, res: Response) => {
       data: {
         id: updatedProducer.id,
         producerName: updatedProducer.producername,
+        status: updatedProducer.status,
+        countryId: updatedProducer.countryid,
+        websiteURL: updatedProducer.websiteurl,
         createdAt: updatedProducer.createdat,
         updatedAt: updatedProducer.updatedat
       },

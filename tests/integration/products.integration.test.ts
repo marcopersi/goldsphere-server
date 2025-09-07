@@ -23,7 +23,7 @@ describe('Products API', () => {
     const productTypeResult = await pool.query("SELECT id FROM productType WHERE productTypeName = 'Coin' LIMIT 1");
     const metalResult = await pool.query("SELECT id FROM metal WHERE name = 'Gold' LIMIT 1");
     const producerResult = await pool.query("SELECT id FROM producer WHERE producerName = 'United States Mint' LIMIT 1");
-    const countryResult = await pool.query("SELECT id FROM issuingCountry WHERE issuingCountryName = 'USA' LIMIT 1");
+    const countryResult = await pool.query("SELECT id FROM country WHERE countryName = 'USA' LIMIT 1");
     
     testProductTypeId = productTypeResult.rows[0]?.id;
     testMetalId = metalResult.rows[0]?.id;
@@ -79,7 +79,7 @@ describe('Products API', () => {
         productTypeId: testProductTypeId,
         metalId: testMetalId,
         producerId: testProducerId,
-        issuingCountryId: testCountryId,
+        countryId: testCountryId,
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
         purity: 0.9167,
@@ -95,8 +95,7 @@ describe('Products API', () => {
         diameter: 32.7,
         thickness: 2.87,
         mintage: 1000000,
-        certification: 'NGC MS70',
-        tags: ['gold', 'coin', 'american', 'eagle']
+        certification: 'NGC MS70'
       };
     });
 
@@ -238,7 +237,7 @@ describe('Products API', () => {
         productTypeId: testProductTypeId,
         metalId: testMetalId,
         producerId: testProducerId,
-        issuingCountryId: testCountryId,
+        countryId: testCountryId,
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
         purity: 0.9167,
@@ -254,8 +253,7 @@ describe('Products API', () => {
         diameter: 32.7,
         thickness: 2.87,
         mintage: 1000000,
-        certification: 'NGC MS70',
-        tags: ['gold', 'coin', 'test']
+        certification: 'NGC MS70'
       };
     });
 
@@ -481,7 +479,7 @@ describe('Products API', () => {
         productTypeId: testProductTypeId,
         metalId: testMetalId,
         producerId: testProducerId,
-        issuingCountryId: testCountryId,
+        countryId: testCountryId,
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
         purity: 0.9167,
@@ -547,7 +545,7 @@ describe('Products API', () => {
         productTypeId: testProductTypeId,
         metalId: testMetalId,
         producerId: testProducerId,
-        issuingCountryId: testCountryId,
+        countryId: testCountryId,
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
         purity: 0.9167,
@@ -605,7 +603,7 @@ describe('Products API', () => {
         productTypeId: testProductTypeId,
         metalId: testMetalId,
         producerId: testProducerId,
-        issuingCountryId: testCountryId,
+        countryId: testCountryId,
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
         purity: 0.9167,
@@ -623,7 +621,7 @@ describe('Products API', () => {
         productTypeId: testProductTypeId,
         metalId: testMetalId,
         producerId: testProducerId,
-        issuingCountryId: testCountryId,
+        countryId: testCountryId,
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
         purity: 0.9167,
@@ -705,7 +703,7 @@ describe('Products API', () => {
           productTypeId: testProductTypeId,
           metalId: testMetalId, // Gold
           producerId: testProducerId,
-          issuingCountryId: testCountryId,
+          countryId: testCountryId,
           fineWeight: 31.1035,
           unitOfMeasure: 'grams',
           purity: 0.9167,
@@ -722,7 +720,7 @@ describe('Products API', () => {
           productTypeId: testProductTypeId,
           metalId: testMetalId, // Use the same test metal ID
           producerId: testProducerId,
-          issuingCountryId: testCountryId,
+    countryId: testCountryId,
           fineWeight: 1000.0,
           unitOfMeasure: 'grams',
           purity: 0.9167,

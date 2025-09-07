@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 CREATE TABLE IF NOT EXISTS user_addresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  country CHAR(2) NOT NULL, -- ISO 2-letter country code
+  countryId UUID REFERENCES country(id),
   postal_code VARCHAR(20) NOT NULL,
   city VARCHAR(100) NOT NULL,
   state VARCHAR(100) NOT NULL, -- Canton/State name
@@ -115,7 +115,7 @@ COMMENT ON TABLE consent_log IS 'GDPR-compliant consent tracking for legal compl
 COMMENT ON TABLE user_verification_status IS 'Tracks email and identity verification status for each user';
 
 COMMENT ON COLUMN user_profiles.title IS 'Personal title: Herr, Frau, or Divers';
-COMMENT ON COLUMN user_addresses.country IS 'ISO 2-letter country code (e.g., CH, DE, AT)';
+COMMENT ON COLUMN user_addresses.countryId IS 'Foreign key to country table';
 COMMENT ON COLUMN user_addresses.state IS 'Canton for Switzerland, State for other countries';
 COMMENT ON COLUMN document_processing_log.extracted_fields IS 'JSON array of field names that were auto-filled by AI parsing';
 

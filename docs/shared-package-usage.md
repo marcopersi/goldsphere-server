@@ -174,7 +174,6 @@ The `Product` type includes:
 - `stockQuantity?: number` - Available quantity (optional)
 - `minimumOrderQuantity: number` - Minimum order quantity
 - `premiumPercentage?: number` - Premium over spot price (optional)
-- `tags?: string[]` - Product tags (optional)
 - `createdAt: string` - Creation timestamp (ISO string)
 - `updatedAt: string` - Last update timestamp (ISO string)
 

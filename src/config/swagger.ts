@@ -130,11 +130,6 @@ const swaggerDefinition = {
             type: 'number',
             description: 'Premium over spot price'
           },
-          tags: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Product tags'
-          },
           createdAt: {
             type: 'string',
             format: 'date-time',
@@ -167,13 +162,12 @@ const swaggerDefinition = {
           inStock: { type: 'boolean' },
           stockQuantity: { type: 'integer' },
           minimumOrderQuantity: { type: 'integer' },
-          premiumPercentage: { type: 'number' },
-          tags: { type: 'array', items: { type: 'string' } }
+          premiumPercentage: { type: 'number' }
         }
       },
       Position: {
         type: 'object',
-        required: ['id', 'userId', 'productId', 'purchaseDate', 'purchasePrice', 'marketPrice', 'quantity', 'issuingCountry', 'producer', 'certifiedProvenance', 'status', 'createdAt', 'updatedAt'],
+        required: ['id', 'userId', 'productId', 'purchaseDate', 'purchasePrice', 'marketPrice', 'quantity', 'country', 'producer', 'certifiedProvenance', 'status', 'createdAt', 'updatedAt'],
         properties: {
           id: { type: 'string', description: 'Unique identifier for the position' },
           userId: { type: 'string', description: 'User who owns this position' },
@@ -182,7 +176,7 @@ const swaggerDefinition = {
           purchasePrice: { type: 'number', description: 'Price paid per unit' },
           marketPrice: { type: 'number', description: 'Current market price per unit' },
           quantity: { type: 'number', description: 'Quantity owned' },
-          issuingCountry: { type: 'string', description: 'Country of origin' },
+          country: { type: 'string', description: 'Country of origin' },
           producer: { type: 'string', description: 'Producer/mint name' },
           certifiedProvenance: { type: 'boolean', description: 'Whether provenance is certified' },
           status: { type: 'string', enum: ['active', 'closed'], description: 'Position status' },
@@ -223,13 +217,13 @@ const swaggerDefinition = {
       },
       PositionCreateRequest: {
         type: 'object',
-        required: ['productId', 'purchaseDate', 'purchasePrice', 'quantity', 'issuingCountry', 'producer', 'certifiedProvenance'],
+        required: ['productId', 'purchaseDate', 'purchasePrice', 'quantity', 'countryId', 'producer', 'certifiedProvenance'],
         properties: {
           productId: { type: 'string' },
           purchaseDate: { type: 'string', format: 'date-time' },
           purchasePrice: { type: 'number' },
           quantity: { type: 'number' },
-          issuingCountry: { type: 'string' },
+          country: { type: 'string' },
           producer: { type: 'string' },
           certifiedProvenance: { type: 'boolean' },
           notes: { type: 'string' }

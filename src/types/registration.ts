@@ -2,15 +2,7 @@
  * Enhanced User Registration Types and Interfaces
  * 
  * This file defines all TypeScript interfaces, types, and validation schemas
- * for the cexport interface DocumentProcessingLogEntity {
-  id: string;
-  userid: string;
-  originalfilename: string | null;
-  processingstatus: string;
-  extractedfields: Record<string, any>;
-  wasprocessed: boolean;
-  createdat: Date;
-}ive user registration system.
+ * for the comprehensive user registration system.
  */
 
 import { z } from 'zod';
@@ -37,7 +29,7 @@ export interface PersonalInfo {
 }
 
 export interface Address {
-  country: string; // ISO 2-letter country code
+  countryId: string; // Foreign key to country table
   postalCode: string;
   city: string;
   state: string; // Canton/State name
@@ -145,7 +137,7 @@ export interface UserProfileEntity {
 export interface UserAddressEntity {
   id: string;
   userid: string;
-  country: string;
+  countryId: string;
   postalcode: string;
   city: string;
   state: string;
@@ -194,6 +186,7 @@ export interface UserVerificationStatusEntity {
 // =============================================================================
 
 // Country codes validation (ISO 3166-1 alpha-2)
+// FIXME: get rid of these hardcoded values
 const VALID_COUNTRY_CODES = [
   'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT',
   'AU', 'AW', 'AX', 'AZ', 'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI',
@@ -254,9 +247,9 @@ const PersonalInfoSchema = z.object({
 
 // Address Schema
 const AddressSchema = z.object({
-  country: z.enum(VALID_COUNTRY_CODES as any, {
-    message: 'Please select a valid country',
-  }),
+  countryId: z
+    .string()
+    .uuid({ message: 'Country ID must be a valid UUID' }),
   postalCode: z
     .string()
     .min(3, 'Postal code is too short')

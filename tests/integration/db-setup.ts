@@ -131,7 +131,7 @@ async function initializeDatabaseSchema(): Promise<void> {
     "CREATE INDEX IF NOT EXISTS idx_product_metal ON product(metalId)",
     "CREATE INDEX IF NOT EXISTS idx_product_type ON product(productTypeId)", 
     "CREATE INDEX IF NOT EXISTS idx_product_producer ON product(producerId)",
-    "CREATE INDEX IF NOT EXISTS idx_product_country ON product(issuingCountryId)",
+    "CREATE INDEX IF NOT EXISTS idx_product_country ON product(countryId)",
     "CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(userId)",
     "CREATE INDEX IF NOT EXISTS idx_position_user ON position(userId)",
     "CREATE INDEX IF NOT EXISTS idx_transactions_position ON transactions(positionId)",

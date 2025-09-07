@@ -26,8 +26,8 @@ VALUES
     ('CA', 'CAD', 124, CURRENT_TIMESTAMP),
     ('AU', 'AUD', 036, CURRENT_TIMESTAMP);
 
--- Insert sample issuing countries
-INSERT INTO issuingCountry (issuingCountryName, isoCode2, createdat)
+-- Insert sample countries
+INSERT INTO country (countryName, isoCode2, createdat)
 VALUES
     ('Canada', 'CA', CURRENT_TIMESTAMP),
     ('USA', 'US', CURRENT_TIMESTAMP),

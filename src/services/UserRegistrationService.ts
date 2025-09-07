@@ -74,7 +74,7 @@ export class UserRegistrationService implements IUserRegistrationService {
         // Create user address
         const address = await this.userRepository.createUserAddress({
           userId: user.id,
-          country: registrationData.address.country,
+          countryId: registrationData.address.countryId,
           postalCode: registrationData.address.postalCode,
           city: registrationData.address.city,
           state: registrationData.address.state,
@@ -219,7 +219,7 @@ export class UserRegistrationService implements IUserRegistrationService {
           lastName: profile.lastname,
           birthDate: profile.birthdate.toISOString().split('T')[0], // YYYY-MM-DD format
           address: {
-            country: address.country,
+            countryId: address.countryId,
             postalCode: address.postalcode,
             city: address.city,
             state: address.state,

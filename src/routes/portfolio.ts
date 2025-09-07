@@ -453,11 +453,11 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
                 // Fetch product information for each position
                 const productResult = await getPool().query(`
                   SELECT p.*, pt.productTypeName as type, m.name as metal,
-                         ic.issuingCountryName as country, pr.producerName as producer
+                         c.countryName as country, pr.producerName as producer
                   FROM product p
                   LEFT JOIN productType pt ON p.productTypeId = pt.id
                   LEFT JOIN metal m ON p.metalId = m.id
-                  LEFT JOIN issuingCountry ic ON p.issuingCountryId = ic.id
+                  LEFT JOIN country c ON p.countryId = c.id
                   LEFT JOIN producer pr ON p.producerId = pr.id
                   WHERE p.id = $1
                 `, [row.productid]);

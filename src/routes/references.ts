@@ -183,60 +183,59 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// Issuing Countries Endpoints
-router.get("/issuingCountries", async (req: Request, res: Response) => {
+// Countries Endpoints
+router.get("/countries", async (req: Request, res: Response) => {
   try {
-    const result = await getPool().query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry ORDER BY issuingCountryName");
+    const result = await getPool().query("SELECT id, countryName, isoCode2, createdAt, updatedAt FROM country ORDER BY countryName");
     res.json(result.rows);
   } catch (error) {
-    console.error("Error fetching issuing countries:", error);
-    res.status(500).json({ error: "Failed to fetch issuing countries", details: (error as Error).message });
+    console.error("Error fetching countries:", error);
+    res.status(500).json({ error: "Failed to fetch countries", details: (error as Error).message });
   }
 });
 
-router.post("/issuingCountries", async (req: Request, res: Response) => {
-  const { issuingCountryName,isoCode2 } = req.body;
+router.post("/countries", async (req: Request, res: Response) => {
+  const { countryName, isoCode2 } = req.body;
   try {
-    const result = await getPool().query("INSERT INTO issuingCountry (issuingCountryName, isoCode2) VALUES ($1, $2) RETURNING *", [issuingCountryName, isoCode2]);
+    const result = await getPool().query("INSERT INTO country (countryName, isoCode2) VALUES ($1, $2) RETURNING *", [countryName, isoCode2]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error("Error adding issuing country:", error);
-    res.status(500).json({ error: "Failed to add issuing country", details: (error as Error).message });
+    console.error("Error adding country:", error);
+    res.status(500).json({ error: "Failed to add country", details: (error as Error).message });
   }
 });
 
-router.put("/issuingCountries/:id", async (req: Request, res: Response) => {
+router.put("/countries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { issuingCountryName } = req.body;
-  const { isoCode2 } = req.body;
+  const { countryName, isoCode2 } = req.body;
   try {
-    const result = await getPool().query("UPDATE issuingCountry SET issuingCountryName = $1, isoCode2 = $2 updatedAt = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *", [issuingCountryName, isoCode2, id]);
+    const result = await getPool().query("UPDATE country SET countryName = $1, isoCode2 = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *", [countryName, isoCode2, id]);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error updating issuing country:", error);
-    res.status(500).json({ error: "Failed to update issuing country", details: (error as Error).message });
+    console.error("Error updating country:", error);
+    res.status(500).json({ error: "Failed to update country", details: (error as Error).message });
   }
 });
 
-router.delete("/issuingCountries/:id", async (req: Request, res: Response) => {
+router.delete("/countries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await getPool().query("DELETE FROM issuingCountry WHERE id = $1", [id]);
+    await getPool().query("DELETE FROM country WHERE id = $1", [id]);
     res.status(204).send();
   } catch (error) {
-    console.error("Error deleting issuing country:", error);
-    res.status(500).json({ error: "Failed to delete issuing country", details: (error as Error).message });
+    console.error("Error deleting country:", error);
+    res.status(500).json({ error: "Failed to delete country", details: (error as Error).message });
   }
 });
 
-router.get("/issuingCountries/:id", async (req: Request, res: Response) => {
+router.get("/countries/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await getPool().query("SELECT id, issuingCountryName, isoCode2, createdAt, updatedAt FROM issuingCountry WHERE id = $1", [id]);
+    const result = await getPool().query("SELECT id, countryName, isoCode2, createdAt, updatedAt FROM country WHERE id = $1", [id]);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error fetching issuing country:", error);
-    res.status(500).json({ error: "Failed to fetch issuing country", details: (error as Error).message });
+    console.error("Error fetching country:", error);
+    res.status(500).json({ error: "Failed to fetch country", details: (error as Error).message });
   }
 });
 

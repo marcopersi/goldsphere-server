@@ -5,7 +5,7 @@ const ProductCreateRequestSchema = z.object({
   productName: z.string().min(1, 'Product name is required'),
   productTypeId: z.string().uuid(),
   metalId: z.string().uuid(),
-  issuingCountryId: z.string().uuid().optional(),
+  countryId: z.string().uuid().optional(),
   producerId: z.string().uuid(),
   fineWeight: z.number().positive('Weight must be positive'),
   unitOfMeasure: z.string().min(1, 'Unit of measure is required'),
@@ -22,8 +22,7 @@ const ProductCreateRequestSchema = z.object({
   diameter: z.number().positive().optional(),
   thickness: z.number().positive().optional(),
   mintage: z.number().int().positive().optional(),
-  certification: z.string().optional(),
-  tags: z.array(z.string()).optional()
+  certification: z.string().optional()
 });
 
 const ProductUpdateRequestSchema = ProductCreateRequestSchema.partial();
@@ -214,11 +213,10 @@ describe('Product Validation Unit Tests', () => {
     it('should accept valid optional fields', () => {
       const dataWithOptionals = {
         ...validProductData,
-        issuingCountryId: '550e8400-e29b-41d4-a716-446655440004',
+        countryId: '550e8400-e29b-41d4-a716-446655440004',
         description: 'Detailed description',
         imageFilename: 'product-image.jpg',
         certification: 'NGC MS70',
-        tags: ['gold', 'coin', 'investment'],
         diameter: 32.7,
         thickness: 2.87,
         mintage: 1000000

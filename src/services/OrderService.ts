@@ -12,6 +12,7 @@ import { ICalculationService } from "../interfaces/ICalculationService";
 import { IOrderService, CreateOrderRequest, CreateOrderResult, Order } from "../interfaces/IOrderService";
 import { ProductServiceImpl } from "./ProductServiceImpl";
 import { CalculationServiceImpl } from "./CalculationServiceImpl";
+import { createOrderWithAudit, createOrderItemWithAudit, updateOrderWithAudit, AuditTrailUser } from "../utils/auditTrail";
 
 // Local validation helpers (temporary until shared package compatibility)
 function isValidOrderType(type: string): boolean {
@@ -43,7 +44,9 @@ export class OrderService implements IOrderService {
   /**
    * Create a new order with full enrichment
    */
-  async createOrder(request: CreateOrderRequest): Promise<CreateOrderResult> {
+  async createOrder(request: CreateOrderRequest): Promise<CreateOrderResult>;
+  async createOrder(request: CreateOrderRequest, authenticatedUser?: AuditTrailUser): Promise<CreateOrderResult>;
+  async createOrder(request: CreateOrderRequest, authenticatedUser?: AuditTrailUser): Promise<CreateOrderResult> {
     // Validate request
     this.validateCreateOrderRequest(request);
 
@@ -85,8 +88,8 @@ export class OrderService implements IOrderService {
       updatedAt: now
     } as Order;
 
-    // Save to database
-    await this.saveOrderToDatabase(order);
+    // Save to database with audit trail if user provided
+    await this.saveOrderToDatabase(order, authenticatedUser);
 
     return {
       order,
@@ -143,7 +146,9 @@ export class OrderService implements IOrderService {
   /**
    * Update order status with validation
    */
-  async updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
+  async updateOrderStatus(orderId: string, newStatus: string): Promise<void>;
+  async updateOrderStatus(orderId: string, newStatus: string, authenticatedUser?: AuditTrailUser): Promise<void>;
+  async updateOrderStatus(orderId: string, newStatus: string, authenticatedUser?: AuditTrailUser): Promise<void> {
     try {
       // Validate that the new status is a valid order status
       if (!isValidOrderStatus(newStatus)) {
@@ -161,15 +166,23 @@ export class OrderService implements IOrderService {
         throw new Error(`Invalid status transition from ${currentOrder.status} to ${newStatus}`);
       }
 
-      const result = await getPool().query(
-        `UPDATE orders 
-         SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP 
-         WHERE id = $2`,
-        [newStatus, orderId]
-      );
+      if (authenticatedUser) {
+        // Use audit trail function when user context is available
+        await updateOrderWithAudit(orderId, {
+          orderstatus: newStatus
+        }, authenticatedUser);
+      } else {
+        // Fallback to original method (backwards compatibility)
+        const result = await getPool().query(
+          `UPDATE orders 
+           SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP 
+           WHERE id = $2`,
+          [newStatus, orderId]
+        );
 
-      if (result.rowCount === 0) {
-        throw new Error(`Order not found: ${orderId}`);
+        if (result.rowCount === 0) {
+          throw new Error(`Order not found: ${orderId}`);
+        }
       }
     } catch (error) {
       console.error(`Error updating order status for ${orderId}:`, error);
@@ -365,40 +378,65 @@ export class OrderService implements IOrderService {
   /**
    * Save order to database
    */
-  private async saveOrderToDatabase(order: Order): Promise<void> {
+  private async saveOrderToDatabase(order: Order, authenticatedUser?: AuditTrailUser): Promise<void> {
     try {
-      // Insert main order record with correct column names
-      await getPool().query(
-        `INSERT INTO orders (
-          id, userid, type, orderstatus, custodyserviceid, createdat, updatedat
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          order.id,
-          order.userId,
-          order.type,
-          order.status,
-          null, // custodyServiceId - currently not assigned during order creation
-          order.createdAt,
-          order.updatedAt
-        ]
-      );
+      if (authenticatedUser) {
+        // Use audit trail functions when user context is available
+        await createOrderWithAudit({
+          id: order.id,
+          userid: order.userId,
+          type: order.type,
+          orderstatus: order.status,
+          custodyserviceid: undefined, // Currently not assigned during order creation
+          payment_intent_id: undefined,
+          payment_status: 'pending'
+        }, authenticatedUser);
 
-      // Insert order items into order_items table
-      for (const item of order.items) {
+        // Insert order items with audit trail
+        for (const item of order.items) {
+          await createOrderItemWithAudit({
+            orderid: order.id,
+            productid: item.productId,
+            productname: item.productName,
+            quantity: item.quantity,
+            unitprice: item.unitPrice,
+            totalprice: item.totalPrice
+          }, authenticatedUser);
+        }
+      } else {
+        // Fallback to original method when no user context (backwards compatibility)
         await getPool().query(
-          `INSERT INTO order_items (
-            orderid, productid, productname, quantity, unitprice, totalprice, createdat
+          `INSERT INTO orders (
+            id, userid, type, orderstatus, custodyserviceid, createdat, updatedat
           ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             order.id,
-            item.productId,
-            item.productName,
-            item.quantity,
-            item.unitPrice,
-            item.totalPrice,
-            order.createdAt
+            order.userId,
+            order.type,
+            order.status,
+            null, // custodyServiceId - currently not assigned during order creation
+            order.createdAt,
+            order.updatedAt
           ]
         );
+
+        // Insert order items into order_items table
+        for (const item of order.items) {
+          await getPool().query(
+            `INSERT INTO order_items (
+              orderid, productid, productname, quantity, unitprice, totalprice, createdat
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              order.id,
+              item.productId,
+              item.productName,
+              item.quantity,
+              item.unitPrice,
+              item.totalPrice,
+              order.createdAt
+            ]
+          );
+        }
       }
     } catch (error) {
       console.error('Error saving order to database:', error);
@@ -499,7 +537,7 @@ export class OrderService implements IOrderService {
         -- Product related data
         pt.producttypename as product_type,
         m.name as product_metal,
-        ic.issuingcountryname as product_country,
+        c.countryname as product_country,
         pr.producername as product_producer,
         
         -- Custody service details
@@ -519,7 +557,7 @@ export class OrderService implements IOrderService {
       LEFT JOIN product p ON oi.productid = p.id
       LEFT JOIN producttype pt ON p.producttypeid = pt.id
       LEFT JOIN metal m ON p.metalid = m.id
-      LEFT JOIN issuingcountry ic ON p.issuingcountryid = ic.id
+      LEFT JOIN country c ON p.countryid = c.id
       LEFT JOIN producer pr ON p.producerid = pr.id
       LEFT JOIN custodyservice cs ON o.custodyserviceid = cs.id
       LEFT JOIN custodian cust ON cs.custodianid = cust.id

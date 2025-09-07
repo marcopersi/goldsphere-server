@@ -360,7 +360,14 @@ router.post("/orders", async (req: Request, res: Response) => {
       notes: orderInput.notes
     };
 
-    const result = await orderService.createOrder(createOrderRequest);
+    // Create audit trail user object from authenticated user
+    const auditUser = {
+      id: (req as any).user.id,
+      email: (req as any).user.email,
+      role: (req as any).user.role
+    };
+
+    const result = await orderService.createOrder(createOrderRequest, auditUser);
     
     // Format response using shared schema
     const response = CreateOrderResponseSchema.parse({
@@ -479,8 +486,14 @@ router.post("/orders/:id/process", async (req: Request, res: Response) => {
         });
     }
 
-    // Update order status using OrderService
-    await orderService.updateOrderStatus(id, newStatus);
+    // Update order status using OrderService with audit trail
+    const auditUser = {
+      id: (req as any).user?.id,
+      email: (req as any).user?.email || 'unknown',
+      role: (req as any).user?.role || 'unknown'
+    };
+    
+    await orderService.updateOrderStatus(id, newStatus, auditUser);
 
     // Create portfolio and positions when order is delivered (customer receives the items)
     if (newStatus === "delivered") {
@@ -979,7 +992,7 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
         -- Product related data
         pt.producttypename as product_type,
         m.name as product_metal,
-        ic.issuingcountryname as product_country,
+        c.countryname as product_country,
         pr.producername as product_producer,
         
         -- Custody service details
@@ -1001,7 +1014,7 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
       LEFT JOIN product p ON oi.productid = p.id
       LEFT JOIN producttype pt ON p.producttypeid = pt.id
       LEFT JOIN metal m ON p.metalid = m.id
-      LEFT JOIN issuingcountry ic ON p.issuingcountryid = ic.id
+      LEFT JOIN country c ON p.countryid = c.id
       LEFT JOIN producer pr ON p.producerid = pr.id
       LEFT JOIN custodyservice cs ON o.custodyserviceid = cs.id
       LEFT JOIN custodian cust ON cs.custodianid = cust.id

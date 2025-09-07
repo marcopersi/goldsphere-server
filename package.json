@@ -32,8 +32,8 @@
     "docs:serve": "npm run dev",
     "install:dev": "dotenv -e .env.dev -- npm install",
     "install:test": "dotenv -e .env.test -- npm install",
-  "install:prod": "dotenv -e .env.prod -- npm install",
-  "prepare": "husky install"
+    "install:prod": "dotenv -e .env.prod -- npm install",
+    "prepare": "husky install"
   },
   "repository": {
     "type": "git",
@@ -67,8 +67,8 @@
     "chalk": "^5.5.0",
     "dotenv-cli": "^10.0.0",
     "eslint": "^8.0.0",
-  "jest": "^30.0.5",
-  "husky": "^9.0.11",
+    "husky": "^9.0.11",
+    "jest": "^30.0.5",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.1",
@@ -76,7 +76,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@marcopersi/shared": "1.4.0",
+    "@marcopersi/shared": "^1.4.4",
     "@types/bcrypt": "^6.0.0",
     "@types/stripe": "^8.0.416",
     "bcrypt": "^6.0.0",

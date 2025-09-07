@@ -4,6 +4,25 @@ import { generateToken } from '../../src/middleware/auth';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 import { getPool } from '../../src/dbConfig';
 
+// Helper function to get a valid country ID for testing
+const getCountryIdByCode = async (isoCode: string): Promise<string> => {
+  const query = `SELECT id FROM country WHERE isocode2 = $1 LIMIT 1`;
+  const result = await getPool().query(query, [isoCode]);
+  if (result.rows.length === 0) {
+    throw new Error(`Country with ISO code ${isoCode} not found in test database`);
+  }
+  return result.rows[0].id;
+};
+
+// Helper function to generate valid producer data
+const generateProducerData = async (producerName: string) => {
+  const countryId = await getCountryIdByCode('CA'); // Use Canada as default
+  return {
+    producerName,
+    countryId
+  };
+};
+
 describe('Producers API', () => {
   let testNonExistentId: string;
   let createdProducerId: string;
@@ -101,9 +120,10 @@ describe('Producers API', () => {
       ];
       
       for (const name of producers) {
+        const producerData = await generateProducerData(name);
         await request(app)
           .post('/api/producers')
-          .send({ producerName: name })
+          .send(producerData)
           .expect(201);
       }
       
@@ -180,11 +200,8 @@ describe('Producers API', () => {
   });
 
   describe('POST /api/producers', () => {
-    const validProducerData = {
-      producerName: 'Test Integration Mint Ltd.'
-    };
-
     it('should create a new producer without authentication', async () => {
+      const validProducerData = await generateProducerData('Test Integration Mint Ltd.');
       const response = await request(app)
         .post('/api/producers')
         .send(validProducerData)
@@ -208,9 +225,10 @@ describe('Producers API', () => {
 
     it('should reject duplicate producer names', async () => {
       // Try to create the same producer again
+      const duplicateProducerData = await generateProducerData('Test Integration Mint Ltd.');
       const response = await request(app)
         .post('/api/producers')
-        .send(validProducerData)
+        .send(duplicateProducerData)
         .expect(409); // Conflict status code
 
       expect(response.body).toHaveProperty('success', false);
@@ -218,9 +236,10 @@ describe('Producers API', () => {
     });
 
     it('should reject missing producerName', async () => {
+      const countryId = await getCountryIdByCode('DE');
       const response = await request(app)
         .post('/api/producers')
-        .send({})
+        .send({ countryId })
         .expect(400);
 
       expect(response.body).toHaveProperty('success', false);
@@ -229,9 +248,10 @@ describe('Producers API', () => {
     });
 
     it('should reject empty producerName', async () => {
+      const countryId = await getCountryIdByCode('DE');
       const response = await request(app)
         .post('/api/producers')
-        .send({ producerName: '' })
+        .send({ producerName: '', countryId })
         .expect(400);
 
       expect(response.body).toHaveProperty('success', false);
@@ -241,9 +261,10 @@ describe('Producers API', () => {
 
     it('should accept producerName that is long', async () => {
       const longName = 'A'.repeat(200); // Should be acceptable
+      const producerData = await generateProducerData(longName);
       const response = await request(app)
         .post('/api/producers')
-        .send({ producerName: longName })
+        .send(producerData)
         .expect(201);
 
       expect(response.body.success).toBe(true);
@@ -252,9 +273,10 @@ describe('Producers API', () => {
 
     it('should accept international characters in producer name', async () => {
       const internationalName = 'Münze Österreich Test Integration';
+      const producerData = await generateProducerData(internationalName);
       const response = await request(app)
         .post('/api/producers')
-        .send({ producerName: internationalName })
+        .send(producerData)
         .expect(201);
 
       expect(response.body.success).toBe(true);
@@ -263,9 +285,10 @@ describe('Producers API', () => {
 
     it('should accept special characters in producer name', async () => {
       const specialName = 'Test & Co. (Pty) Ltd. - Integration';
+      const producerData = await generateProducerData(specialName);
       const response = await request(app)
         .post('/api/producers')
-        .send({ producerName: specialName })
+        .send(producerData)
         .expect(201);
 
       expect(response.body.success).toBe(true);
@@ -276,15 +299,17 @@ describe('Producers API', () => {
       const originalName = 'Case Sensitive Test Mint';
       
       // Create original
+      const originalData = await generateProducerData(originalName);
       await request(app)
         .post('/api/producers')
-        .send({ producerName: originalName })
+        .send(originalData)
         .expect(201);
 
       // Try to create with different case - should be rejected as duplicate
+      const uppercaseData = await generateProducerData(originalName.toUpperCase());
       const response = await request(app)
         .post('/api/producers')
-        .send({ producerName: originalName.toUpperCase() })
+        .send(uppercaseData)
         .expect(409); // Should fail due to case-insensitive duplicate checking
 
       expect(response.body.success).toBe(false);
@@ -292,12 +317,13 @@ describe('Producers API', () => {
     });
 
     it('should reject invalid data types', async () => {
+      const countryId = await getCountryIdByCode('DE');
       const invalidData = [
-        { producerName: 123 },
-        { producerName: null },
-        { producerName: [] },
-        { producerName: {} },
-        { producerName: true }
+        { producerName: 123, countryId },
+        { producerName: null, countryId },
+        { producerName: [], countryId },
+        { producerName: {}, countryId },
+        { producerName: true, countryId }
       ];
 
       for (const data of invalidData) {
@@ -352,15 +378,14 @@ describe('Producers API', () => {
   });
 
   describe('PUT /api/producers/:id', () => {
-    const updateData = {
-      producerName: 'Updated Test Integration Mint Ltd.'
-    };
-
     it('should update producer by valid ID without authentication', async () => {
+      const updateData = await generateProducerData('Updated Test Integration Mint Ltd.');
+      
       const response = await request(app)
         .put(`/api/producers/${createdProducerId}`)
-        .send(updateData)
-        .expect(200);
+        .send(updateData);
+        
+      expect(response.status).toBe(200);
 
       expect(response.body).toHaveProperty('success', true);
       expect(response.body).toHaveProperty('data');
@@ -378,6 +403,7 @@ describe('Producers API', () => {
     });
 
     it('should return 404 for updating non-existent producer', async () => {
+      const updateData = await generateProducerData('Updated Test Integration Mint Ltd.');
       const response = await request(app)
         .put(`/api/producers/${testNonExistentId}`)
         .send(updateData)
@@ -388,6 +414,7 @@ describe('Producers API', () => {
     });
 
     it('should return 400 for invalid UUID format', async () => {
+      const updateData = await generateProducerData('Updated Test Integration Mint Ltd.');
       const response = await request(app)
         .put('/api/producers/invalid-uuid')
         .send(updateData)
@@ -397,21 +424,24 @@ describe('Producers API', () => {
       expect(response.body).toHaveProperty('error', 'Invalid producer ID format');
     });
 
-    it('should reject missing producerName in update', async () => {
+    it('should allow countryId-only updates (v1.4.4 shared package)', async () => {
+      const countryId = await getCountryIdByCode('DE');
       const response = await request(app)
         .put(`/api/producers/${createdProducerId}`)
-        .send({})
-        .expect(400);
+        .send({ countryId })
+        .expect(200);
 
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('No valid fields to update');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('countryId', countryId);
+      expect(response.body).toHaveProperty('message', 'Producer updated successfully');
     });
 
     it('should reject empty producerName in update', async () => {
+      const countryId = await getCountryIdByCode('DE');
       const response = await request(app)
         .put(`/api/producers/${createdProducerId}`)
-        .send({ producerName: '' })
+        .send({ producerName: '', countryId })
         .expect(400);
 
       expect(response.body).toHaveProperty('success', false);
@@ -421,9 +451,10 @@ describe('Producers API', () => {
 
     it('should accept long producerName in update', async () => {
       const longName = 'A'.repeat(200);
+      const updateData = await generateProducerData(longName);
       const response = await request(app)
         .put(`/api/producers/${createdProducerId}`)
-        .send({ producerName: longName })
+        .send(updateData)
         .expect(409); // Might conflict with existing long name from previous test
 
       expect(response.body).toHaveProperty('success', false);
@@ -431,15 +462,17 @@ describe('Producers API', () => {
 
     it('should reject duplicate producer names in update', async () => {
       // Create another producer first
+      const anotherProducerData = await generateProducerData('Another Test Mint for Update Collision');
       await request(app)
         .post('/api/producers')
-        .send({ producerName: 'Another Test Mint for Update Collision' })
+        .send(anotherProducerData)
         .expect(201);
 
       // Try to update first producer to have the same name as the second
+      const duplicateUpdateData = await generateProducerData('Another Test Mint for Update Collision');
       const response = await request(app)
         .put(`/api/producers/${createdProducerId}`)
-        .send({ producerName: 'Another Test Mint for Update Collision' })
+        .send(duplicateUpdateData)
         .expect(409); // Conflict
 
       expect(response.body).toHaveProperty('success', false);
@@ -455,9 +488,10 @@ describe('Producers API', () => {
       const currentName = currentResponse.body.data.producerName;
 
       // Update to the same name
+      const sameNameData = await generateProducerData(currentName);
       const response = await request(app)
         .put(`/api/producers/${createdProducerId}`)
-        .send({ producerName: currentName })
+        .send(sameNameData)
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -472,9 +506,10 @@ describe('Producers API', () => {
     beforeEach(async () => {
       // Create a producer to delete with unique name
       deleteTestCounter++;
+      const deleteProducerData = await generateProducerData(`Producer to Delete Test ${deleteTestCounter}`);
       const response = await request(app)
         .post('/api/producers')
-        .send({ producerName: `Producer to Delete Test ${deleteTestCounter}` })
+        .send(deleteProducerData)
         .expect(201);
 
       producerToDeleteId = response.body.data.id;
@@ -560,29 +595,26 @@ describe('Producers API', () => {
     });
 
     it('should handle SQL injection attempts', async () => {
-      const maliciousData = {
-        producerName: "'; DROP TABLE producer; --"
-      };
+      const maliciousProducerData = await generateProducerData("'; DROP TABLE producer; --");
 
       const response = await request(app)
         .post('/api/producers')
-        .send(maliciousData)
+        .send(maliciousProducerData)
         .expect(201);
 
       // Should create the producer with the malicious string as literal text
       expect(response.body.success).toBe(true);
-      expect(response.body.data.producerName).toBe(maliciousData.producerName);
+      expect(response.body.data.producerName).toBe(maliciousProducerData.producerName);
     });
   });
 
   describe('Performance and Scalability', () => {
     it('should handle large result sets with pagination', async () => {
       // Create multiple producers for pagination testing
-      const producers: Array<{ producerName: string }> = [];
+      const producers: Array<{ producerName: string; countryId: string }> = [];
       for (let i = 0; i < 10; i++) {
-        producers.push({
-          producerName: `Performance Test Mint ${i.toString().padStart(3, '0')}`
-        });
+        const producerData = await generateProducerData(`Performance Test Mint ${i.toString().padStart(3, '0')}`);
+        producers.push(producerData);
       }
 
       // Create all producers
@@ -620,9 +652,10 @@ describe('Producers API', () => {
 
   describe('Data Integrity', () => {
     it('should maintain consistent timestamps', async () => {
+      const timestampProducerData = await generateProducerData('Timestamp Test Mint');
       const createResponse = await request(app)
         .post('/api/producers')
-        .send({ producerName: 'Timestamp Test Mint' })
+        .send(timestampProducerData)
         .expect(201);
       
       const createdAt = new Date(createResponse.body.data.createdAt);
@@ -635,9 +668,10 @@ describe('Producers API', () => {
       expect(updatedAt.getTime()).toBe(createdAt.getTime());
 
       // Test update timestamp
+      const updateTimestampData = await generateProducerData('Updated Timestamp Test Mint');
       const updateResponse = await request(app)
         .put(`/api/producers/${createResponse.body.data.id}`)
-        .send({ producerName: 'Updated Timestamp Test Mint' })
+        .send(updateTimestampData)
         .expect(200);
       
       const newUpdatedAt = new Date(updateResponse.body.data.updatedAt);
@@ -652,9 +686,10 @@ describe('Producers API', () => {
       const producerName = 'Consistency Test Mint';
       
       // Create
+      const consistencyProducerData = await generateProducerData(producerName);
       const createResponse = await request(app)
         .post('/api/producers')
-        .send({ producerName })
+        .send(consistencyProducerData)
         .expect(201);
 
       const producerId = createResponse.body.data.id;
@@ -669,9 +704,10 @@ describe('Producers API', () => {
 
       // Update
       const newName = 'Updated Consistency Test Mint';
+      const updateConsistencyData = await generateProducerData(newName);
       const updateResponse = await request(app)
         .put(`/api/producers/${producerId}`)
-        .send({ producerName: newName })
+        .send(updateConsistencyData)
         .expect(200);
 
       expect(updateResponse.body.data.producerName).toBe(newName);
@@ -686,4 +722,132 @@ describe('Producers API', () => {
       expect(readAfterUpdateResponse.body.data.id).toBe(producerId);
     });
   });
+
+  describe('Status Column Tests', () => {
+    it('should include status column in all producer responses', async () => {
+      // Test GET /api/producers (list)
+      const listResponse = await request(app)
+        .get('/api/producers')
+        .expect(200);
+
+      expect(listResponse.body.success).toBe(true);
+      expect(listResponse.body.data.producers).toBeDefined();
+      expect(Array.isArray(listResponse.body.data.producers)).toBe(true);
+      
+      if (listResponse.body.data.producers.length > 0) {
+        const producer = listResponse.body.data.producers[0];
+        expect(producer).toHaveProperty('status');
+        expect(['active', 'inactive']).toContain(producer.status);
+      }
+
+      // Create a producer to test individual endpoints
+      const statusTestProducerData = await generateProducerData('Status Test Producer');
+      const createResponse = await request(app)
+        .post('/api/producers')
+        .send(statusTestProducerData)
+        .expect(201);
+
+      expect(createResponse.body.data).toHaveProperty('status');
+      expect(createResponse.body.data.status).toBe('active'); // Default value
+      
+      const producerId = createResponse.body.data.id;
+
+      // Test GET /api/producers/:id (individual)
+      const getResponse = await request(app)
+        .get(`/api/producers/${producerId}`)
+        .expect(200);
+
+      expect(getResponse.body.data).toHaveProperty('status');
+      expect(getResponse.body.data.status).toBe('active');
+
+      // Cleanup
+      await request(app)
+        .delete(`/api/producers/${producerId}`)
+        .expect(200);
+    });
+
+    it('should create producer with explicit status and update status correctly', async () => {
+      // Create producer with explicit active status
+      const explicitStatusData = await generateProducerData('Explicit Status Test Producer');
+      const createResponse = await request(app)
+        .post('/api/producers')
+        .send({ 
+          ...explicitStatusData,
+          status: 'active'
+        })
+        .expect(201);
+
+      expect(createResponse.body.data.status).toBe('active');
+      const producerId = createResponse.body.data.id;
+
+      // Update status to inactive
+      const updateToInactiveData = await generateProducerData('Explicit Status Test Producer');
+      const updateResponse = await request(app)
+        .put(`/api/producers/${producerId}`)
+        .send({ 
+          ...updateToInactiveData,
+          status: 'inactive'
+        })
+        .expect(200);
+
+      expect(updateResponse.body.data.status).toBe('inactive');
+
+      // Read again to verify persistence
+      const readResponse = await request(app)
+        .get(`/api/producers/${producerId}`)
+        .expect(200);
+
+      expect(readResponse.body.data.status).toBe('inactive');
+      expect(readResponse.body.data.producerName).toBe('Explicit Status Test Producer');
+
+      // Update back to active
+      const updateBackData = await generateProducerData('Explicit Status Test Producer');
+      const updateBackResponse = await request(app)
+        .put(`/api/producers/${producerId}`)
+        .send({ 
+          ...updateBackData,
+          status: 'active'
+        })
+        .expect(200);
+
+      expect(updateBackResponse.body.data.status).toBe('active');
+
+      // Final verification
+      const finalReadResponse = await request(app)
+        .get(`/api/producers/${producerId}`)
+        .expect(200);
+
+      expect(finalReadResponse.body.data.status).toBe('active');
+
+      // Cleanup
+      await request(app)
+        .delete(`/api/producers/${producerId}`)
+        .expect(200);
+    });
+
+    it('should default to active status when not specified', async () => {
+      const defaultStatusData = await generateProducerData('Default Status Test Producer');
+      const createResponse = await request(app)
+        .post('/api/producers')
+        .send(defaultStatusData)
+        .expect(201);
+
+      expect(createResponse.body.data.status).toBe('active');
+      
+      const producerId = createResponse.body.data.id;
+
+      // Verify in database by reading back
+      const readResponse = await request(app)
+        .get(`/api/producers/${producerId}`)
+        .expect(200);
+
+      expect(readResponse.body.data.status).toBe('active');
+
+      // Cleanup
+      await request(app)
+        .delete(`/api/producers/${producerId}`)
+        .expect(200);
+    });
+  });
+
 });
