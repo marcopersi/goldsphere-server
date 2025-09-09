@@ -22,9 +22,9 @@ describe('Audit Trail Integration Tests', () => {
     testUserId = uuidv4();
     const uniqueTestEmail = `audit-${Date.now()}@test.com`;
     await pool.query(
-      `INSERT INTO users (id, username, email, role, passwordHash) 
-       VALUES ($1, $2, $3, $4, $5)`,
-      [testUserId, 'auditUser', uniqueTestEmail, 'admin', 'dummy_hash']
+      `INSERT INTO users (id, email, role, passwordHash) 
+       VALUES ($1, $2, $3, $4)`,
+      [testUserId, uniqueTestEmail, 'admin', 'dummy_hash']
     );
 
     testUser = {
@@ -124,9 +124,9 @@ describe('Audit Trail Integration Tests', () => {
       const secondUserId = uuidv4();
       const uniqueEmail = `admin2-${Date.now()}@test.com`;
       await pool.query(
-        `INSERT INTO users (id, username, email, role, passwordHash) 
-         VALUES ($1, $2, $3, $4, $5)`,
-        [secondUserId, 'secondAdmin', uniqueEmail, 'admin', 'dummy_hash']
+        `INSERT INTO users (id, email, role, passwordHash) 
+         VALUES ($1, $2, $3, $4)`,
+        [secondUserId, uniqueEmail, 'admin', 'dummy_hash']
       );
 
       const secondUser: AuditTrailUser = {

@@ -433,10 +433,8 @@ export async function getAuditTrail(tableName: string, recordId: string) {
       t.createdat,
       t.updatedat,
       creator.email as created_by_email,
-      creator.username as created_by_username,
       creator.role as created_by_role,
       updater.email as updated_by_email,
-      updater.username as updated_by_username,
       updater.role as updated_by_role
     FROM ${tableName} t
     LEFT JOIN users creator ON t.createdBy = creator.id

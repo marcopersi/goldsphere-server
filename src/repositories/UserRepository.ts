@@ -34,7 +34,7 @@ export class UserRepository implements IUserRepository {
     const result = await getPool().query(
       `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at) 
        VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING id, username, email, createdat, updatedat, role, email_verified, terms_version, terms_accepted_at`,
+       RETURNING id, email, createdat, updatedat, role, email_verified, terms_version, terms_accepted_at`,
       [userData.email, userData.passwordHash, userData.role, false, userData.termsVersion, userData.termsAcceptedAt]
     );
 

@@ -75,7 +75,7 @@ async function verifyUserInDatabase(userId: string, _expectedRole: string): Prom
 } | null> {
   try {
     const result = await getPool().query(
-      "SELECT id, username, email FROM users WHERE id = $1", 
+      "SELECT id, email FROM users WHERE id = $1", 
       [userId]
     );
     

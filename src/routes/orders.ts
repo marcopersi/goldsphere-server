@@ -969,7 +969,6 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
         o.custodyserviceid as order_custody_service_id,
 
         -- User information
-        u.username as user_name,
         u.email as user_email,
         
         -- Order items
@@ -1426,7 +1425,7 @@ const createPortfolioForUser = async (userId: string): Promise<string | null> =>
   try {
     // Get user information to create a meaningful portfolio name
     const userResult = await getPool().query(
-      `SELECT username, email FROM public.users WHERE id = $1`, [userId]
+      `SELECT email FROM public.users WHERE id = $1`, [userId]
     );
     
     if (userResult.rows.length === 0) {
@@ -1435,7 +1434,7 @@ const createPortfolioForUser = async (userId: string): Promise<string | null> =>
     }
     
     const user = userResult.rows[0];
-    const portfolioName = `${user.username}'s Portfolio`;
+    const portfolioName = `${user.email.split('@')[0]}'s Portfolio`;
     
     // Create the portfolio
     const portfolioResult = await getPool().query(

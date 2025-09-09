@@ -60,7 +60,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
   try {
     // Check database for user
-    const result = await getPool().query("SELECT id, username, email, passwordhash FROM users WHERE email = $1", [email]);
+    const result = await getPool().query("SELECT id, email, passwordhash FROM users WHERE email = $1", [email]);
     
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Invalid credentials" });
@@ -79,7 +79,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     // Generate JWT token with role
     const userRole = user.email.includes('admin') ? 'admin' : 'user';
     const token = jwt.sign(
-      { id: user.id, email: user.email, userName: user.username, role: userRole },
+      { id: user.id, email: user.email, role: userRole },
       process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "24h" }
     );
@@ -90,7 +90,6 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       user: { 
         id: user.id, 
         email: user.email, 
-        userName: user.username,
         role: userRole
       } 
     });

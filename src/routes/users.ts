@@ -17,7 +17,7 @@ router.get("/users", async (req: Request, res: Response) => {
     const offset = (page - 1) * limit;
 
     const result = await getPool().query(
-      "SELECT id, username, email, createdat, updatedat FROM users ORDER BY username LIMIT $1 OFFSET $2", 
+      "SELECT id, email, createdat, updatedat FROM users ORDER BY email LIMIT $1 OFFSET $2", 
       [limit, offset]
     );
     
@@ -57,24 +57,24 @@ router.post("/users", async (req: Request, res: Response) => {
       });
     }
 
-    const { username, email, passwordhash } = validation.data;
+    const { email, passwordhash } = validation.data;
     
-    // Check for duplicate username or email
+    // Check for duplicate email
     const duplicateCheck = await getPool().query(
-      "SELECT id FROM users WHERE username = $1 OR email = $2", 
-      [username, email]
+      "SELECT id FROM users WHERE email = $1", 
+      [email]
     );
     
     if (duplicateCheck.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        error: "Username or email already exists"
+        error: "Email already exists"
       });
     }
 
     const result = await getPool().query(
-      "INSERT INTO users (username, email, passwordhash) VALUES ($1, $2, $3) RETURNING id, username, email, createdat, updatedat", 
-      [username, email, passwordhash]
+      "INSERT INTO users (email, passwordhash) VALUES ($1, $2) RETURNING id, email, createdat, updatedat", 
+      [email, passwordhash]
     );
     
     res.status(201).json({
@@ -127,28 +127,16 @@ router.put("/users/:id", async (req: Request, res: Response) => {
       });
     }
 
-    // Check for duplicates if username or email are being updated
-    if (updates.username || updates.email) {
-      const duplicateConditions = [];
-      const duplicateValues = [];
-      
-      if (updates.username) {
-        duplicateConditions.push("username = $" + (duplicateValues.length + 1));
-        duplicateValues.push(updates.username);
-      }
-      if (updates.email) {
-        duplicateConditions.push("email = $" + (duplicateValues.length + 1));
-        duplicateValues.push(updates.email);
-      }
-      
-      duplicateValues.push(id);
-      const duplicateQuery = `SELECT id FROM users WHERE (${duplicateConditions.join(" OR ")}) AND id != $${duplicateValues.length}`;
-      
-      const duplicateCheck = await getPool().query(duplicateQuery, duplicateValues);
+    // Check for duplicates if email is being updated
+    if (updates.email) {
+      const duplicateCheck = await getPool().query(
+        "SELECT id FROM users WHERE email = $1 AND id != $2", 
+        [updates.email, id]
+      );
       if (duplicateCheck.rows.length > 0) {
         return res.status(409).json({
           success: false,
-          error: "Username or email already exists"
+          error: "Email already exists"
         });
       }
     }
@@ -158,10 +146,6 @@ router.put("/users/:id", async (req: Request, res: Response) => {
     const updateValues = [];
     let paramIndex = 1;
 
-    if (updates.username !== undefined) {
-      updateFields.push(`username = $${paramIndex++}`);
-      updateValues.push(updates.username);
-    }
     if (updates.email !== undefined) {
       updateFields.push(`email = $${paramIndex++}`);
       updateValues.push(updates.email);
@@ -185,7 +169,7 @@ router.put("/users/:id", async (req: Request, res: Response) => {
       UPDATE users 
       SET ${updateFields.join(', ')} 
       WHERE id = $${paramIndex} 
-      RETURNING id, username, email, createdat, updatedat
+      RETURNING id, email, createdat, updatedat
     `;
 
     const result = await getPool().query(updateQuery, updateValues);
@@ -220,7 +204,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
     }
 
     // Check if user exists
-    const userExists = await getPool().query("SELECT id, username FROM users WHERE id = $1", [id]);
+    const userExists = await getPool().query("SELECT id, email FROM users WHERE id = $1", [id]);
     if (userExists.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -249,7 +233,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
     
     res.json({
       success: true,
-      message: `User '${userExists.rows[0].username}' deleted successfully`
+      message: `User '${userExists.rows[0].email}' deleted successfully`
     });
   } catch (error) {
     console.error("Error deleting user:", error);
@@ -276,7 +260,7 @@ router.get("/users/:id", async (req: Request, res: Response) => {
     }
 
     const result = await getPool().query(
-      "SELECT id, username, email, createdat, updatedat FROM users WHERE id = $1", 
+      "SELECT id, email, createdat, updatedat FROM users WHERE id = $1", 
       [id]
     );
     
