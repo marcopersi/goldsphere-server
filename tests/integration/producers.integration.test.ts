@@ -556,7 +556,7 @@ describe('Producers API', () => {
         [producerToDeleteId]
       );
 
-      if (parseInt(productCheck.rows[0].count) > 0) {
+      if (Number.parseInt(productCheck.rows[0].count) > 0) {
         // If products reference this producer, deletion should fail
         const response = await request(app)
           .delete(`/api/producers/${producerToDeleteId}`)
@@ -664,7 +664,7 @@ describe('Producers API', () => {
       // Allow for reasonable server processing time - check timestamps are valid dates
       expect(createdAt).toBeInstanceOf(Date);
       expect(createdAt.getTime()).toBeGreaterThan(0); // Valid timestamp
-      expect(createdAt.getTime()).toBeLessThanOrEqual(new Date().getTime() + 60000); // Within last minute
+      expect(createdAt.getTime()).toBeLessThanOrEqual(Date.now() + 60000); // Within last minute
       expect(updatedAt.getTime()).toBe(createdAt.getTime());
 
       // Test update timestamp

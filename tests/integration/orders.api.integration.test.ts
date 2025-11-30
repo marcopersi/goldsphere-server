@@ -289,7 +289,7 @@ describe("Orders API", () => {
         (pos: any) => pos.productid === testProductId
       );
       expect(testPosition).toBeDefined();
-      expect(parseFloat(testPosition.quantity)).toBe(2);
+      expect(Number.parseFloat(testPosition.quantity)).toBe(2);
 
       // Cleanup
       await getPool().query('DELETE FROM position WHERE userId = $1', [testUserId]);

@@ -24,7 +24,7 @@ jest.setTimeout(30000);
 let teardownFunction: (() => Promise<void>) | null = null;
 
 // Allow integration tests to register their teardown function
-(global as any).registerTeardown = (fn: () => Promise<void>) => {
+(globalThis as any).registerTeardown = (fn: () => Promise<void>) => {
   teardownFunction = fn;
 };
 
@@ -58,7 +58,7 @@ process.on('SIGTERM', async () => {
 });
 
 // Mock console methods to reduce noise in tests
-global.console = {
+globalThis.console = {
   ...console,
   log: jest.fn(),
   debug: jest.fn(),

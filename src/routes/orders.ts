@@ -7,8 +7,8 @@ import { Order } from "../interfaces/IOrderService";
 
 // Local validation schemas (temporary until full shared package compatibility)
 const OrderQueryParamsSchema = z.object({
-  page: z.string().optional().transform(val => val ? Math.max(1, parseInt(val)) || 1 : 1),
-  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, parseInt(val))) || 20 : 20),
+  page: z.string().optional().transform(val => val ? Math.max(1, Number.parseInt(val)) || 1 : 1),
+  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, Number.parseInt(val))) || 20 : 20),
   status: z.string().optional(),
   type: z.enum(['buy', 'sell']).optional(),
   userId: z.string().optional(), // Add userId for admin queries
@@ -74,9 +74,9 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
     id: row.itemid || uuidv4(), // Use item ID from database or generate UUID
     productId: row.productid,
     productName: row.productname || `Product ${row.productid}`,
-    quantity: parseFloat(row.quantity),
-    unitPrice: parseFloat(row.unitprice || row.totalprice) / parseFloat(row.quantity),
-    totalPrice: parseFloat(row.totalprice),
+    quantity: Number.parseFloat(row.quantity),
+    unitPrice: Number.parseFloat(row.unitprice || row.totalprice) / Number.parseFloat(row.quantity),
+    totalPrice: Number.parseFloat(row.totalprice),
   }));
 
   // Map database values to string literals (shared package expects strings)
@@ -190,11 +190,11 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
       orders: ordersResult.orders,
       pagination: ordersResult.pagination,
       statistics: {
-        totalOrders: parseInt(stats.totalorders),
-        pendingOrders: parseInt(stats.pendingorders),
-        completedOrders: parseInt(stats.completedorders),
-        cancelledOrders: parseInt(stats.cancelledorders),
-        uniqueUsers: parseInt(stats.uniqueusers)
+        totalOrders: Number.parseInt(stats.totalorders),
+        pendingOrders: Number.parseInt(stats.pendingorders),
+        completedOrders: Number.parseInt(stats.completedorders),
+        cancelledOrders: Number.parseInt(stats.cancelledorders),
+        uniqueUsers: Number.parseInt(stats.uniqueusers)
       },
       filters: {
         status,
@@ -1062,9 +1062,9 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
         .filter(row => row.item_id) // Only rows with actual items
         .map(row => ({
           id: row.item_id,
-          quantity: parseFloat(row.item_quantity),
-          unitPrice: parseFloat(row.item_unit_price),
-          totalPrice: parseFloat(row.item_total_price),
+          quantity: Number.parseFloat(row.item_quantity),
+          unitPrice: Number.parseFloat(row.item_unit_price),
+          totalPrice: Number.parseFloat(row.item_total_price),
           
           // Full product details
           product: {
@@ -1072,10 +1072,10 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
             name: row.product_name || row.item_product_name, // Use stored name if product lookup fails
             type: row.product_type,
             metal: row.product_metal,
-            weight: parseFloat(row.product_weight),
+            weight: Number.parseFloat(row.product_weight),
             weightUnit: row.product_weight_unit,
-            purity: parseFloat(row.product_purity),
-            price: parseFloat(row.product_current_price),
+            purity: Number.parseFloat(row.product_purity),
+            price: Number.parseFloat(row.product_current_price),
             currency: row.product_currency,
             producer: row.product_producer,
             country: row.product_country,
@@ -1087,7 +1087,7 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
       custodyService: firstRow.custody_service_id ? {
         id: firstRow.custody_service_id,
         name: firstRow.custody_service_name,
-        fee: parseFloat(firstRow.custody_service_fee),
+        fee: Number.parseFloat(firstRow.custody_service_fee),
         paymentFrequency: firstRow.custody_service_payment_frequency,
         currency: firstRow.custody_service_currency
       } : null,
@@ -1101,7 +1101,7 @@ router.get("/orders/:id/detailed", async (req: Request, res: Response) => {
       // Calculate totals
       subtotal: result.rows
         .filter(row => row.item_id)
-        .reduce((sum, row) => sum + parseFloat(row.item_total_price || '0'), 0),
+        .reduce((sum, row) => sum + Number.parseFloat(row.item_total_price || '0'), 0),
       taxes: 0, // TODO: Calculate actual taxes
       currency: firstRow.product_currency,
       totalAmount: 0 // Will be calculated below
@@ -1268,8 +1268,8 @@ const findExistingPosition = async (
 // Consolidate existing position with new order item
 const consolidatePosition = async (existingPosition: any, newQuantity: number, newPrice: number): Promise<any> => {
   try {
-    const currentQuantity = parseFloat(existingPosition.quantity);
-    const currentPrice = parseFloat(existingPosition.purchaseprice);
+    const currentQuantity = Number.parseFloat(existingPosition.quantity);
+    const currentPrice = Number.parseFloat(existingPosition.purchaseprice);
     
     // Calculate new consolidated values
     const totalQuantity = currentQuantity + newQuantity;
@@ -1299,7 +1299,7 @@ const consolidatePosition = async (existingPosition: any, newQuantity: number, n
 const reactivatePosition = async (closedPosition: any, newQuantity: number, newPrice: number): Promise<any> => {
   try {
     console.log(`🔄 REACTIVATING POSITION ${closedPosition.id}:`, {
-      previous: { quantity: parseFloat(closedPosition.quantity), price: parseFloat(closedPosition.purchaseprice) },
+      previous: { quantity: Number.parseFloat(closedPosition.quantity), price: Number.parseFloat(closedPosition.purchaseprice) },
       fresh: { quantity: newQuantity, price: newPrice },
       note: "Previous transaction history ignored - fresh start"
     });
@@ -1362,12 +1362,12 @@ const insertPositionFromOrder = async (order: Order, portfolioId: string) => {
         // CONSOLIDATE: Update existing active position
         console.log(`🔄 Found existing active position ${positionResult.active.id} for consolidation`);
         position = await consolidatePosition(positionResult.active, item.quantity, item.unitPrice);
-        console.log(`✅ Consolidated position ${position.id}: ${position.quantity} units at avg $${parseFloat(position.purchaseprice).toFixed(2)}`);
+        console.log(`✅ Consolidated position ${position.id}: ${position.quantity} units at avg $${Number.parseFloat(position.purchaseprice).toFixed(2)}`);
       } else if (positionResult.closed) {
         // REACTIVATE: Reactivate closed position with fresh start (ignore previous average)
         console.log(`🔄 Found closed position ${positionResult.closed.id} for reactivation`);
         position = await reactivatePosition(positionResult.closed, item.quantity, item.unitPrice);
-        console.log(`✅ Reactivated position ${position.id}: ${position.quantity} units at $${parseFloat(position.purchaseprice).toFixed(2)}`);
+        console.log(`✅ Reactivated position ${position.id}: ${position.quantity} units at $${Number.parseFloat(position.purchaseprice).toFixed(2)}`);
       } else {
         // CREATE NEW: No existing position found
         const positionId = uuidv4();

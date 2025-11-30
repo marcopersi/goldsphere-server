@@ -642,9 +642,9 @@ export class OrderService implements IOrderService {
         id: row.itemid,
         productId: row.productid,
         productName: row.productname,
-        quantity: parseFloat(row.quantity || '0'),
-        unitPrice: parseFloat(row.unitprice || '0'),
-        totalPrice: parseFloat(row.totalprice || '0'),
+        quantity: Number.parseFloat(row.quantity || '0'),
+        unitPrice: Number.parseFloat(row.unitprice || '0'),
+        totalPrice: Number.parseFloat(row.totalprice || '0'),
         certificateRequested: false
       }));
   }

@@ -110,7 +110,7 @@ router.get("/", async (req: Request, res: Response) => {
     // Get total count for pagination
     const countQuery = `SELECT COUNT(*) as total FROM producer ${whereClause}`;
     const countResult = await getPool().query(countQuery, queryParams);
-    const total = parseInt(countResult.rows[0].total);
+    const total = Number.parseInt(countResult.rows[0].total);
 
     // Calculate pagination
     const offset = (page - 1) * limit;

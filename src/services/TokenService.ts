@@ -41,10 +41,10 @@ export class TokenService implements ITokenService {
       // Calculate expiration timestamp
       const expiresAt = new Date();
       if (this.jwtExpirationTime.endsWith('h')) {
-        const hours = parseInt(this.jwtExpirationTime.slice(0, -1));
+        const hours = Number.parseInt(this.jwtExpirationTime.slice(0, -1));
         expiresAt.setHours(expiresAt.getHours() + hours);
       } else if (this.jwtExpirationTime.endsWith('d')) {
-        const days = parseInt(this.jwtExpirationTime.slice(0, -1));
+        const days = Number.parseInt(this.jwtExpirationTime.slice(0, -1));
         expiresAt.setDate(expiresAt.getDate() + days);
       } else {
         // Default to 24 hours if format is unclear

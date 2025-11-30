@@ -28,8 +28,8 @@ const ProductCreateRequestSchema = z.object({
 const ProductUpdateRequestSchema = ProductCreateRequestSchema.partial();
 
 const ProductsQuerySchema = z.object({
-  page: z.string().optional().transform(val => val ? Math.max(1, parseInt(val)) || 1 : 1),
-  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, parseInt(val))) || 20 : 20),
+  page: z.string().optional().transform(val => val ? Math.max(1, Number.parseInt(val)) || 1 : 1),
+  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, Number.parseInt(val))) || 20 : 20),
   search: z.string().optional(),
   metal: z.string().optional(),
   type: z.string().optional(), 
@@ -40,8 +40,8 @@ const ProductsQuerySchema = z.object({
     if (val === 'false') return false;
     return undefined;
   }),
-  minPrice: z.string().optional().transform(val => val ? Math.max(0, parseFloat(val)) || undefined : undefined),
-  maxPrice: z.string().optional().transform(val => val ? Math.max(0, parseFloat(val)) || undefined : undefined),
+  minPrice: z.string().optional().transform(val => val ? Math.max(0, Number.parseFloat(val)) || undefined : undefined),
+  maxPrice: z.string().optional().transform(val => val ? Math.max(0, Number.parseFloat(val)) || undefined : undefined),
   sortBy: z.enum(['name', 'price', 'createdAt', 'updatedAt']).optional().default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
 });
@@ -57,7 +57,7 @@ describe('Product Validation Unit Tests', () => {
       fineWeight: 31.1035,
       unitOfMeasure: 'grams',
       purity: 0.9167,
-      price: 2000.00,
+      price: 2000,
       currency: 'CHF',
       productYear: 2024,
       description: 'Test gold coin',
@@ -234,7 +234,7 @@ describe('Product Validation Unit Tests', () => {
         producerId: '550e8400-e29b-41d4-a716-446655440003',
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
-        price: 2000.00
+        price: 2000
       };
 
       const result = ProductCreateRequestSchema.safeParse(minimalData);
@@ -252,7 +252,7 @@ describe('Product Validation Unit Tests', () => {
     it('should accept partial product data for updates', () => {
       const partialData = {
         productName: 'Updated Product Name',
-        price: 2500.00
+        price: 2500
       };
 
       const result = ProductUpdateRequestSchema.safeParse(partialData);
@@ -342,8 +342,8 @@ describe('Product Validation Unit Tests', () => {
       expect(result.success).toBe(true);
       
       if (result.success) {
-        expect(result.data.minPrice).toBe(100.50);
-        expect(result.data.maxPrice).toBe(2000.00);
+        expect(result.data.minPrice).toBe(100.5);
+        expect(result.data.maxPrice).toBe(2000);
       }
     });
 
@@ -429,7 +429,7 @@ describe('Product Validation Unit Tests', () => {
         producerId: '550e8400-e29b-41d4-a716-446655440003',
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
-        price: 2000.00,
+        price: 2000,
         inStock: false,
         stockQuantity: 10 // Inconsistent: not in stock but has stock quantity
       };
@@ -449,7 +449,7 @@ describe('Product Validation Unit Tests', () => {
         producerId: '550e8400-e29b-41d4-a716-446655440003',
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
-        price: 2000.00,
+        price: 2000,
         inStock: true,
         stockQuantity: 5,
         minimumOrderQuantity: 10 // Problematic: min order > stock

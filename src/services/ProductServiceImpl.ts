@@ -46,7 +46,7 @@ export class ProductServiceImpl implements IProductService {
           throw new Error(`Insufficient stock for ${productName}. Available: ${stockQuantity}, Requested: ${item.quantity}`);
         }
         
-        const unitPrice = parseFloat(product.price);
+        const unitPrice = Number.parseFloat(product.price);
         const totalPrice = unitPrice * item.quantity;
         
         enrichedItems.push({

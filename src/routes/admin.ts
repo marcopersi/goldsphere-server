@@ -151,7 +151,7 @@ router.post("/products/csv", upload.single("csv"), (req: Request, res: Response)
         try {
           await getPool().query(
             "INSERT INTO product (name, brand, description, metalType, weight, purity, price, available, imageFilename) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-            [row.name, row.brand, row.description, row.metalType, parseFloat(row.weight), parseFloat(row.purity), parseFloat(row.price), row.available === "true", row.imageFilename]
+            [row.name, row.brand, row.description, row.metalType, Number.parseFloat(row.weight), Number.parseFloat(row.purity), Number.parseFloat(row.price), row.available === "true", row.imageFilename]
           );
           insertedCount++;
         } catch {

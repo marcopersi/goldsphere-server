@@ -166,7 +166,7 @@ async function testPaymentConfirmation() {
   try {
     log('Testing payment confirmation (expected to fail without payment method)...');
     
-    const response = await axios.post(`${BASE_URL}/api/payments/intent/${paymentIntentId}/confirm`, {
+    await axios.post(`${BASE_URL}/api/payments/intent/${paymentIntentId}/confirm`, {
       paymentIntentId: paymentIntentId
     }, {
       headers: {

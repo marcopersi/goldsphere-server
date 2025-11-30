@@ -93,7 +93,7 @@ router.get("/custodians", async (req: Request, res: Response) => {
     // Get total count for pagination
     const countQuery = `SELECT COUNT(*) FROM custodian ${whereClause}`;
     const countResult = await getPool().query(countQuery, queryParams);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = Number.parseInt(countResult.rows[0].count);
     
     // Get paginated results
     const offset = (page - 1) * limit;

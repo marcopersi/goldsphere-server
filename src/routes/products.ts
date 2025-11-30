@@ -188,10 +188,10 @@ router.get("/", async (req: Request, res: Response) => {
         name: row.metalname,
         symbol: row.metalsymbol
       },
-      weight: parseFloat(row.fineweight) || 0,
+      weight: Number.parseFloat(row.fineweight) || 0,
       weightUnit: row.unitofmeasure,
-      purity: parseFloat(row.purity),
-      price: parseFloat(row.price),
+      purity: Number.parseFloat(row.purity),
+      price: Number.parseFloat(row.price),
       currency: row.currency,
       producerId: row.producerid,
       producer: row.producer,
@@ -347,10 +347,10 @@ router.get("/:id", async (req: Request, res: Response) => {
         name: row.metalname,
         symbol: row.metalsymbol
       },
-      weight: parseFloat(row.fineweight),
+      weight: Number.parseFloat(row.fineweight),
       weightUnit: row.unitofmeasure,
-      purity: parseFloat(row.purity),
-      price: parseFloat(row.price),
+      purity: Number.parseFloat(row.purity),
+      price: Number.parseFloat(row.price),
       currency: row.currency,
       producerId: row.producerid,
       producer: row.producer,
@@ -418,7 +418,7 @@ router.get("/price/:id", async (req: Request, res: Response) => {
       success: true,
       data: {
         id: result.rows[0].id,
-        price: parseFloat(result.rows[0].price) || 0,
+        price: Number.parseFloat(result.rows[0].price) || 0,
         currency: result.rows[0].currency
       }
     };
@@ -472,7 +472,7 @@ router.post("/prices", async (req: Request, res: Response) => {
     const result = await getPool().query(sql, productIds);
     const priceArray = result.rows.map(row => ({ 
       id: row.id, 
-      price: parseFloat(row.price) || 0,
+      price: Number.parseFloat(row.price) || 0,
       currency: row.currency
     }));
     
@@ -711,10 +711,10 @@ router.put("/:id", async (req: Request, res: Response) => {
         name: row.metalname,
         symbol: row.metalsymbol
       },
-      weight: parseFloat(row.fineweight),
+      weight: Number.parseFloat(row.fineweight),
       weightUnit: row.unitofmeasure,
-      purity: parseFloat(row.purity),
-      price: parseFloat(row.price),
+      purity: Number.parseFloat(row.purity),
+      price: Number.parseFloat(row.price),
       currency: row.currency,
       producerId: row.producerid,
       producer: row.producer,
@@ -948,10 +948,10 @@ router.post("/", async (req: Request, res: Response) => {
         name: row.metalname,
         symbol: row.metalsymbol
       },
-      weight: parseFloat(row.fineweight),
+      weight: Number.parseFloat(row.fineweight),
       weightUnit: row.unitofmeasure,
-      purity: parseFloat(row.purity),
-      price: parseFloat(row.price),
+      purity: Number.parseFloat(row.purity),
+      price: Number.parseFloat(row.price),
       currency: row.currency,
       producerId: row.producerid,
       producer: row.producer,

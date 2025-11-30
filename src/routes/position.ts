@@ -8,8 +8,8 @@ const router = Router();
 // GET all positions with optional pagination and status filtering
 router.get("/positions", async (req: Request, res: Response) => {
   try {
-    const page = Math.max(1, parseInt((req.query.page as string) || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || '20', 10)));
+    const page = Math.max(1, Number.parseInt((req.query.page as string) || '1', 10));
+    const limit = Math.min(100, Math.max(1, Number.parseInt((req.query.limit as string) || '20', 10)));
     const offset = (page - 1) * limit;
     
     // Status filter: 'active' (default), 'closed', or 'all'
@@ -30,7 +30,7 @@ router.get("/positions", async (req: Request, res: Response) => {
     // For 'all' status, whereClause remains empty
 
     const countResult = await getPool().query(`SELECT COUNT(*) as total FROM position ${whereClause}`);
-    const total = parseInt(countResult.rows[0]?.total || '0', 10);
+    const total = Number.parseInt(countResult.rows[0]?.total || '0', 10);
 
     const result = await getPool().query(
       `SELECT * FROM position ${whereClause} ORDER BY createdat DESC LIMIT $1 OFFSET $2`,
@@ -102,10 +102,10 @@ const fetchProductForPosition = async (productId: string) => {
     name: row.productname,
     type: row.producttype,
     metal: row.metalname,
-    weight: parseFloat(row.fineweight) || 0,
+    weight: Number.parseFloat(row.fineweight) || 0,
     weightUnit: row.unitofmeasure,
-    purity: parseFloat(row.purity) || 0.999,
-    price: parseFloat(row.price) || 0,
+    purity: Number.parseFloat(row.purity) || 0.999,
+    price: Number.parseFloat(row.price) || 0,
     currency: row.currency,
     producer: row.producer,
     country: row.country || null,
@@ -146,7 +146,7 @@ const mapDatabaseRowToPosition = async (row: any) => {
         custodyServiceName: custodyRow.custodyservicename,
         custodianId: custodyRow.custodianid,
         custodianName: custodyRow.custodianname,
-        fee: parseFloat(custodyRow.fee) || 0,
+        fee: Number.parseFloat(custodyRow.fee) || 0,
         paymentFrequency: custodyRow.paymentfrequency
       };
     }
@@ -159,9 +159,9 @@ const mapDatabaseRowToPosition = async (row: any) => {
     portfolioId: row.portfolioid,
     product: product,
     purchaseDate: row.purchasedate || new Date(),
-    purchasePrice: parseFloat(row.purchaseprice) || 0,
-    marketPrice: parseFloat(row.marketprice) || 0,
-    quantity: parseFloat(row.quantity) || 0,
+    purchasePrice: Number.parseFloat(row.purchaseprice) || 0,
+    marketPrice: Number.parseFloat(row.marketprice) || 0,
+    quantity: Number.parseFloat(row.quantity) || 0,
     custodyServiceId: row.custodyserviceid || null,
     custody: custody,
     status: row.status || 'active',

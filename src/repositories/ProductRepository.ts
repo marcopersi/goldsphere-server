@@ -159,10 +159,10 @@ export class ProductRepository implements IProductRepository {
       name: row.name,
       productType: row.producttypename || row.productType,
       metal: row.metal_name || row.metal,
-      weight: parseFloat(row.weight),
+      weight: Number.parseFloat(row.weight),
       weightUnit: row.weightunit,
-      purity: parseFloat(row.purity),
-      price: parseFloat(row.price),
+      purity: Number.parseFloat(row.purity),
+      price: Number.parseFloat(row.price),
       currency: row.currency,
       producer: row.producername || row.producer,
       country: row.countryname || null,
@@ -173,7 +173,7 @@ export class ProductRepository implements IProductRepository {
       inStock: row.instock,
       stockQuantity: row.stockquantity,
       minimumOrderQuantity: row.minimumorderquantity,
-      premiumPercentage: row.premiumpercentage ? parseFloat(row.premiumpercentage) : null,
+      premiumPercentage: row.premiumpercentage ? Number.parseFloat(row.premiumpercentage) : null,
       createdAt: new Date(row.createdat),
       updatedAt: new Date(row.updatedat)
     };

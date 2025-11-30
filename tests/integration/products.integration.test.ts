@@ -241,7 +241,7 @@ describe('Products API', () => {
         fineWeight: 31.1035,
         unitOfMeasure: 'grams',
         purity: 0.9167,
-        price: 2150.50,
+        price: 2150,
         currency: 'CHF',
         productYear: 2024,
         description: 'Test gold bullion coin',

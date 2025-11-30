@@ -49,7 +49,7 @@ describe('Login last_login Integration Tests', () => {
 
     expect(afterLoginResult.rows.length).toBe(1);
     const lastLoginAfter = afterLoginResult.rows[0].last_login;
-    const secondsAgo = parseFloat(afterLoginResult.rows[0].seconds_ago);
+    const secondsAgo = Number.parseFloat(afterLoginResult.rows[0].seconds_ago);
 
     // Verify last_login was updated
     expect(lastLoginAfter).not.toBeNull();

@@ -12,8 +12,8 @@ const router = Router();
 router.get("/users", async (req: Request, res: Response) => {
   try {
     // Parse pagination parameters
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const page = Number.parseInt(req.query.page as string) || 1;
+    const limit = Math.min(Number.parseInt(req.query.limit as string) || 20, 100);
     const offset = (page - 1) * limit;
 
     const result = await getPool().query(
@@ -22,7 +22,7 @@ router.get("/users", async (req: Request, res: Response) => {
     );
     
     const countResult = await getPool().query("SELECT COUNT(*) FROM users");
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = Number.parseInt(countResult.rows[0].count);
     
     res.json({
       success: true,
@@ -214,7 +214,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
 
     // Check for referential integrity (orders, portfolios, etc.)
     const orderCheck = await getPool().query("SELECT COUNT(*) as count FROM orders WHERE userid = $1", [id]);
-    if (parseInt(orderCheck.rows[0].count) > 0) {
+    if (Number.parseInt(orderCheck.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
         error: "Cannot delete user with existing orders. Please remove orders first."
@@ -222,7 +222,7 @@ router.delete("/users/:id", async (req: Request, res: Response) => {
     }
 
     const portfolioCheck = await getPool().query("SELECT COUNT(*) as count FROM portfolio WHERE ownerid = $1", [id]);
-    if (parseInt(portfolioCheck.rows[0].count) > 0) {
+    if (Number.parseInt(portfolioCheck.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
         error: "Cannot delete user with existing portfolios. Please remove portfolios first."

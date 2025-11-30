@@ -119,7 +119,7 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       ${whereClause}
     `;
     const countResult = await getPool().query(countQuery, queryParams);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = Number.parseInt(countResult.rows[0].count);
     
     // Get paginated results with enhanced data
     const offset = (page - 1) * limit;
@@ -144,10 +144,10 @@ router.get("/custodyServices", async (req: Request, res: Response) => {
       custodianId: row.custodianid,
       custodianName: row.custodianname,
       serviceName: row.custodyservicename,
-      fee: parseFloat(row.fee),
+      fee: Number.parseFloat(row.fee),
       paymentFrequency: row.paymentfrequency,
       currency: row.currencycode,
-      maxWeight: row.maxweight ? parseFloat(row.maxweight) : null,
+      maxWeight: row.maxweight ? Number.parseFloat(row.maxweight) : null,
       createdAt: row.createdat ? row.createdat.toISOString() : new Date().toISOString(),
       updatedAt: row.updatedat ? row.updatedat.toISOString() : new Date().toISOString()
     }));
@@ -259,10 +259,10 @@ router.post("/custodyServices", async (req: Request, res: Response) => {
       custodianId: serviceResult.rows[0].custodianid,
       custodianName: serviceResult.rows[0].custodianname,
       serviceName: serviceResult.rows[0].custodyservicename,
-      fee: parseFloat(serviceResult.rows[0].fee),
+      fee: Number.parseFloat(serviceResult.rows[0].fee),
       paymentFrequency: serviceResult.rows[0].paymentfrequency,
       currency: serviceResult.rows[0].currency,
-      maxWeight: serviceResult.rows[0].maxweight ? parseFloat(serviceResult.rows[0].maxweight) : null,
+      maxWeight: serviceResult.rows[0].maxweight ? Number.parseFloat(serviceResult.rows[0].maxweight) : null,
       createdAt: serviceResult.rows[0].createdat,
       updatedAt: serviceResult.rows[0].updatedat
     };
@@ -421,7 +421,7 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
     }
     
     const updateQuery = `UPDATE custodyService SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
-    const result = await getPool().query(updateQuery, updateValues);
+    await getPool().query(updateQuery, updateValues);
     
     // Fetch the complete updated service data with joins
     const serviceResult = await getPool().query(`
@@ -439,10 +439,10 @@ router.put("/custodyServices/:id", async (req: Request, res: Response) => {
       custodianId: serviceResult.rows[0].custodianid,
       custodianName: serviceResult.rows[0].custodianname,
       serviceName: serviceResult.rows[0].custodyservicename,
-      fee: parseFloat(serviceResult.rows[0].fee),
+      fee: Number.parseFloat(serviceResult.rows[0].fee),
       paymentFrequency: serviceResult.rows[0].paymentfrequency,
       currency: serviceResult.rows[0].currency,
-      maxWeight: serviceResult.rows[0].maxweight ? parseFloat(serviceResult.rows[0].maxweight) : null,
+      maxWeight: serviceResult.rows[0].maxweight ? Number.parseFloat(serviceResult.rows[0].maxweight) : null,
       createdAt: serviceResult.rows[0].createdat,
       updatedAt: serviceResult.rows[0].updatedat
     };
@@ -489,7 +489,7 @@ router.delete("/custodyServices/:id", async (req: Request, res: Response) => {
     
     // Check for referential integrity - custody assignments
     const assignmentCheck = await getPool().query("SELECT COUNT(*) FROM custodyAssignment WHERE custodyServiceId = $1", [id]);
-    if (parseInt(assignmentCheck.rows[0].count) > 0) {
+    if (Number.parseInt(assignmentCheck.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
         error: "Cannot delete custody service - it has active custody assignments",
@@ -569,7 +569,7 @@ router.get("/custodyServices/default", async (req: Request, res: Response) => {
     `;
     
     const serviceCountResult = await getPool().query(serviceCountQuery, [custodianId]);
-    const serviceCount = parseInt(serviceCountResult.rows[0].service_count);
+    const serviceCount = Number.parseInt(serviceCountResult.rows[0].service_count);
 
     if (serviceCount === 0) {
       return res.status(500).json({
@@ -597,7 +597,7 @@ router.get("/custodyServices/default", async (req: Request, res: Response) => {
       custodyService: {
         id: row.custody_service_id,
         name: row.custody_service_name,
-        fee: parseFloat(row.custody_service_fee),
+        fee: Number.parseFloat(row.custody_service_fee),
         paymentFrequency: row.payment_frequency,
         currency: row.currency,
         createdAt: row.custody_service_created_at,
@@ -658,10 +658,10 @@ router.get("/custodyServices/:id", async (req: Request, res: Response) => {
       custodianId: row.custodianid,
       custodianName: row.custodianname,
       serviceName: row.custodyservicename,
-      fee: parseFloat(row.fee),
+      fee: Number.parseFloat(row.fee),
       paymentFrequency: row.paymentfrequency,
       currency: row.currency,
-      maxWeight: row.maxweight ? parseFloat(row.maxweight) : null,
+      maxWeight: row.maxweight ? Number.parseFloat(row.maxweight) : null,
       createdAt: row.createdat,
       updatedAt: row.updatedat
     };
@@ -747,10 +747,10 @@ router.get("/custodians-with-services", async (req: Request, res: Response) => {
         custodiansMap.get(custodianId).services.push({
           id: row.service_id,
           serviceName: row.service_name,
-          fee: parseFloat(row.service_fee),
+          fee: Number.parseFloat(row.service_fee),
           paymentFrequency: row.service_payment_frequency,
           currency: row.service_currency,
-          maxWeight: row.service_max_weight ? parseFloat(row.service_max_weight) : null,
+          maxWeight: row.service_max_weight ? Number.parseFloat(row.service_max_weight) : null,
           createdAt: row.service_created_at ? row.service_created_at.toISOString() : new Date().toISOString(),
           updatedAt: row.service_updated_at ? row.service_updated_at.toISOString() : new Date().toISOString()
         });

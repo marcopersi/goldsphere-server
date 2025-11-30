@@ -59,14 +59,14 @@ const UpdatePortfolioRequestSchema = z.object({
 // String transformation helpers
 const stringToNumber = z.string().optional().transform(val => {
   if (!val) return undefined;
-  const num = parseInt(val, 10);
-  return isNaN(num) ? undefined : num;
+  const num = Number.parseInt(val, 10);
+  return Number.isNaN(num) ? undefined : num;
 });
 
 const stringToFloat = z.string().optional().transform(val => {
   if (!val) return undefined;
-  const num = parseFloat(val);
-  return isNaN(num) ? undefined : num;
+  const num = Number.parseFloat(val);
+  return Number.isNaN(num) ? undefined : num;
 });
 
 const stringToBoolean = z.string().optional().transform(val => {
@@ -132,17 +132,17 @@ const calculateMetalBreakdown = async (portfolioId: string) => {
   result.rows.forEach((row: any) => {
     const metal = row.metal.toLowerCase() as keyof typeof breakdown;
     if (breakdown[metal]) {
-      const cost = parseFloat(row.total_cost) || 0;
-      const value = parseFloat(row.total_value) || 0;
+      const cost = Number.parseFloat(row.total_cost) || 0;
+      const value = Number.parseFloat(row.total_value) || 0;
       const gainLoss = value - cost;
       
       breakdown[metal] = {
         value,
         cost,
-        quantity: parseFloat(row.total_quantity) || 0,
+        quantity: Number.parseFloat(row.total_quantity) || 0,
         gainLoss,
         gainLossPercentage: cost > 0 ? (gainLoss / cost) * 100 : 0,
-        positionCount: parseInt(row.position_count) || 0
+        positionCount: Number.parseInt(row.position_count) || 0
       };
     }
   });
@@ -316,7 +316,7 @@ router.get('/portfolios', async (req: Request, res: Response) => {
     `;
 
     const countResult = await getPool().query(countQuery, values);
-    const total = parseInt(countResult.rows[0].total);
+    const total = Number.parseInt(countResult.rows[0].total);
 
     // Calculate pagination
     const offset = (page - 1) * limit;
@@ -368,11 +368,11 @@ router.get('/portfolios', async (req: Request, res: Response) => {
       ownerId: row.ownerid,
       description: row.description,
       isActive: row.isactive,
-      totalValue: parseFloat(row.total_value) || 0,
-      totalCost: parseFloat(row.total_cost) || 0,
-      totalGainLoss: parseFloat(row.total_gain_loss) || 0,
-      totalGainLossPercentage: parseFloat(row.total_gain_loss_percentage) || 0,
-      positionCount: parseInt(row.position_count) || 0,
+      totalValue: Number.parseFloat(row.total_value) || 0,
+      totalCost: Number.parseFloat(row.total_cost) || 0,
+      totalGainLoss: Number.parseFloat(row.total_gain_loss) || 0,
+      totalGainLossPercentage: Number.parseFloat(row.total_gain_loss_percentage) || 0,
+      positionCount: Number.parseInt(row.position_count) || 0,
       lastUpdated: row.last_updated,
       createdAt: row.createdat,
       updatedAt: row.updatedat
@@ -467,10 +467,10 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
                   name: productResult.rows[0].name,
                   type: productResult.rows[0].type,
                   metal: productResult.rows[0].metal,
-                  weight: parseFloat(productResult.rows[0].weight),
+                  weight: Number.parseFloat(productResult.rows[0].weight),
                   weightUnit: productResult.rows[0].weightunit,
-                  purity: parseFloat(productResult.rows[0].purity),
-                  price: parseFloat(productResult.rows[0].price),
+                  purity: Number.parseFloat(productResult.rows[0].purity),
+                  price: Number.parseFloat(productResult.rows[0].price),
                   currency: productResult.rows[0].currency,
                   producer: productResult.rows[0].producer,
                   country: productResult.rows[0].country,
@@ -490,14 +490,14 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
                   portfolioId: row.portfolioid,
                   product: product,
                   purchaseDate: row.purchasedate || new Date(),
-                  purchasePrice: parseFloat(row.purchaseprice),
-                  marketPrice: parseFloat(row.marketprice),
-                  quantity: parseFloat(row.quantity),
+                  purchasePrice: Number.parseFloat(row.purchaseprice),
+                  marketPrice: Number.parseFloat(row.marketprice),
+                  quantity: Number.parseFloat(row.quantity),
                   custodyServiceId: row.custodyserviceid || null,
                   custody: row.custody_service_id ? {
                     id: row.custody_service_id,
                     name: row.custody_service_name,
-                    fee: parseFloat(row.custody_service_fee),
+                    fee: Number.parseFloat(row.custody_service_fee),
                     paymentFrequency: row.custody_payment_frequency,
                     currency: row.custody_currency 
                   } : null,
@@ -631,11 +631,11 @@ router.get('/portfolios/:id', async (req: Request, res: Response) => {
       ownerId: row.ownerid,
       description: row.description,
       isActive: row.isactive,
-      totalValue: parseFloat(row.total_value) || 0,
-      totalCost: parseFloat(row.total_cost) || 0,
-      totalGainLoss: parseFloat(row.total_gain_loss) || 0,
-      totalGainLossPercentage: parseFloat(row.total_gain_loss_percentage) || 0,
-      positionCount: parseInt(row.position_count) || 0,
+      totalValue: Number.parseFloat(row.total_value) || 0,
+      totalCost: Number.parseFloat(row.total_cost) || 0,
+      totalGainLoss: Number.parseFloat(row.total_gain_loss) || 0,
+      totalGainLossPercentage: Number.parseFloat(row.total_gain_loss_percentage) || 0,
+      positionCount: Number.parseInt(row.position_count) || 0,
       lastUpdated: row.last_updated,
       createdAt: row.createdat,
       updatedAt: row.updatedat
@@ -968,8 +968,8 @@ router.put('/portfolios/:id', async (req: Request, res: Response) => {
     const analyticsResult = await getPool().query(analyticsQuery, [id]);
     const analytics = analyticsResult.rows[0] || { total_value: 0, total_cost: 0, position_count: 0 };
 
-    const totalValue = parseFloat(analytics.total_value) || 0;
-    const totalCost = parseFloat(analytics.total_cost) || 0;
+    const totalValue = Number.parseFloat(analytics.total_value) || 0;
+    const totalCost = Number.parseFloat(analytics.total_cost) || 0;
     const totalGainLoss = totalValue - totalCost;
 
     const portfolio: Portfolio = {
@@ -982,7 +982,7 @@ router.put('/portfolios/:id', async (req: Request, res: Response) => {
       totalCost,
       totalGainLoss,
       totalGainLossPercentage: totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0,
-      positionCount: parseInt(analytics.position_count) || 0,
+      positionCount: Number.parseInt(analytics.position_count) || 0,
       lastUpdated: updatedRow.updatedat,
       createdAt: updatedRow.createdat,
       updatedAt: updatedRow.updatedat
@@ -1042,7 +1042,7 @@ router.delete('/portfolios/:id', async (req: Request, res: Response) => {
     }
 
     const portfolio = portfolioResult.rows[0];
-    const positionCount = parseInt(portfolio.position_count) || 0;
+    const positionCount = Number.parseInt(portfolio.position_count) || 0;
 
     // Check if portfolio has positions - prevent deletion if it does
     if (positionCount > 0) {

@@ -7,21 +7,18 @@ let pool = new Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
   user: process.env.DB_USER,
-  password: String(process.env.DB_PASSWORD), // Ensure password is a string
+  password: String(process.env.DB_PASSWORD),
   database: process.env.DB_NAME,
-  // Add connection pool configuration for stability
-  max: 10, // Maximum number of connections in the pool
-  idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
-  connectionTimeoutMillis: 10000, // Maximum wait time for connection from pool
-  // CI environment optimizations
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
   ...(process.env.NODE_ENV === 'test' && {
-    max: 5, // Fewer connections in test environment
+    max: 5,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000,
   })
 });
 
-// Allow pool to be replaced for testing
 export const setPool = (newPool: Pool) => {
   pool = newPool;
 };

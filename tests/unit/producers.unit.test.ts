@@ -10,8 +10,8 @@ const ProducerUpdateRequestSchema = z.object({
 });
 
 const ProducersQuerySchema = z.object({
-  page: z.string().optional().transform(val => val ? Math.max(1, parseInt(val)) || 1 : 1),
-  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, parseInt(val))) || 20 : 20),
+  page: z.string().optional().transform(val => val ? Math.max(1, Number.parseInt(val)) || 1 : 1),
+  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, Number.parseInt(val))) || 20 : 20),
   search: z.string().optional(),
   sortBy: z.enum(['name', 'createdAt', 'updatedAt']).optional().default('name'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('asc')
@@ -65,13 +65,13 @@ describe('Producer Validation Unit Tests', () => {
         'Austrian Mint (Münze Österreich)'
       ];
 
-      names.forEach(name => {
+      for (const name of names) {
         const result = ProducerCreateRequestSchema.safeParse({ producerName: name });
         expect(result.success).toBe(true);
         if (result.success) {
           expect(result.data.producerName).toBe(name);
         }
-      });
+      }
     });
 
     it('should trim whitespace from producerName', () => {

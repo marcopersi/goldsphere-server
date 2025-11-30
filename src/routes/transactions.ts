@@ -7,16 +7,16 @@ import { z } from "zod";
 
 // Transaction query parameters schema
 const TransactionQueryParamsSchema = z.object({
-  page: z.string().optional().transform(val => Math.max(1, parseInt(val || '1', 10))),
-  limit: z.string().optional().transform(val => Math.min(100, Math.max(1, parseInt(val || '50', 10)))),
+  page: z.string().optional().transform(val => Math.max(1, Number.parseInt(val || '1', 10))),
+  limit: z.string().optional().transform(val => Math.min(100, Math.max(1, Number.parseInt(val || '50', 10)))),
   type: z.enum(['buy', 'sell']).optional(),
   positionId: z.string().uuid({ message: 'Invalid position ID format' }).optional(),
   dateFrom: z.string().datetime({ message: 'Invalid date format' }).optional(),
   dateTo: z.string().datetime({ message: 'Invalid date format' }).optional(),
-  minQuantity: z.string().optional().transform(val => val ? parseFloat(val) : undefined),
-  maxQuantity: z.string().optional().transform(val => val ? parseFloat(val) : undefined),
-  minPrice: z.string().optional().transform(val => val ? parseFloat(val) : undefined),
-  maxPrice: z.string().optional().transform(val => val ? parseFloat(val) : undefined),
+  minQuantity: z.string().optional().transform(val => val ? Number.parseFloat(val) : undefined),
+  maxQuantity: z.string().optional().transform(val => val ? Number.parseFloat(val) : undefined),
+  minPrice: z.string().optional().transform(val => val ? Number.parseFloat(val) : undefined),
+  maxPrice: z.string().optional().transform(val => val ? Number.parseFloat(val) : undefined),
   sortBy: z.enum(['date', 'quantity', 'price', 'total', 'createdAt']).default('date'),
   sortOrder: z.enum(['asc', 'desc']).default('desc')
 });
@@ -146,7 +146,7 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
     `;
     
     const countResult = await getPool().query(countQuery, queryParams);
-    const total = parseInt(countResult.rows[0].total);
+    const total = Number.parseInt(countResult.rows[0].total);
 
     // Validate sort column to prevent SQL injection
     const validSortColumns: Record<string, string> = {
@@ -197,12 +197,12 @@ router.get("/transactions", async (req: Request, res: Response): Promise<void> =
       userId: row.userid,
       type: row.type,
       date: row.date,
-      quantity: parseFloat(row.quantity) || 0,
-      price: parseFloat(row.price) || 0,
-      fees: parseFloat(row.fees) || 0,
+      quantity: Number.parseFloat(row.quantity) || 0,
+      price: Number.parseFloat(row.price) || 0,
+      fees: Number.parseFloat(row.fees) || 0,
       notes: row.notes,
       createdAt: row.createdat,
-      total: parseFloat(row.total) || 0,
+      total: Number.parseFloat(row.total) || 0,
       productName: row.name || 'Unknown Product'
     }));
 
@@ -325,7 +325,7 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
         [positionId]
       );
       
-      const currentQuantity = parseFloat(positionQuantityResult.rows[0]?.quantity || 0);
+      const currentQuantity = Number.parseFloat(positionQuantityResult.rows[0]?.quantity || 0);
       
       if (currentQuantity < quantity) {
         res.status(400).json({
@@ -377,19 +377,19 @@ router.post("/transactions", async (req: Request, res: Response): Promise<void> 
         productInfo: product.productname ? {
           productId: product.id,
           productName: product.productname,
-          currentPrice: parseFloat(product.currentprice) || 0,
+          currentPrice: Number.parseFloat(product.currentprice) || 0,
           type: product.type,
           metal: product.metal,
-          weight: parseFloat(product.weight) || 0
+          weight: Number.parseFloat(product.weight) || 0
         } : undefined,
         summary: {
           transactionValue: transactionTotal,
           feesPercentage: price > 0 ? (fees / (quantity * price)) * 100 : 0,
           priceComparison: product.currentprice ? {
-            currentMarketPrice: parseFloat(product.currentprice),
-            priceDifference: price - parseFloat(product.currentprice),
-            priceChangePercent: parseFloat(product.currentprice) > 0 ? 
-              ((price - parseFloat(product.currentprice)) / parseFloat(product.currentprice)) * 100 : 0
+            currentMarketPrice: Number.parseFloat(product.currentprice),
+            priceDifference: price - Number.parseFloat(product.currentprice),
+            priceChangePercent: Number.parseFloat(product.currentprice) > 0 ? 
+              ((price - Number.parseFloat(product.currentprice)) / Number.parseFloat(product.currentprice)) * 100 : 0
           } : undefined
         }
       },
@@ -484,17 +484,17 @@ router.get("/transactions/:id", async (req: Request, res: Response): Promise<voi
       userId: row.userid,
       type: row.type,
       date: row.date,
-      quantity: parseFloat(row.quantity) || 0,
-      price: parseFloat(row.price) || 0,
-      fees: parseFloat(row.fees) || 0,
+      quantity: Number.parseFloat(row.quantity) || 0,
+      price: Number.parseFloat(row.price) || 0,
+      fees: Number.parseFloat(row.fees) || 0,
       notes: row.notes,
       createdAt: row.createdat
     };
 
     // Calculate enhanced metrics
     const transactionTotal = transaction.quantity * transaction.price + transaction.fees;
-    const currentMarketValue = (parseFloat(row.currentmarketprice) || 0) * transaction.quantity;
-    const positionPurchaseValue = (parseFloat(row.positionpurchaseprice) || 0) * transaction.quantity;
+    const currentMarketValue = (Number.parseFloat(row.currentmarketprice) || 0) * transaction.quantity;
+    const positionPurchaseValue = (Number.parseFloat(row.positionpurchaseprice) || 0) * transaction.quantity;
 
     // Build comprehensive response with enriched data
     const enrichedResponse = {
@@ -503,18 +503,18 @@ router.get("/transactions/:id", async (req: Request, res: Response): Promise<voi
       position: row.productid ? {
         productId: row.productid,
         purchaseDate: row.positionpurchasedate,
-        purchasePrice: parseFloat(row.positionpurchaseprice) || 0,
-        currentQuantity: parseFloat(row.positionquantity) || 0
+        purchasePrice: Number.parseFloat(row.positionpurchaseprice) || 0,
+        currentQuantity: Number.parseFloat(row.positionquantity) || 0
       } : undefined,
       product: row.productname ? {
         productId: row.productid,
         productName: row.productname,
         type: row.producttype,
         metal: row.metal,
-        weight: parseFloat(row.productweight) || 0,
+        weight: Number.parseFloat(row.productweight) || 0,
         weightUnit: row.unitofmeasure,
-        purity: parseFloat(row.purity) || 0,
-        currentMarketPrice: parseFloat(row.currentmarketprice) || 0,
+        purity: Number.parseFloat(row.purity) || 0,
+        currentMarketPrice: Number.parseFloat(row.currentmarketprice) || 0,
         currency: row.productcurrency,
         producer: row.producer
       } : undefined,

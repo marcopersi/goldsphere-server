@@ -61,10 +61,10 @@ const fetchProductForPosition = async (productId: string) => {
     metalId: row.metalid,
     producer: row.producer,
     producerId: row.producerid,
-    weight: parseFloat(row.fineweight) || 0,
+    weight: Number.parseFloat(row.fineweight) || 0,
     weightUnit: row.unitofmeasure,
-    purity: parseFloat(row.purity) || 0.999,
-    price: parseFloat(row.price) || 0,
+    purity: Number.parseFloat(row.purity) || 0.999,
+    price: Number.parseFloat(row.price) || 0,
     currency: row.currency,
     country: row.country || undefined,
     year: row.productyear || undefined,
@@ -101,7 +101,7 @@ const mapRowToPosition = async (row: any) => {
         custodyServiceName: custodyRow.custodyservicename,
         custodianId: custodyRow.custodianid,
         custodianName: custodyRow.custodianname,
-        fee: parseFloat(custodyRow.fee) || 0,
+        fee: Number.parseFloat(custodyRow.fee) || 0,
         paymentFrequency: custodyRow.paymentfrequency
       };
     }
@@ -113,9 +113,9 @@ const mapRowToPosition = async (row: any) => {
     portfolioId: row.portfolioid,
     product: product,
     purchaseDate: row.purchasedate || new Date(),
-    purchasePrice: parseFloat(row.purchaseprice) || 0,
-    marketPrice: parseFloat(row.marketprice) || 0,
-    quantity: parseFloat(row.quantity) || 0,
+    purchasePrice: Number.parseFloat(row.purchaseprice) || 0,
+    marketPrice: Number.parseFloat(row.marketprice) || 0,
+    quantity: Number.parseFloat(row.quantity) || 0,
     custodyServiceId: row.custodyserviceid || undefined,
     custody: custody || undefined,
     status: row.status || 'active',
@@ -193,18 +193,18 @@ export class PortfolioService implements IPortfolioService {
       getPool().query(countQuery, params)
     ]);
 
-    const total = parseInt(countResult.rows[0]?.count || '0', 10);
+    const total = Number.parseInt(countResult.rows[0]?.count || '0', 10);
     const portfolios: PortfolioSummary[] = dataResult.rows.map((row: any) => ({
       id: row.id,
       portfolioName: row.portfolioname,
       ownerId: row.ownerid,
       description: row.description,
       isActive: row.isactive,
-      totalValue: parseFloat(row.total_value) || 0,
-      totalCost: parseFloat(row.total_cost) || 0,
-      totalGainLoss: parseFloat(row.total_gain_loss) || 0,
-      totalGainLossPercentage: parseFloat(row.total_gain_loss_percentage) || 0,
-      positionCount: parseInt(row.position_count) || 0,
+      totalValue: Number.parseFloat(row.total_value) || 0,
+      totalCost: Number.parseFloat(row.total_cost) || 0,
+      totalGainLoss: Number.parseFloat(row.total_gain_loss) || 0,
+      totalGainLossPercentage: Number.parseFloat(row.total_gain_loss_percentage) || 0,
+      positionCount: Number.parseInt(row.position_count) || 0,
       lastUpdated: row.last_updated,
       createdAt: row.createdat,
       updatedAt: row.updatedat
@@ -265,11 +265,11 @@ export class PortfolioService implements IPortfolioService {
       ownerId: row.ownerid,
       description: row.description,
       isActive: row.isactive,
-      totalValue: parseFloat(row.total_value) || 0,
-      totalCost: parseFloat(row.total_cost) || 0,
-      totalGainLoss: parseFloat(row.total_gain_loss) || 0,
-      totalGainLossPercentage: parseFloat(row.total_gain_loss_percentage) || 0,
-      positionCount: parseInt(row.position_count) || 0,
+      totalValue: Number.parseFloat(row.total_value) || 0,
+      totalCost: Number.parseFloat(row.total_cost) || 0,
+      totalGainLoss: Number.parseFloat(row.total_gain_loss) || 0,
+      totalGainLossPercentage: Number.parseFloat(row.total_gain_loss_percentage) || 0,
+      positionCount: Number.parseInt(row.position_count) || 0,
       lastUpdated: row.last_updated,
       createdAt: row.createdat,
       updatedAt: row.updatedat

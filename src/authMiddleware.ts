@@ -16,7 +16,7 @@ export default async function authMiddleware(req: Request, res: Response, next: 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     
-    // SECURITY FIX: Verify user exists in database and role is current
+    // Verify user exists in database and role is current
     const dbUser = await verifyUserInDatabase(decoded.id, decoded.role);
     if (!dbUser) {
       res.status(401).json({ 
@@ -38,7 +38,6 @@ export default async function authMiddleware(req: Request, res: Response, next: 
     (req as any).user = {
       id: dbUser.id,
       email: dbUser.email,
-      userName: dbUser.username,
       role: dbUser.role
     };
     next();
@@ -64,13 +63,9 @@ export default async function authMiddleware(req: Request, res: Response, next: 
   }
 }
 
-/**
- * Verify that the user exists in the database and return current user data
- */
 async function verifyUserInDatabase(userId: string, _expectedRole: string): Promise<{
   id: string;
   email: string;
-  username: string;
   role: string;
 } | null> {
   try {
@@ -80,23 +75,19 @@ async function verifyUserInDatabase(userId: string, _expectedRole: string): Prom
     );
     
     if (result.rows.length === 0) {
-      return null; // User not found
+      return null;
     }
 
     const user = result.rows[0];
-    
-    // Determine role (this matches the logic from login endpoint)
     const userRole = user.email.includes('admin') ? 'admin' : 'user';
     
     return {
       id: user.id,
       email: user.email,
-      username: user.username,
       role: userRole
     };
   } catch (error) {
     console.error('Database user verification error:', error);
-    // Return null instead of throwing - treat DB errors as "user not found"
     return null;
   }
 }
