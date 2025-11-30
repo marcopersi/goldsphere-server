@@ -19,8 +19,9 @@ const userRepository = new UserRepository();
 const passwordService = new PasswordService();
 const tokenService = new TokenService(process.env.JWT_SECRET || 'fallback-secret');
 const emailService = new EmailService(
-  process.env.EMAIL_FROM || 'noreply@goldsphere.vault',
-  process.env.APP_BASE_URL || 'http://localhost:8888'
+  process.env.APP_BASE_URL || 'http://localhost:8888',
+  undefined, // Use default transporter
+  process.env.EMAIL_FROM || 'noreply@goldsphere.vault'
 );
 const registrationService = new UserRegistrationService(
   userRepository,

@@ -2,19 +2,49 @@
  * Email Service Implementation
  * 
  * Handles email sending for user verification and notifications.
- * This is a placeholder implementation - in production, you would
- * integrate with a service like SendGrid, AWS SES, or similar.
+ * Uses nodemailer with Gmail SMTP for sending emails.
  */
 
+import nodemailer from 'nodemailer';
 import { IEmailService } from '../interfaces/IUserRegistrationService';
+
+export interface EmailConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
 
 export class EmailService implements IEmailService {
   private readonly baseUrl: string;
   private readonly fromEmail: string;
+  private readonly transporter: nodemailer.Transporter;
 
-  constructor(baseUrl: string, fromEmail = 'noreply@goldsphere.com') {
+  constructor(
+    baseUrl: string,
+    transporter?: nodemailer.Transporter,
+    fromEmail = 'noreply@goldsphere.com'
+  ) {
     this.baseUrl = baseUrl;
     this.fromEmail = fromEmail;
+    
+    // Dependency injection: use provided transporter or create default
+    this.transporter = transporter || this.createDefaultTransporter();
+  }
+
+  private createDefaultTransporter(): nodemailer.Transporter {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number.parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASSWORD || ''
+      }
+    });
   }
 
   async sendEmailVerification(
@@ -23,29 +53,23 @@ export class EmailService implements IEmailService {
     userInfo: { firstName: string; lastName: string }
   ): Promise<void> {
     try {
-      // In production, integrate with actual email service
-      // For now, we'll log the email that would be sent
       const verificationUrl = `${this.baseUrl}/api/auth/verify-email?token=${token}`;
       
-      const emailContent = {
-        to: email,
+      const mailOptions = {
         from: this.fromEmail,
+        to: email,
         subject: 'Verify your GoldSphere account',
         html: this.generateVerificationEmailHtml(userInfo.firstName, verificationUrl),
         text: this.generateVerificationEmailText(userInfo.firstName, verificationUrl),
       };
 
-      // TODO: Replace with actual email service integration
-      console.log('📧 Email would be sent:', {
-        to: emailContent.to,
-        subject: emailContent.subject,
-        verificationUrl,
+      // Send email using nodemailer
+      const info = await this.transporter.sendMail(mailOptions);
+      
+      console.log(`✅ Email verification sent to ${email}`, {
+        messageId: info.messageId,
+        verificationUrl
       });
-
-      // Simulate email sending delay
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      console.log(`✅ Email verification sent to ${email}`);
     } catch (error) {
       console.error('Error sending email verification:', error);
       throw new Error('Failed to send verification email');
@@ -131,5 +155,19 @@ The GoldSphere Team
 © 2025 GoldSphere. All rights reserved.
 This is an automated message, please do not reply to this email.
     `.trim();
+  }
+
+  /**
+   * Test email configuration
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      await this.transporter.verify();
+      console.log('✅ Email service connection verified successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Email service connection failed:', error);
+      return false;
+    }
   }
 }
