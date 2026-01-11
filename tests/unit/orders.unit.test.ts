@@ -52,7 +52,7 @@ describe('Orders Unit Tests', () => {
       expect(validOrder.type).toBe(OrderType.BUY);
       expect(validOrder.status).toBe(OrderStatus.PENDING);
       expect(validOrder.items).toHaveLength(1);
-      expect(validOrder.totalAmount).toBe(4320.00);
+      expect(validOrder.totalAmount).toBe(4320);
       expect(validOrder.currency).toBe(CurrencyEnum.CHF.isoCode3);
     });
 
@@ -70,29 +70,29 @@ describe('Orders Unit Tests', () => {
             productId: 'prod-123',
             productName: 'Gold Coin',
             quantity: 2,
-            unitPrice: 2000.00,
-            totalPrice: 4000.00,
+            unitPrice: 2000,
+            totalPrice: 4000,
           },
           {
             id: 'item-789',
             productId: 'prod-456',
             productName: 'Silver Bar',
             quantity: 1,
-            unitPrice: 500.00,
-            totalPrice: 500.00,
+            unitPrice: 500,
+            totalPrice: 500,
           }
         ],
-        subtotal: 4500.00,
-        taxes: 360.00,
-        totalAmount: 4860.00,
+        subtotal: 4500,
+        taxes: 360,
+        totalAmount: 4860,
         currency: CurrencyEnum.CHF.isoCode3,
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
       expect(anotherValidOrder.items).toHaveLength(2);
-      expect(anotherValidOrder.subtotal).toBe(4500.00);
-      expect(anotherValidOrder.totalAmount).toBe(4860.00);
+      expect(anotherValidOrder.subtotal).toBe(4500);
+      expect(anotherValidOrder.totalAmount).toBe(4860);
     });
   });
 
@@ -138,12 +138,12 @@ describe('Orders Unit Tests', () => {
         return subtotal + totalFees + taxes;
       };
 
-      const subtotal = 4000.00;
-      const fees = { processing: 50.00, shipping: 25.00, insurance: 15.00 };
-      const taxes = 320.00;
+      const subtotal = 4000;
+      const fees = { processing: 50, shipping: 25, insurance: 15 };
+      const taxes = 320;
       
       const total = calculateOrderTotal(subtotal, fees, taxes);
-      expect(total).toBe(4410.00);
+      expect(total).toBe(4410);
     });
 
     it('should handle zero fees and taxes', () => {
@@ -156,12 +156,12 @@ describe('Orders Unit Tests', () => {
         return subtotal + totalFees + taxes;
       };
 
-      const subtotal = 1000.00;
+      const subtotal = 1000;
       const fees = { processing: 0, shipping: 0, insurance: 0 };
       const taxes = 0;
       
       const total = calculateOrderTotal(subtotal, fees, taxes);
-      expect(total).toBe(1000.00);
+      expect(total).toBe(1000);
     });
   });
 

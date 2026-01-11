@@ -20,6 +20,9 @@ import adminRoutes from "./routes/admin";
 import registrationRoutes from "./routes/registration";
 import authMiddleware from "./authMiddleware";
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
+import { requestMetadataMiddleware } from "./middleware/responseMetadata";
+import { RateLimitPresets } from "./middleware/rateLimiter";
+import { etagMiddleware } from "./middleware/etag";
 
 // Load environment variables first
 dotenv.config();
@@ -46,6 +49,12 @@ export function createApp() {
   // Use raw body middleware for webhook endpoints before JSON parsing
   app.use(rawBodyMiddleware);
   app.use(express.json({ limit: "5mb" }));
+
+  // Add request metadata middleware (adds requestId, timestamp, executionTime)
+  app.use(requestMetadataMiddleware);
+
+  // Add ETag middleware for HTTP caching (GET requests only)
+  app.use(etagMiddleware);
 
   // Login endpoint with database authentication
   app.post("/api/auth/login", async (req: any, res: any) => {
@@ -190,17 +199,9 @@ components:
 paths: {}`);
   });
 
-  // Rate limiting middleware
-  const rateLimit = (req: any, res: any, next: any) => {
-    // Simple in-memory rate limiting (not production-ready)
-    const ip = req.ip || req.connection.remoteAddress;
-    if (!ip) return next();
-    
-    // For testing, allow all requests to pass
-    next();
-  };
-
-  app.use(rateLimit);
+  // Rate limiting middleware with headers
+  // Apply generous rate limit globally (300 req/15min)
+  app.use(RateLimitPresets.readOnly);
 
   // Mount all route modules
   app.use("/api/portfolios", portfolioRoutes);

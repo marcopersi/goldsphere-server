@@ -9,14 +9,14 @@ import {
   validateConfirmPayment,
   validateListPaymentMethods
 } from '@marcopersi/shared';
-import { PaymentService } from '../services/PaymentService';
+import { PaymentServiceFactory, IPaymentService } from '../services/payment';
 import { z } from 'zod';
 
 export class PaymentController {
-  private readonly paymentService: PaymentService;
+  private readonly paymentService: IPaymentService;
 
   constructor() {
-    this.paymentService = new PaymentService();
+    this.paymentService = PaymentServiceFactory.create();
   }
 
   /**

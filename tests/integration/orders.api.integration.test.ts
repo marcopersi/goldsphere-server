@@ -1,14 +1,24 @@
 import request from "supertest";
-import app from "../../src/app";
 import { getPool } from "../../src/dbConfig";
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
+let app: any;
+
 describe("Orders API", () => {
   let authToken: string;
+  // Shared test products for ALL order tests (created once, used by all)
+  let sharedTestProductId: string;
+  let sharedTestProductId2: string;
+  let testProductTypeId: string;
+  let testMetalId: string;
+  let testProducerId: string;
 
   beforeAll(async () => {
     // Setup fresh test database with complete schema and data
     await setupTestDatabase();
+    
+    // Import app AFTER database setup to ensure pool replacement takes effect  
+    app = (await import('../../src/app')).default;
     
     // Wait for app to initialize
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -26,9 +36,73 @@ describe("Orders API", () => {
     } else {
       throw new Error(`Auth failed: ${loginResponse.status} ${JSON.stringify(loginResponse.body)}`);
     }
+    
+    // Create shared test products for ALL order tests
+    const pool = getPool();
+    
+    // Get reference IDs
+    const productTypeResult = await pool.query("SELECT id FROM productType WHERE productTypeName = 'Coin' LIMIT 1");
+    const metalResult = await pool.query("SELECT id FROM metal WHERE name = 'Gold' LIMIT 1");
+    const producerResult = await pool.query("SELECT id FROM producer WHERE producerName = 'United States Mint' LIMIT 1");
+    
+    if (!productTypeResult.rows[0] || !metalResult.rows[0] || !producerResult.rows[0]) {
+      console.error('Missing reference data!');
+      console.error('ProductType:', productTypeResult.rows);
+      console.error('Metal:', metalResult.rows);
+      console.error('Producer:', producerResult.rows);
+      throw new Error('Reference data not found for test product creation');
+    }
+    
+    testProductTypeId = productTypeResult.rows[0].id;
+    testMetalId = metalResult.rows[0].id;
+    testProducerId = producerResult.rows[0].id;
+    
+    // Create two test products
+    const product1 = await pool.query(`
+      INSERT INTO product (name, producttypeid, metalid, producerid, weight, weightunit, purity, price, currency, instock, stockquantity)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
+    `, [
+      `TEST_ORDER_PRODUCT_1_${Date.now()}`,
+      testProductTypeId,
+      testMetalId,
+      testProducerId,
+      31.1035,
+      'grams',
+      0.9999,
+      1500.00,
+      'USD',
+      true,
+      100
+    ]);
+    sharedTestProductId = product1.rows[0].id;
+    
+    const product2 = await pool.query(`
+      INSERT INTO product (name, producttypeid, metalid, producerid, weight, weightunit, purity, price, currency, instock, stockquantity)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
+    `, [
+      `TEST_ORDER_PRODUCT_2_${Date.now()}`,
+      testProductTypeId,
+      testMetalId,
+      testProducerId,
+      31.1035,
+      'grams',
+      0.9999,
+      1600.00,
+      'USD',
+      true,
+      100
+    ]);
+    sharedTestProductId2 = product2.rows[0].id;
   });
 
   afterAll(async () => {
+    // Clean up test products
+    const pool = getPool();
+    if (sharedTestProductId) await pool.query('DELETE FROM product WHERE id = $1', [sharedTestProductId]);
+    if (sharedTestProductId2) await pool.query('DELETE FROM product WHERE id = $1', [sharedTestProductId2]);
+    
     // Clean up test database
     await teardownTestDatabase();
   });
@@ -201,100 +275,184 @@ describe("Orders API", () => {
   });
 
   describe("POST /api/orders/process/:id", () => {
-    let processOrderId: string;
-    let testUserId: string;
-    let testProductId: string;
-
-    beforeAll(async () => {
-      // Use existing admin user from SQL files - no need to create new user
-      const adminResult = await getPool().query('SELECT id FROM users WHERE email = $1', ['admin@goldsphere.vault']);
-      testUserId = adminResult.rows[0].id;
-
-      // Get existing product from sample data
-      const productResult = await getPool().query('SELECT id FROM product LIMIT 1');
-      testProductId = productResult.rows[0].id;
-
-      // Create order for processing tests
-      const orderInput = {
-        userId: testUserId,
-        type: 'buy',
-        items: [{ productId: testProductId, quantity: 2 }]
-      };
-
-      const response = await request(app)
-        .post('/api/orders')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(orderInput);
-      
-      if (response.status !== 201) {
-        console.error('Order creation failed:', response.status, response.body);
-        throw new Error(`Failed to create test order: ${response.status}`);
-      }
-      
-      processOrderId = response.body.data.id;
-    });
-
     it('should process order from pending to confirmed', async () => {
-      const response = await request(app)
-        .post(`/api/orders/${processOrderId}/process`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({});
+      let processOrderId: string | null = null;
+      let testUserId: string | null = null;
+      let testProductId: string | null = null;
+      const pool = getPool();
+      
+      try {
+        // SETUP: Get admin user
+        const adminResult = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@goldsphere.vault']);
+        testUserId = adminResult.rows[0].id;
 
-      if (response.status !== 200) {
-        console.error('Order processing failed:', response.status, response.body);
+        // Use shared test product
+        testProductId = sharedTestProductId;
+
+        // Create order for processing test
+        const orderInput = {
+          userId: testUserId,
+          type: 'buy',
+          items: [{ productId: testProductId, quantity: 2 }]
+        };
+
+        const createResponse = await request(app)
+          .post('/api/orders')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(orderInput);
+        
+        expect(createResponse.status).toBe(201);
+        processOrderId = createResponse.body.data.id;
+        
+        // TEST: Process order from pending to confirmed
+        const response = await request(app)
+          .post(`/api/orders/${processOrderId}/process`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send({});
+
+        expect(response.status).toBe(200);
+        expect(response.body.data).toMatchObject({ id: processOrderId, status: 'confirmed' });
+      } finally {
+        // TEARDOWN: Clean up order, positions, transactions
+        if (processOrderId) {
+          await pool.query('DELETE FROM order_items WHERE orderid = $1', [processOrderId]);
+          await pool.query('DELETE FROM orders WHERE id = $1', [processOrderId]);
+        }
+        if (testUserId) {
+          await pool.query('DELETE FROM transactions WHERE userid = $1', [testUserId]);
+          await pool.query('DELETE FROM position WHERE userid = $1', [testUserId]);
+          await pool.query('DELETE FROM portfolio WHERE ownerid = $1', [testUserId]);
+        }
       }
-
-      expect(response.status).toBe(200);
-      expect(response.body.data).toMatchObject({ id: processOrderId, status: 'confirmed' });
     });
 
-    it('should process order from confirmed to processing to shipped', async () => {
-      // Move to processing  
-      await request(app)
-        .post(`/api/orders/${processOrderId}/process`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({})
-        .expect(200);
+    it('should process order through full workflow: confirmed → processing → shipped', async () => {
+      let processOrderId: string | null = null;
+      let testUserId: string | null = null;
+      let testProductId: string | null = null;
+      const pool = getPool();
+      
+      try {
+        // SETUP
+        const adminResult = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@goldsphere.vault']);
+        testUserId = adminResult.rows[0].id;
 
-      // Finally move to shipped
-      const response = await request(app)
-        .post(`/api/orders/${processOrderId}/process`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({})
-        .expect(200);
+        const productResult = await pool.query('SELECT id FROM product LIMIT 1');
+        testProductId = productResult.rows[0].id;
 
-      expect(response.body.data.status).toBe('shipped');
+        const orderInput = {
+          userId: testUserId,
+          type: 'buy',
+          items: [{ productId: testProductId, quantity: 2 }]
+        };
+
+        const createResponse = await request(app)
+          .post('/api/orders')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(orderInput);
+        
+        expect(createResponse.status).toBe(201);
+        processOrderId = createResponse.body.data.id;
+        
+        // TEST: Process through multiple stages
+        // pending → confirmed
+        await request(app)
+          .post(`/api/orders/${processOrderId}/process`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send({})
+          .expect(200);
+        
+        // confirmed → processing
+        await request(app)
+          .post(`/api/orders/${processOrderId}/process`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send({})
+          .expect(200);
+
+        // processing → shipped
+        const response = await request(app)
+          .post(`/api/orders/${processOrderId}/process`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send({})
+          .expect(200);
+
+        expect(response.body.data.status).toBe('shipped');
+      } finally {
+        // TEARDOWN
+        if (processOrderId) {
+          await pool.query('DELETE FROM order_items WHERE orderid = $1', [processOrderId]);
+          await pool.query('DELETE FROM orders WHERE id = $1', [processOrderId]);
+        }
+        if (testUserId) {
+          await pool.query('DELETE FROM transactions WHERE userid = $1', [testUserId]);
+          await pool.query('DELETE FROM position WHERE userid = $1', [testUserId]);
+          await pool.query('DELETE FROM portfolio WHERE ownerid = $1', [testUserId]);
+        }
+      }
     });
 
     it('should process order to delivered and create positions', async () => {
-      // Final move to delivered
-      const response = await request(app)
-        .post(`/api/orders/${processOrderId}/process`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({})
-        .expect(200);
-
-      expect(response.body.data.status).toBe('delivered');
-
-      // Verify positions were created
-      const positionsResult = await getPool().query(
-        'SELECT * FROM position WHERE userId = $1',
-        [testUserId]
-      );
+      let processOrderId: string | null = null;
+      let testUserId: string | null = null;
+      let testProductId: string | null = null;
+      const pool = getPool();
       
-      expect(positionsResult.rows.length).toBeGreaterThan(0);
-      
-      // Find our test position
-      const testPosition = positionsResult.rows.find(
-        (pos: any) => pos.productid === testProductId
-      );
-      expect(testPosition).toBeDefined();
-      expect(Number.parseFloat(testPosition.quantity)).toBe(2);
+      try {
+        // SETUP
+        const adminResult = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@goldsphere.vault']);
+        testUserId = adminResult.rows[0].id;
 
-      // Cleanup
-      await getPool().query('DELETE FROM position WHERE userId = $1', [testUserId]);
-      await getPool().query('DELETE FROM orders WHERE id = $1', [processOrderId]);
-      // Don't delete admin user - it's from SQL files
+        // Use shared test product
+        testProductId = sharedTestProductId;
+
+        const orderInput = {
+          userId: testUserId,
+          type: 'buy',
+          items: [{ productId: testProductId, quantity: 2 }]
+        };
+
+        const createResponse = await request(app)
+          .post('/api/orders')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(orderInput);
+        
+        expect(createResponse.status).toBe(201);
+        processOrderId = createResponse.body.data.id;
+        
+        // TEST: Process to delivered (all stages)
+        const stages = ['confirmed', 'processing', 'shipped', 'delivered'];
+        
+        for (const expectedStatus of stages) {
+          const processResponse = await request(app)
+            .post(`/api/orders/${processOrderId}/process`)
+            .set('Authorization', `Bearer ${authToken}`)
+            .send({});
+          
+          expect(processResponse.status).toBe(200);
+          expect(processResponse.body.data.status).toBe(expectedStatus);
+        }
+
+        // Verify positions were created
+        const positionsResult = await pool.query(
+          'SELECT * FROM position WHERE userid = $1 AND productid = $2',
+          [testUserId, testProductId]
+        );
+        
+        expect(positionsResult.rows.length).toBeGreaterThan(0);
+        const testPosition = positionsResult.rows[0];
+        expect(Number.parseFloat(testPosition.quantity)).toBe(2);
+      } finally {
+        // TEARDOWN
+        if (processOrderId) {
+          await pool.query('DELETE FROM order_items WHERE orderid = $1', [processOrderId]);
+          await pool.query('DELETE FROM orders WHERE id = $1', [processOrderId]);
+        }
+        if (testUserId) {
+          await pool.query('DELETE FROM transactions WHERE userid = $1', [testUserId]);
+          await pool.query('DELETE FROM position WHERE userid = $1', [testUserId]);
+          await pool.query('DELETE FROM portfolio WHERE ownerid = $1', [testUserId]);
+        }
+      }
     });
 
     it('should return 404 for non-existent order', async () => {
@@ -312,34 +470,28 @@ describe("Orders API", () => {
   describe("Buy-Sell Order Flow Integration", () => {
     let testUserId: string;
     let testProductId: string;
-    let testProductId2: string; // Second product for autonomous sell test
+    let testProductId2: string;
+    let testProductTypeId: string;
+    let testMetalId: string;
+    let testProducerId: string;
     let buyOrderId: string;
     let sellOrderId: string;
     let portfolioId: string;
 
     beforeAll(async () => {
-      // Use existing admin user from SQL files - no need to create new user
-      const adminResult = await getPool().query('SELECT id FROM users WHERE email = $1', ['admin@goldsphere.vault']);
+      const pool = getPool();
+      
+      // Use existing admin user from SQL files
+      const adminResult = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@goldsphere.vault']);
       testUserId = adminResult.rows[0].id;
       
-      // Get a test product ID from the database
-      const productResult = await getPool().query(
-        'SELECT id FROM product LIMIT 1'
-      );
-      if (productResult.rows.length === 0) {
-        throw new Error('No products found in database for testing');
-      }
-      testProductId = productResult.rows[0].id;
-
-      // Get a second test product ID for autonomous sell test  
-      const productResult2 = await getPool().query(
-        'SELECT id FROM product WHERE id != $1 LIMIT 1',
-        [testProductId]
-      );
-      if (productResult2.rows.length === 0) {
-        throw new Error('Not enough products found in database for testing');
-      }
-      testProductId2 = productResult2.rows[0].id;
+      // Use shared test products from top-level beforeAll
+      testProductId = sharedTestProductId;
+      testProductId2 = sharedTestProductId2;
+    });
+    
+    afterAll(async () => {
+      // No cleanup needed - shared products cleaned up in top-level afterAll
     });
 
     afterEach(async () => {

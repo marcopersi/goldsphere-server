@@ -51,6 +51,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
+    "@types/cron": "^2.0.1",
     "@types/express": "^5.0.0",
     "@types/helmet": "^0.0.48",
     "@types/jest": "^30.0.0",
@@ -78,12 +79,13 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@marcopersi/shared": "^1.4.4",
+    "@marcopersi/shared": "^1.4.6",
     "@types/bcrypt": "^6.0.0",
     "@types/nodemailer": "^7.0.1",
     "@types/stripe": "^8.0.416",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
+    "cron": "^4.3.5",
     "csv-parser": "^3.2.0",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
@@ -95,6 +97,7 @@
     "pg": "^8.13.1",
     "stripe": "^18.4.0",
     "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
     "zod": "^4.0.15"
   }

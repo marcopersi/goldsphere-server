@@ -23,8 +23,11 @@ SET row_security = off;
 \echo 'Loading sample data...'
 \i /docker-entrypoint-initdb.d/03-sampleData.sql
 
-\echo 'enhanced user registration...'
+\echo 'Enhanced user registration...'
 \i /docker-entrypoint-initdb.d/04-enhanced-user-registration.sql
+
+\echo 'Loading market data schema...'
+\i /docker-entrypoint-initdb.d/05-market-data.sql
 
 \echo 'GoldSphere database initialization complete!'
 

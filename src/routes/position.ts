@@ -111,7 +111,7 @@ const fetchProductForPosition = async (productId: string) => {
     country: row.country || null,
     year: row.productyear || undefined,
     description: row.description || '',
-    imageUrl: row.imageurl || '',
+    imageUrl: row.imageurl ? `/api/products/${row.productid}/image` : null,
     inStock: row.instock ?? true,
     minimumOrderQuantity: row.minimumorderquantity || 1,
     createdAt: row.createdat || new Date(),

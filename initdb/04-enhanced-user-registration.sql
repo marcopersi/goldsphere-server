@@ -119,9 +119,3 @@ COMMENT ON COLUMN user_addresses.countryId IS 'Foreign key to country table';
 COMMENT ON COLUMN user_addresses.state IS 'Canton for Switzerland, State for other countries';
 COMMENT ON COLUMN document_processing_log.extracted_fields IS 'JSON array of field names that were auto-filled by AI parsing';
 
--- Sample data for testing (optional - only for development)
--- INSERT INTO user_profiles (user_id, title, first_name, last_name, birth_date) 
--- SELECT id, 'Herr', 'Test', 'User', '1990-01-01' 
--- FROM users WHERE email = 'bank.technical@goldsphere.vault' AND NOT EXISTS (
---   SELECT 1 FROM user_profiles WHERE user_id = users.id
--- );

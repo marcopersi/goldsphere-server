@@ -2,10 +2,15 @@ import { Request, Response } from "express";
 import dotenv from "dotenv";
 import app from "./app";
 import { getPool } from "./dbConfig";
+import { MarketDataServiceFactory } from "./services/market-data/MarketDataServiceFactory";
+import type { MarketDataScheduler } from "./services/market-data/marketDataScheduler";
 
 dotenv.config();
 
+let marketDataScheduler: MarketDataScheduler | null = null;
+
 const PORT = process.env.PORT || 8080;
+const ENABLE_MARKET_DATA_SCHEDULER = process.env.ENABLE_MARKET_DATA_SCHEDULER === 'true';
 
 // Database connectivity check
 async function checkDatabaseConnection(): Promise<boolean> {
@@ -61,8 +66,40 @@ async function startServer() {
     } else {
       console.log("🗄️  Database: ❌ NOT CONNECTED");
     }
+    
+    // Initialize and start market data scheduler if enabled
+    if (ENABLE_MARKET_DATA_SCHEDULER && dbConnected) {
+      try {
+        const marketDataService = MarketDataServiceFactory.create(getPool());
+        marketDataScheduler = MarketDataServiceFactory.createScheduler(marketDataService);
+        marketDataScheduler.initialize();
+        marketDataScheduler.start();
+        console.log("📊 Market Data Scheduler: Started");
+      } catch (error) {
+        console.error("⚠️  Market Data Scheduler failed to start:", error);
+      }
+    } else if (!ENABLE_MARKET_DATA_SCHEDULER) {
+      console.log("📊 Market Data Scheduler: Disabled (set ENABLE_MARKET_DATA_SCHEDULER=true to enable)");
+    }
   });
 }
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing server gracefully');
+  if (marketDataScheduler) {
+    marketDataScheduler.stop();
+  }
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing server gracefully');
+  if (marketDataScheduler) {
+    marketDataScheduler.stop();
+  }
+  process.exit(0);
+});
 
 // Start the server
 startServer().catch((error) => {

@@ -2,15 +2,17 @@ import { Router, Request, Response } from "express";
 import { getPool } from "../dbConfig";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
-import { OrderService } from "../services/OrderService";
-import { Order } from "../interfaces/IOrderService";
+import { Order, OrderServiceFactory } from "../services/order";
+import { OrderType, OrderStatus } from "@marcopersi/shared";
+import { ProductServiceFactory } from "../services/product";
+import { CalculationServiceFactory } from "../services/calculation";
 
 // Local validation schemas (temporary until full shared package compatibility)
 const OrderQueryParamsSchema = z.object({
   page: z.string().optional().transform(val => val ? Math.max(1, Number.parseInt(val)) || 1 : 1),
   limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, Number.parseInt(val))) || 20 : 20),
-  status: z.string().optional(),
-  type: z.enum(['buy', 'sell']).optional(),
+  status: z.string().optional(), // Accepts both 'pending' and 'PENDING'
+  type: z.enum(['buy', 'sell', 'BUY', 'SELL']).optional().transform(val => val?.toLowerCase() as 'buy' | 'sell'), // Normalize to lowercase for DB
   userId: z.string().optional(), // Add userId for admin queries
   sortBy: z.enum(['createdAt', 'updatedAt', 'status', 'totalAmount']).optional().default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
@@ -18,7 +20,7 @@ const OrderQueryParamsSchema = z.object({
 
 const CreateOrderInputSchema = z.object({
   userId: z.string().uuid(),
-  type: z.enum(['buy', 'sell']),
+  type: z.enum(['buy', 'sell', 'BUY', 'SELL']).transform(val => val.toLowerCase() as 'buy' | 'sell'), // Normalize to lowercase for DB
   items: z.array(z.object({
     productId: z.string().uuid(),
     quantity: z.number().positive()
@@ -29,9 +31,9 @@ const CreateOrderInputSchema = z.object({
 });
 
 const UpdateOrderRequestSchema = z.object({
-  status: z.string().optional(),
+  status: z.string().optional(), // Accepts both formats
   notes: z.string().optional(),
-  type: z.enum(['buy', 'sell']).optional()
+  type: z.enum(['buy', 'sell', 'BUY', 'SELL']).optional().transform(val => val?.toLowerCase() as 'buy' | 'sell') // Normalize to lowercase for DB
 });
 
 // Response schemas
@@ -60,8 +62,48 @@ const OrderApiListResponseSchema = z.object({
 
 const router = Router();
 
-// Initialize the order service
-const orderService = new OrderService();
+// Initialize services with DI
+const pool = getPool();
+const productService = ProductServiceFactory.createProductService(pool);
+const calculationService = CalculationServiceFactory.create();
+const orderService = OrderServiceFactory.create(pool, productService, calculationService);
+
+// ============================================================================
+// Helper Functions for Enum Conversion
+// ============================================================================
+
+/**
+ * Converts database value (lowercase) to Enum constant name (UPPER_CASE)
+ * Database: 'buy' → API: 'BUY'
+ * Database: 'pending' → API: 'PENDING'
+ */
+function toEnumKey(
+  dbValue: string,
+  enumClass: any
+): string {
+  const enumInstance = enumClass.fromValue(dbValue.toLowerCase());
+  if (!enumInstance) {
+    console.warn(`Unknown enum value: ${dbValue}`);
+    return dbValue.toUpperCase(); // Fallback
+  }
+  // Extract the constant name (e.g., 'BUY' from OrderType.BUY)
+  const match = Object.entries(enumClass).find(([_, val]) => val === enumInstance);
+  return match ? match[0] : dbValue.toUpperCase();
+}
+
+/**
+ * Convert OrderType database value to API format
+ */
+function formatOrderType(dbValue: string): string {
+  return toEnumKey(dbValue, OrderType);
+}
+
+/**
+ * Convert OrderStatus database value to API format
+ */
+function formatOrderStatus(dbValue: string): string {
+  return toEnumKey(dbValue, OrderStatus);
+}
 
 // Helper function to convert database rows to Order objects
 const mapDatabaseRowsToOrder = (rows: any[]): Order => {
@@ -79,9 +121,11 @@ const mapDatabaseRowsToOrder = (rows: any[]): Order => {
     totalPrice: Number.parseFloat(row.totalprice),
   }));
 
-  // Map database values to string literals (shared package expects strings)
-  const orderType = (firstRow.type as "buy" | "sell") || "buy";
-  const orderStatus = firstRow.orderStatus;  // Database has lowercase 'orderstatus'
+  // Map database values to Enum keys for API response
+  // Database: 'buy' → API: 'BUY'
+  // Database: 'pending' → API: 'PENDING'
+  const orderType = formatOrderType(firstRow.type || 'buy');
+  const orderStatus = formatOrderStatus(firstRow.orderstatus);
   const currency = firstRow.currency; 
 
   // Calculate missing fields if not in database
@@ -133,8 +177,8 @@ router.get("/orders/admin", async (req: Request, res: Response) => {
     const query = OrderQueryParamsSchema.parse(req.query);
     const { page, limit, status, type, userId } = query;
     
-    // Use OrderService for basic order retrieval
-    const ordersResult = await OrderService.getOrdersByUserId(userId, {
+    // Use orderService for basic order retrieval
+    const ordersResult = await orderService.getOrdersByUserId(userId, {
       page,
       limit,
       status,
@@ -234,8 +278,8 @@ router.get("/orders/my", async (req: Request, res: Response) => {
     // Parse query parameters (page, limit, status, type only - no userId)
     const { page = 1, limit = 20, status, type } = req.query;
     
-    // Use OrderService to get user's orders
-    const ordersResult = await OrderService.getOrdersByUserId(authenticatedUser.id, {
+    // Use orderService to get user's orders
+    const ordersResult = await orderService.getOrdersByUserId(authenticatedUser.id, {
       page: Number(page),
       limit: Number(limit),
       status: status as string,
@@ -293,8 +337,8 @@ router.get("/orders", async (req: Request, res: Response) => {
     // For regular users, force userId to their own ID
     const effectiveUserId = authenticatedUser.role === 'admin' ? userId : authenticatedUser.id;
     
-    // Use OrderService to get orders with proper access control
-    const ordersResult = await OrderService.getOrdersByUserId(effectiveUserId, {
+    // Use orderService to get orders with proper access control
+    const ordersResult = await orderService.getOrdersByUserId(effectiveUserId, {
       page,
       limit,
       status,
@@ -367,7 +411,7 @@ router.post("/orders", async (req: Request, res: Response) => {
       role: (req as any).user.role
     };
 
-    const result = await orderService.createOrder(createOrderRequest, auditUser);
+    const result = await orderService.createOrder(createOrderRequest);
     
     // Format response using shared schema
     const response = CreateOrderResponseSchema.parse({
@@ -493,7 +537,7 @@ router.post("/orders/:id/process", async (req: Request, res: Response) => {
       role: (req as any).user?.role || 'unknown'
     };
     
-    await orderService.updateOrderStatus(id, newStatus, auditUser);
+    await orderService.updateOrderStatus(id, newStatus);
 
     // Create portfolio and positions when order is delivered (customer receives the items)
     if (newStatus === "delivered") {

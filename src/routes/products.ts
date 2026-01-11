@@ -9,9 +9,15 @@ import {
   ProductUpdateRequestSchema,
   ProductsQuerySchema,
   ProductApiResponseSchema,
-  ProductApiListResponseSchema
+  ProductApiListResponseSchema,
+  ApiListResponse,
+  PaginationResponse,
+  Metal,
+  ProductTypeEnum
 } from "@marcopersi/shared";
 import { z } from 'zod';
+import { ProductServiceFactory } from "../services/product";
+import { ErrorHelpers, ErrorCodes, sendErrorResponse } from "../utils/errorResponse";
 
 // Types inferred from schemas
 type ProductResponse = z.infer<typeof ProductSchema>;
@@ -21,225 +27,203 @@ type ProductApiListResponse = z.infer<typeof ProductApiListResponseSchema>;
 
 const router = Router();
 
+// Helper function to get service with current pool (for testing)
+function getProductManagementService() {
+  return ProductServiceFactory.createProductManagementService(getPool());
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Generate dynamic imageUrl for product
+ * Returns API endpoint if no image stored, or null if explicitly empty
+ */
+function generateImageUrl(productId: string, imageFilename: string | null | undefined): string | null {
+  if (imageFilename) {
+    // TODO: Could return full URL like `${process.env.BASE_URL}/api/products/${productId}/image`
+    return `/api/products/${productId}/image`;
+  }
+  return null;
+}
+
+/**
+ * Convert Enum instance to constant name (e.g., Metal.GOLD → 'GOLD')
+ */
+function getEnumKey(enumInstance: any, enumClass: any): string {
+  const match = Object.entries(enumClass).find(([_, val]) => val === enumInstance);
+  return match ? match[0] : enumInstance.toString();
+}
+
+/**
+ * Transform product response to use enum keys instead of enum instances
+ */
+function transformProductResponse(product: any): any {
+  return {
+    ...product,
+    metal: getEnumKey(product.metal, Metal),  // Metal.GOLD → 'GOLD'
+    productType: getEnumKey(product.productType, ProductTypeEnum)  // ProductTypeEnum.COIN → 'COIN'
+  };
+}
+
 /**
  * @swagger
  * /products:
  *   get:
- *     summary: Get all products
+ *     summary: Get all products with pagination and filters
  *     tags: [Products]
  *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Items per page
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, price, createdAt]
+ *           default: createdAt
+ *         description: Sort field
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search in name and description
+ *       - in: query
+ *         name: metalId
+ *         schema:
+ *           type: string
+ *         description: Filter by metal ID
+ *       - in: query
+ *         name: productTypeId
+ *         schema:
+ *           type: string
+ *         description: Filter by product type ID
+ *       - in: query
+ *         name: producerId
+ *         schema:
+ *           type: string
+ *         description: Filter by producer ID
+ *       - in: query
+ *         name: inStock
+ *         schema:
+ *           type: boolean
+ *         description: Filter by stock availability
+ *       - in: query
+ *         name: minPrice
+ *         schema:
+ *           type: number
+ *         description: Minimum price filter
+ *       - in: query
+ *         name: maxPrice
+ *         schema:
+ *           type: number
+ *         description: Maximum price filter
  *     responses:
  *       200:
- *         description: List of all products
+ *         description: Paginated list of products
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     products:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Product'
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       400:
+ *         description: Invalid query parameters
  *       500:
  *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
 // GET all products with enhanced filtering and pagination
 router.get("/", async (req: Request, res: Response) => {
   try {
-    // Parse and validate query parameters using enhanced schema
-    const queryValidation = ProductsQuerySchema.safeParse(req.query);
-    if (!queryValidation.success) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid query parameters",
-        details: queryValidation.error.issues
-      });
-    }
-
-    const { page, limit, search, metal, type, producer, country, inStock, minPrice, maxPrice, sortBy, sortOrder } = queryValidation.data;
+    // Parse query parameters
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const sortBy = req.query.sortBy as 'name' | 'price' | 'createdAt' | undefined;
+    const sortOrder = req.query.sortOrder as 'asc' | 'desc' | undefined;
     
-    // Calculate offset
-    const offset = (page - 1) * limit;
+    // Parse filters
+    const filter: any = {};
+    if (req.query.search) filter.search = req.query.search as string;
+    if (req.query.metalId) filter.metalId = req.query.metalId as string;
+    if (req.query.productTypeId) filter.productTypeId = req.query.productTypeId as string;
+    if (req.query.producerId) filter.producerId = req.query.producerId as string;
+    if (req.query.inStock !== undefined) filter.inStock = req.query.inStock === 'true';
+    if (req.query.minPrice) filter.minPrice = parseFloat(req.query.minPrice as string);
+    if (req.query.maxPrice) filter.maxPrice = parseFloat(req.query.maxPrice as string);
     
-    // Build WHERE clause with enhanced filtering
-    let whereConditions: string[] = [];
-    let queryParams: any[] = [];
-    let paramIndex = 1;
-    
-    if (search) {
-      whereConditions.push(`(product.name ILIKE $${paramIndex} OR product.description ILIKE $${paramIndex})`);
-      queryParams.push(`%${search}%`);
-      paramIndex++;
-    }
-    
-    if (metal) {
-      whereConditions.push(`metal.name ILIKE $${paramIndex}`);
-      queryParams.push(`%${metal}%`);
-      paramIndex++;
-    }
-    
-    if (type) {
-      whereConditions.push(`productType.productTypeName ILIKE $${paramIndex}`);
-      queryParams.push(`%${type}%`);
-      paramIndex++;
-    }
-    
-    if (producer) {
-      whereConditions.push(`producer.producerName ILIKE $${paramIndex}`);
-      queryParams.push(`%${producer}%`);
-      paramIndex++;
-    }
-    
-    if (country) {
-      whereConditions.push(`country.isoCode2 ILIKE $${paramIndex}`);
-      queryParams.push(`%${country}%`);
-      paramIndex++;
-    }
-    
-    if (inStock !== undefined) {
-      whereConditions.push(`product.inStock = $${paramIndex}`);
-      queryParams.push(inStock);
-      paramIndex++;
-    }
-    
-    if (minPrice !== undefined) {
-      whereConditions.push(`product.price >= $${paramIndex}`);
-      queryParams.push(minPrice);
-      paramIndex++;
-    }
-    
-    if (maxPrice !== undefined) {
-      whereConditions.push(`product.price <= $${paramIndex}`);
-      queryParams.push(maxPrice);
-      paramIndex++;
-    }
-    
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-    
-    // Build ORDER BY clause with validation
-    const validSortColumns = {
-      'name': 'product.name',
-      'price': 'product.price', 
-      'createdAt': 'product.createdat',
-      'updatedAt': 'product.updatedat'
-    };
-    const sortColumn = validSortColumns[sortBy] || validSortColumns.createdAt;
-    const orderClause = `ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
-    
-    // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM product 
-      JOIN productType ON productType.id = product.productTypeId 
-      JOIN metal ON metal.id = product.metalId 
-      LEFT JOIN country ON country.id = product.countryId 
-      JOIN producer ON producer.id = product.producerId
-      ${whereClause}
-    `;
-    
-    const countResult = await getPool().query(countQuery, queryParams);
-    const total = parseInt(countResult.rows[0].total);
-    
-    // Get products with enhanced data selection
-    const dataQuery = `
-      SELECT 
-        product.id, 
-        product.name AS productname, 
-        productType.productTypeName AS producttype, 
-        metal.id AS metalid,
-        metal.name AS metalname, 
-        metal.symbol AS metalsymbol,
-        country.isoCode2 AS countrycode, 
-        producer.id AS producerid,
-        producer.producerName AS producer, 
-        product.weight AS fineweight, 
-        product.weightUnit AS unitofmeasure, 
-        product.purity,
-        product.price,
-        product.currency,
-        product.year AS productyear,
-        product.description,
-        product.imageFilename AS imageurl,
-        product.inStock,
-        product.minimumOrderQuantity,
-        product.createdat,
-        product.updatedat
-      FROM product 
-      JOIN productType ON productType.id = product.productTypeId 
-      JOIN metal ON metal.id = product.metalId 
-      LEFT JOIN country ON country.id = product.countryId 
-      JOIN producer ON producer.id = product.producerId
-      ${whereClause}
-      ${orderClause}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-    
-    queryParams.push(limit, offset);
-    const result = await getPool().query(dataQuery, queryParams);
-    
-    // Transform database results with enhanced validation
-    const products: ProductResponse[] = result.rows.map(row => ({
-      id: row.id,
-      name: row.productname,
-      type: row.producttype,
-      metal: {
-        id: row.metalid,
-        name: row.metalname,
-        symbol: row.metalsymbol
-      },
-      weight: Number.parseFloat(row.fineweight) || 0,
-      weightUnit: row.unitofmeasure,
-      purity: Number.parseFloat(row.purity),
-      price: Number.parseFloat(row.price),
-      currency: row.currency,
-      producerId: row.producerid,
-      producer: row.producer,
-      country: (row.countrycode || '').toLowerCase(),
-      year: row.productyear || undefined,
-      description: row.description || '',
-      inStock: row.instock ?? true,
-      minimumOrderQuantity: row.minimumorderquantity || 1,
-      imageUrl: row.imageurl || '',
-      createdAt: row.createdat || new Date().toISOString(),
-      updatedAt: row.updatedat || new Date().toISOString()
-    }));
-    
-    // Calculate enhanced pagination
-    const totalPages = Math.ceil(total / limit);
-    const pagination: Pagination = {
+    const options = {
       page,
       limit,
-      total,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrev: page > 1
+      sortBy,
+      sortOrder,
+      filter: Object.keys(filter).length > 0 ? filter : undefined
     };
     
-    // Applied filters for response context
-    const appliedFilters = {
-      search, metal, type, producer, country, inStock, minPrice, maxPrice, sortBy, sortOrder
-    };
+    const result = await getProductManagementService().listProducts(options);
     
-    // Format response using enhanced schema
-    const response: ProductApiListResponse = {
+    // Transform enum instances to enum keys (GOLD, COIN)
+    const transformedItems = result.items.map(transformProductResponse);
+    
+    // Use standardized API response format
+    const response: ApiListResponse<ProductResponse> = {
       success: true,
       data: {
-        products,
-        pagination
+        items: transformedItems,
+        pagination: result.pagination
       },
-      message: `Found ${total} products`,
-      filters: appliedFilters
+      message: `Found ${result.pagination.total} products`
     };
     
     res.json(response);
   } catch (error) {
-    console.error("Error fetching products:", error);
-    res.status(500).json({ 
-      success: false,
-      error: "Failed to fetch products", 
-      details: (error as Error).message 
-    });
+    console.error("Error listing products:", error);
+    // Check if it's a validation error
+    if (error instanceof Error && (
+      error.message.includes('Page number') ||
+      error.message.includes('Limit must') ||
+      error.message.includes('price') ||
+      error.message.includes('Minimum price')
+    )) {
+      return ErrorHelpers.badRequest(res, error.message);
+    }
+    return ErrorHelpers.databaseError(res, error);
   }
 });
 
@@ -337,16 +321,20 @@ router.get("/:id", async (req: Request, res: Response) => {
     
     const row = result.rows[0];
     
+    // Map metal name to enum key (e.g., 'Gold' → 'GOLD')
+    const metalEnum = Metal.fromName(row.metalname);
+    const metalKey = metalEnum ? getEnumKey(metalEnum, Metal) : row.metalname.toUpperCase();
+    
+    // Map product type to enum key (e.g., 'Coin' → 'COIN')
+    const productTypeEnum = ProductTypeEnum.fromName(row.producttype);
+    const productTypeKey = productTypeEnum ? getEnumKey(productTypeEnum, ProductTypeEnum) : row.producttype.toUpperCase();
+    
     // Transform database result with comprehensive data mapping
     const product: ProductResponse = {
       id: row.id,
       name: row.productname,
-      type: row.producttype,
-      metal: {
-        id: row.metalid,
-        name: row.metalname,
-        symbol: row.metalsymbol
-      },
+      type: productTypeKey,  // Enum key: 'COIN', 'BAR'
+      metal: metalKey,  // Enum key: 'GOLD', 'SILVER'
       weight: Number.parseFloat(row.fineweight),
       weightUnit: row.unitofmeasure,
       purity: Number.parseFloat(row.purity),
@@ -357,7 +345,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       country: (row.countrycode || '').toLowerCase(),
       year: row.productyear,
       description: row.description,
-      imageUrl: row.imageurl,
+      imageUrl: generateImageUrl(row.productid, row.imageurl),
       inStock: row.instock ?? true,
       stockQuantity: row.stockquantity,
       minimumOrderQuantity: row.minimumorderquantity,
@@ -382,11 +370,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     res.json(response);
   } catch (error) {
     console.error("Error fetching product:", error);
-    res.status(500).json({ 
-      success: false,
-      error: "Failed to fetch product", 
-      details: (error as Error).message 
-    });
+    return ErrorHelpers.databaseError(res, error);
   }
 });
 
@@ -721,7 +705,7 @@ router.put("/:id", async (req: Request, res: Response) => {
       country: (row.countrycode || '').toLowerCase(),
       year: row.productyear || undefined,
       description: row.description || '',
-      imageUrl: row.imageurl || '',
+      imageUrl: generateImageUrl(row.productid, row.imageurl),
       inStock: row.instock ?? true,
       stockQuantity: row.stockquantity,
       minimumOrderQuantity: row.minimumorderquantity,
@@ -958,7 +942,7 @@ router.post("/", async (req: Request, res: Response) => {
       country: (row.countrycode || '').toLowerCase(),
       year: row.productyear || undefined,
       description: row.description,
-      imageUrl: row.imageurl,
+      imageUrl: generateImageUrl(row.productid, row.imageurl),
       inStock: row.instock ?? true,
       stockQuantity: row.stockquantity,
       minimumOrderQuantity: row.minimumorderquantity,
@@ -1165,6 +1149,115 @@ router.post("/validate", async (req: Request, res: Response) => {
       success: false,
       error: "Internal validation error",
       details: (error as Error).message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /products/{id}/image:
+ *   post:
+ *     summary: Upload product image
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Product ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - imageBase64
+ *               - contentType
+ *               - filename
+ *             properties:
+ *               imageBase64:
+ *                 type: string
+ *                 description: Base64 encoded image data (with or without data URI prefix)
+ *                 example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA..."
+ *               contentType:
+ *                 type: string
+ *                 enum: [image/jpeg, image/jpg, image/png, image/gif, image/webp]
+ *                 description: Image MIME type
+ *                 example: "image/png"
+ *               filename:
+ *                 type: string
+ *                 description: Image filename
+ *                 example: "product-image.png"
+ *     responses:
+ *       200:
+ *         description: Image uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Image uploaded successfully"
+ *       400:
+ *         description: Invalid request (missing fields, invalid format, file too large)
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Server error
+ */
+router.post("/:id/image", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { imageBase64, contentType, filename } = req.body;
+
+  try {
+    // Validate required fields
+    if (!imageBase64 || !contentType || !filename) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+        details: "imageBase64, contentType, and filename are required"
+      });
+    }
+
+    // Upload image using service
+    await getProductManagementService().uploadImage(id, imageBase64, contentType, filename);
+    res.json({
+      success: true,
+      message: "Image uploaded successfully"
+    });
+  } catch (error) {
+    console.error("Image upload error:", error);
+    const errorMessage = (error as Error).message;
+    
+    if (errorMessage.includes("not found")) {
+      return res.status(404).json({
+        success: false,
+        error: "Product not found",
+        details: errorMessage
+      });
+    }
+    
+    if (errorMessage.includes("Invalid") || errorMessage.includes("exceeds")) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid image data",
+        details: errorMessage
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to upload image",
+      details: errorMessage
     });
   }
 });

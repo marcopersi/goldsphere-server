@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { PaymentController } from '../controllers/PaymentController';
 
 const router = Router();
-const paymentController = new PaymentController();
+// Lazy controller creation for testing
+function getPaymentController() {
+  return new PaymentController();
+}
 
 /**
  * @swagger
@@ -50,7 +53,7 @@ const paymentController = new PaymentController();
  *       500:
  *         description: Internal server error
  */
-router.post('/intent', paymentController.createPaymentIntent.bind(paymentController));
+router.post('/intent', (req, res) => getPaymentController().createPaymentIntent(req, res));
 
 /**
  * @swagger
@@ -86,7 +89,7 @@ router.post('/intent', paymentController.createPaymentIntent.bind(paymentControl
  *       500:
  *         description: Internal server error
  */
-router.post('/intent/:id/confirm', paymentController.confirmPayment.bind(paymentController));
+router.post('/intent/:id/confirm', (req, res) => getPaymentController().confirmPayment(req, res));
 
 /**
  * @swagger
@@ -111,7 +114,7 @@ router.post('/intent/:id/confirm', paymentController.confirmPayment.bind(payment
  *       500:
  *         description: Internal server error
  */
-router.get('/intent/:id', paymentController.retrievePaymentIntent.bind(paymentController));
+router.get('/intent/:id', (req, res) => getPaymentController().retrievePaymentIntent(req, res));
 
 /**
  * @swagger
@@ -136,6 +139,6 @@ router.get('/intent/:id', paymentController.retrievePaymentIntent.bind(paymentCo
  *       500:
  *         description: Internal server error
  */
-router.get('/methods', paymentController.listPaymentMethods.bind(paymentController));
+router.get('/methods', (req, res) => getPaymentController().listPaymentMethods(req, res));
 
 export default router;

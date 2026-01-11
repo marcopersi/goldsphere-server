@@ -1,288 +1,382 @@
-import { Router, Request, Response } from "express";
-import { getPool } from "../dbConfig";
+/**
+ * User Routes
+ * 
+ * REST API endpoints for user management.
+ * Uses UserService for all business logic - no direct SQL queries.
+ */
+
+import { Router, Request, Response } from 'express';
+import { getPool } from '../dbConfig';
+import { UuidSchema } from '@marcopersi/shared';
 import { 
-  UuidSchema,
-  CreateUserRequestSchema,
-  UpdateUserRequestSchema
-} from "@marcopersi/shared";
+  UserServiceFactory, 
+  UserErrorCode,
+  UserRole,
+  isValidUserRole,
+} from '../services/user';
 
 const router = Router();
 
-// GET all users with pagination
-router.get("/users", async (req: Request, res: Response) => {
-  try {
-    // Parse pagination parameters
-    const page = Number.parseInt(req.query.page as string) || 1;
-    const limit = Math.min(Number.parseInt(req.query.limit as string) || 20, 100);
-    const offset = (page - 1) * limit;
+// Lazy service creation - uses singleton pool
+function getUserService() {
+  return UserServiceFactory.createUserService(getPool());
+}
 
-    const result = await getPool().query(
-      "SELECT id, email, createdat, updatedat FROM users ORDER BY email LIMIT $1 OFFSET $2", 
-      [limit, offset]
-    );
+/**
+ * GET /api/users
+ * List all users with pagination, filtering, and sorting
+ */
+router.get('/users', async (req: Request, res: Response) => {
+  try {
+    const userService = getUserService();
     
-    const countResult = await getPool().query("SELECT COUNT(*) FROM users");
-    const totalCount = Number.parseInt(countResult.rows[0].count);
-    
+    const sortByParam = req.query.sortBy as string;
+    const validSortBy = ['email', 'createdAt', 'updatedAt', 'lastLogin'].includes(sortByParam) 
+      ? sortByParam as 'email' | 'createdAt' | 'updatedAt' | 'lastLogin'
+      : 'email';
+
+    const options = {
+      page: Number.parseInt(req.query.page as string) || 1,
+      limit: Math.min(Number.parseInt(req.query.limit as string) || 20, 100),
+      search: req.query.search as string | undefined,
+      role: isValidUserRole(req.query.role as string) ? req.query.role as UserRole : undefined,
+      sortBy: validSortBy,
+      sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'asc',
+    };
+
+    const result = await userService.getUsers(options);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+      });
+    }
+
     res.json({
       success: true,
-      data: result.rows,
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit)
-      }
+      data: result.data!.users.map(user => ({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      })),
+      pagination: result.data!.pagination,
     });
   } catch (error) {
-    console.error("Error fetching users:", error);
+    console.error('Error fetching users:', error);
     res.status(500).json({ 
       success: false,
-      error: "Failed to fetch users", 
-      details: (error as Error).message 
+      error: 'Failed to fetch users', 
+      details: (error as Error).message,
     });
   }
 });
 
-// POST new user
-router.post("/users", async (req: Request, res: Response) => {
+/**
+ * GET /api/users/:id
+ * Get user by ID
+ */
+router.get('/users/:id', async (req: Request, res: Response) => {
   try {
-    // Validate request body
-    const validation = CreateUserRequestSchema.safeParse(req.body);
-    if (!validation.success) {
+    const { id } = req.params;
+    
+    // Validate user ID
+    const idValidation = UuidSchema.safeParse(id);
+    if (!idValidation.success) {
       return res.status(400).json({
         success: false,
-        error: "Invalid user data",
-        details: validation.error.issues
+        error: 'Invalid user ID format',
       });
     }
 
-    const { email, passwordhash } = validation.data;
-    
-    // Check for duplicate email
-    const duplicateCheck = await getPool().query(
-      "SELECT id FROM users WHERE email = $1", 
-      [email]
-    );
-    
-    if (duplicateCheck.rows.length > 0) {
-      return res.status(409).json({
+    const userService = getUserService();
+    const result = await userService.getUserById(id);
+
+    if (!result.success) {
+      const status = result.errorCode === UserErrorCode.USER_NOT_FOUND ? 404 : 500;
+      return res.status(status).json({
         success: false,
-        error: "Email already exists"
+        error: result.error,
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        id: result.data!.id,
+        email: result.data!.email,
+        role: result.data!.role,
+        emailVerified: result.data!.emailVerified,
+        createdAt: result.data!.createdAt,
+        updatedAt: result.data!.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch user', 
+      details: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * GET /api/users/:id/details
+ * Get user with full details (profile, address, verification)
+ */
+router.get('/users/:id/details', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const idValidation = UuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID format',
       });
     }
 
-    const result = await getPool().query(
-      "INSERT INTO users (email, passwordhash) VALUES ($1, $2) RETURNING id, email, createdat, updatedat", 
-      [email, passwordhash]
-    );
+    const userService = getUserService();
+    const result = await userService.getUserWithDetails(id);
+
+    if (!result.success) {
+      const status = result.errorCode === UserErrorCode.USER_NOT_FOUND ? 404 : 500;
+      return res.status(status).json({
+        success: false,
+        error: result.error,
+      });
+    }
+    
+    const { user, profile, address, verificationStatus } = result.data!;
+    
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          identityVerified: user.identityVerified,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+        profile: profile ? {
+          title: profile.title,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          birthDate: profile.birthDate,
+        } : null,
+        address: address ? {
+          countryId: address.countryId,
+          postalCode: address.postalCode,
+          city: address.city,
+          state: address.state,
+          street: address.street,
+        } : null,
+        verificationStatus: verificationStatus ? {
+          emailStatus: verificationStatus.emailVerificationStatus,
+          identityStatus: verificationStatus.identityVerificationStatus,
+        } : null,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch user details', 
+      details: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * POST /api/users
+ * Create new user
+ */
+router.post('/users', async (req: Request, res: Response) => {
+  try {
+    const { email, password, role } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required',
+      });
+    }
+
+    const userService = getUserService();
+    const result = await userService.createUser({
+      email,
+      password,
+      role: isValidUserRole(role) ? role : undefined,
+    });
+
+    if (!result.success) {
+      const status = mapErrorCodeToStatus(result.errorCode);
+      return res.status(status).json({
+        success: false,
+        error: result.error,
+        code: result.errorCode,
+      });
+    }
     
     res.status(201).json({
       success: true,
-      data: result.rows[0],
-      message: "User created successfully"
+      data: {
+        id: result.data!.id,
+        email: result.data!.email,
+        role: result.data!.role,
+        createdAt: result.data!.createdAt,
+      },
+      message: 'User created successfully',
     });
   } catch (error) {
-    console.error("Error adding user:", error);
+    console.error('Error creating user:', error);
     res.status(500).json({ 
       success: false,
-      error: "Failed to add user", 
-      details: (error as Error).message 
+      error: 'Failed to create user', 
+      details: (error as Error).message,
     });
   }
 });
 
-// PUT update user
-router.put("/users/:id", async (req: Request, res: Response) => {
+/**
+ * PUT /api/users/:id
+ * Update user
+ */
+router.put('/users/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    // Validate user ID
     const idValidation = UuidSchema.safeParse(id);
     if (!idValidation.success) {
       return res.status(400).json({
         success: false,
-        error: "Invalid user ID format"
+        error: 'Invalid user ID format',
       });
     }
-    
-    // Validate request body
-    const validation = UpdateUserRequestSchema.safeParse(req.body);
-    if (!validation.success) {
+
+    const { email, password, role, emailVerified, identityVerified } = req.body;
+
+    // Check if any update fields provided
+    if (!email && !password && role === undefined && emailVerified === undefined && identityVerified === undefined) {
       return res.status(400).json({
         success: false,
-        error: "Invalid user data",
-        details: validation.error.issues
+        error: 'No valid fields provided for update',
       });
     }
 
-    const updates = validation.data;
-
-    // Check if user exists
-    const userExists = await getPool().query("SELECT id FROM users WHERE id = $1", [id]);
-    if (userExists.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: "User not found"
-      });
-    }
-
-    // Check for duplicates if email is being updated
-    if (updates.email) {
-      const duplicateCheck = await getPool().query(
-        "SELECT id FROM users WHERE email = $1 AND id != $2", 
-        [updates.email, id]
-      );
-      if (duplicateCheck.rows.length > 0) {
-        return res.status(409).json({
-          success: false,
-          error: "Email already exists"
-        });
-      }
-    }
-
-    // Build dynamic update query
-    const updateFields = [];
-    const updateValues = [];
-    let paramIndex = 1;
-
-    if (updates.email !== undefined) {
-      updateFields.push(`email = $${paramIndex++}`);
-      updateValues.push(updates.email);
-    }
-    if (updates.passwordhash !== undefined) {
-      updateFields.push(`passwordhash = $${paramIndex++}`);
-      updateValues.push(updates.passwordhash);
-    }
-
-    updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
-    updateValues.push(id);
-
-    if (updateFields.length === 1) { // Only timestamp update
-      return res.status(400).json({
-        success: false,
-        error: "No valid fields provided for update"
-      });
-    }
-
-    const updateQuery = `
-      UPDATE users 
-      SET ${updateFields.join(', ')} 
-      WHERE id = $${paramIndex} 
-      RETURNING id, email, createdat, updatedat
-    `;
-
-    const result = await getPool().query(updateQuery, updateValues);
-    
-    res.json({
-      success: true,
-      data: result.rows[0],
-      message: "User updated successfully"
+    const userService = getUserService();
+    const result = await userService.updateUser(id, {
+      email,
+      password,
+      role: isValidUserRole(role) ? role : undefined,
+      emailVerified,
+      identityVerified,
     });
-  } catch (error) {
-    console.error("Error updating user:", error);
-    res.status(500).json({ 
-      success: false,
-      error: "Failed to update user", 
-      details: (error as Error).message 
-    });
-  }
-});
 
-// DELETE user
-router.delete("/users/:id", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    // Validate user ID
-    const idValidation = UuidSchema.safeParse(id);
-    if (!idValidation.success) {
-      return res.status(400).json({
+    if (!result.success) {
+      const status = mapErrorCodeToStatus(result.errorCode);
+      return res.status(status).json({
         success: false,
-        error: "Invalid user ID format"
-      });
-    }
-
-    // Check if user exists
-    const userExists = await getPool().query("SELECT id, email FROM users WHERE id = $1", [id]);
-    if (userExists.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: "User not found"
-      });
-    }
-
-    // Check for referential integrity (orders, portfolios, etc.)
-    const orderCheck = await getPool().query("SELECT COUNT(*) as count FROM orders WHERE userid = $1", [id]);
-    if (Number.parseInt(orderCheck.rows[0].count) > 0) {
-      return res.status(409).json({
-        success: false,
-        error: "Cannot delete user with existing orders. Please remove orders first."
-      });
-    }
-
-    const portfolioCheck = await getPool().query("SELECT COUNT(*) as count FROM portfolio WHERE ownerid = $1", [id]);
-    if (Number.parseInt(portfolioCheck.rows[0].count) > 0) {
-      return res.status(409).json({
-        success: false,
-        error: "Cannot delete user with existing portfolios. Please remove portfolios first."
-      });
-    }
-
-    await getPool().query("DELETE FROM users WHERE id = $1", [id]);
-    
-    res.json({
-      success: true,
-      message: `User '${userExists.rows[0].email}' deleted successfully`
-    });
-  } catch (error) {
-    console.error("Error deleting user:", error);
-    res.status(500).json({ 
-      success: false,
-      error: "Failed to delete user", 
-      details: (error as Error).message 
-    });
-  }
-});
-
-// GET user by id
-router.get("/users/:id", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    // Validate user ID
-    const idValidation = UuidSchema.safeParse(id);
-    if (!idValidation.success) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid user ID format"
-      });
-    }
-
-    const result = await getPool().query(
-      "SELECT id, email, createdat, updatedat FROM users WHERE id = $1", 
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: "User not found"
+        error: result.error,
+        code: result.errorCode,
       });
     }
     
     res.json({
       success: true,
-      data: result.rows[0]
+      data: {
+        id: result.data!.id,
+        email: result.data!.email,
+        role: result.data!.role,
+        emailVerified: result.data!.emailVerified,
+        updatedAt: result.data!.updatedAt,
+      },
+      message: 'User updated successfully',
     });
   } catch (error) {
-    console.error("Error fetching user:", error);
+    console.error('Error updating user:', error);
     res.status(500).json({ 
       success: false,
-      error: "Failed to fetch user", 
-      details: (error as Error).message 
+      error: 'Failed to update user', 
+      details: (error as Error).message,
     });
   }
 });
+
+/**
+ * DELETE /api/users/:id
+ * Delete user (with dependency check)
+ */
+router.delete('/users/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const idValidation = UuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID format',
+      });
+    }
+
+    const userService = getUserService();
+    
+    // Get user email for response message before deletion
+    const userResult = await userService.getUserById(id);
+    const userEmail = userResult.success ? userResult.data!.email : 'Unknown';
+    
+    const result = await userService.deleteUser(id);
+
+    if (!result.success) {
+      const status = mapErrorCodeToStatus(result.errorCode);
+      return res.status(status).json({
+        success: false,
+        error: result.error,
+        code: result.errorCode,
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: `User '${userEmail}' deleted successfully`,
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to delete user', 
+      details: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * Map UserErrorCode to HTTP status code
+ */
+function mapErrorCodeToStatus(errorCode?: UserErrorCode): number {
+  switch (errorCode) {
+    case UserErrorCode.USER_NOT_FOUND:
+      return 404;
+    case UserErrorCode.EMAIL_ALREADY_EXISTS:
+      return 409;
+    case UserErrorCode.USER_HAS_DEPENDENCIES:
+      return 409;
+    case UserErrorCode.INVALID_EMAIL_FORMAT:
+    case UserErrorCode.INVALID_PASSWORD:
+    case UserErrorCode.VALIDATION_ERROR:
+      return 400;
+    case UserErrorCode.UNAUTHORIZED:
+      return 401;
+    default:
+      return 500;
+  }
+}
 
 export default router;

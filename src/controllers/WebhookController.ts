@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import { PaymentService } from '../services/PaymentService';
+import { PaymentServiceFactory, IPaymentService } from '../services/payment';
 
 export class WebhookController {
-  private readonly paymentService: PaymentService;
+  private readonly paymentService: IPaymentService;
 
   constructor() {
-    this.paymentService = new PaymentService();
+    this.paymentService = PaymentServiceFactory.create();
   }
 
   /**
@@ -51,27 +51,27 @@ export class WebhookController {
   private async handleWebhookEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case 'payment_intent.succeeded':
-        await this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentSucceeded(event.data.object);
         break;
         
       case 'payment_intent.payment_failed':
-        await this.handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentFailed(event.data.object);
         break;
         
       case 'payment_intent.canceled':
-        await this.handlePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentCanceled(event.data.object);
         break;
         
       case 'payment_intent.requires_action':
-        await this.handlePaymentIntentRequiresAction(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentRequiresAction(event.data.object);
         break;
         
       case 'payment_method.attached':
-        await this.handlePaymentMethodAttached(event.data.object as Stripe.PaymentMethod);
+        await this.handlePaymentMethodAttached(event.data.object);
         break;
         
       case 'invoice.payment_succeeded':
-        await this.handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+        await this.handleInvoicePaymentSucceeded(event.data.object);
         break;
         
       case 'customer.subscription.created':

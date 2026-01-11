@@ -4,10 +4,11 @@ import {
   Metal,
   ProductTypeEnum,
   CountryEnum,
-  Producer,
+  // Producer, // Removed from shared package 1.4.6
   Custodian,
   PaymentFrequency,
-  CustodyServiceType
+  CustodyServiceType,
+  ApiListResponse
 } from "@marcopersi/shared";
 
 const router = Router();
@@ -119,18 +120,19 @@ router.get("/", async (req: Request, res: Response) => {
       name: row.name
     }));
 
-    const enumProducers = Producer.values().map(producer => ({
-      id: `enum-${producer.name.toLowerCase().replace(/\s+/g, '-')}`,
-      name: producer.name
-    }));
+    // TODO: Producer enum removed from shared package 1.4.6 - needs refactoring
+    // const enumProducers = Producer.values().map(producer => ({
+    //   id: `enum-${producer.name.toLowerCase().replace(/\s+/g, '-')}`,
+    //   name: producer.name
+    // }));
 
-    // Merge and deduplicate by name
+    // For now, just use database producers
     const allProducers = [...databaseProducers];
-    enumProducers.forEach(enumProducer => {
-      if (!databaseProducers.some(dbProducer => dbProducer.name === enumProducer.name)) {
-        allProducers.push(enumProducer);
-      }
-    });
+    // enumProducers.forEach(enumProducer => {
+    //   if (!databaseProducers.some(dbProducer => dbProducer.name === enumProducer.name)) {
+    //     allProducers.push(enumProducer);
+    //   }
+    // });
 
     // Use class-based enums for static reference data
     const referenceData: ReferenceData = {
@@ -244,11 +246,38 @@ router.get("/countries/:id", async (req: Request, res: Response) => {
 router.get("/metals", async (req: Request, res: Response) => {
   try {
     const result = await getPool().query("SELECT id, name, createdAt, updatedAt FROM metal ORDER BY name");
-    console.info("metals returned: ", result.rows);
-    res.json(result.rows);
+    
+    const items = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      createdAt: row.createdat,  // ✅ camelCase mapping
+      updatedAt: row.updatedat   // ✅ camelCase mapping
+    }));
+    
+    const response: ApiListResponse<typeof items[0]> = {
+      success: true,
+      data: {
+        items,
+        pagination: {
+          page: 1,
+          limit: items.length,
+          total: items.length,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false
+        }
+      }
+    };
+    
+    console.info("metals returned: ", items.length);
+    res.json(response);
   } catch (error) {
     console.error("Error fetching metals:", error);
-    res.status(500).json({ error: "Failed to fetch metals", details: (error as Error).message });
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch metals", 
+      details: (error as Error).message 
+    });
   }
 });
 
@@ -301,10 +330,37 @@ router.get("/metals/:id", async (req: Request, res: Response) => {
 router.get("/productTypes", async (req: Request, res: Response) => {
   try {
     const result = await getPool().query("SELECT id, productTypeName, createdAt, updatedAt FROM productType ORDER BY productTypeName");
-    res.json(result.rows);
+    
+    const items = result.rows.map(row => ({
+      id: row.id,
+      name: row.producttypename,  // ✅ Renamed: productTypeName -> name
+      createdAt: row.createdat,   // ✅ camelCase mapping
+      updatedAt: row.updatedat    // ✅ camelCase mapping
+    }));
+    
+    const response: ApiListResponse<typeof items[0]> = {
+      success: true,
+      data: {
+        items,
+        pagination: {
+          page: 1,
+          limit: items.length,
+          total: items.length,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false
+        }
+      }
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error("Error fetching product types:", error);
-    res.status(500).json({ error: "Failed to fetch product types", details: (error as Error).message });
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch product types", 
+      details: (error as Error).message 
+    });
   }
 });
 

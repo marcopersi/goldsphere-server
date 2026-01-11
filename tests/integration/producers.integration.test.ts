@@ -63,8 +63,8 @@ describe('Producers API', () => {
 
       expect(response.body).toHaveProperty('success', true);
       expect(response.body).toHaveProperty('data');
-      expect(response.body.data).toHaveProperty('producers');
-      expect(Array.isArray(response.body.data.producers)).toBe(true);
+      expect(response.body.data).toHaveProperty('items');
+      expect(Array.isArray(response.body.data.items)).toBe(true);
       expect(response.body.data).toHaveProperty('pagination');
       
       // Verify pagination structure
@@ -73,11 +73,11 @@ describe('Producers API', () => {
       expect(response.body.data.pagination).toHaveProperty('total');
       expect(response.body.data.pagination).toHaveProperty('totalPages');
       expect(response.body.data.pagination).toHaveProperty('hasNext');
-      expect(response.body.data.pagination).toHaveProperty('hasPrev');
+      expect(response.body.data.pagination).toHaveProperty('hasPrevious');
 
       // Verify producer structure if any exist
-      if (response.body.data.producers.length > 0) {
-        const producer = response.body.data.producers[0];
+      if (response.body.data.items.length > 0) {
+        const producer = response.body.data.items[0];
         expect(producer).toHaveProperty('id');
         expect(producer).toHaveProperty('producerName');
         expect(producer).toHaveProperty('createdAt');
@@ -93,7 +93,7 @@ describe('Producers API', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.pagination.page).toBe(1);
       expect(response.body.data.pagination.limit).toBe(5);
-      expect(response.body.data.producers.length).toBeLessThanOrEqual(5);
+      expect(response.body.data.items.length).toBeLessThanOrEqual(5);
     });
 
     it('should support search functionality', async () => {
@@ -102,10 +102,10 @@ describe('Producers API', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(Array.isArray(response.body.data.producers)).toBe(true);
+      expect(Array.isArray(response.body.data.items)).toBe(true);
       
       // If results exist, they should contain search term
-      response.body.data.producers.forEach((producer: any) => {
+      response.body.data.items.forEach((producer: any) => {
         expect(producer.producerName.toLowerCase()).toContain('mint');
       });
     });
@@ -134,7 +134,7 @@ describe('Producers API', () => {
       expect(response.body.success).toBe(true);
       
       // Verify sorting if multiple producers exist
-      const producersData = response.body.data.producers;
+      const producersData = response.body.data.items;
       
       // Find our test producers
       const aaaProducer = producersData.find((p: any) => p.producerName === `AAA Sort Test ${timestamp}`);
@@ -161,7 +161,7 @@ describe('Producers API', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(Array.isArray(response.body.data.producers)).toBe(true);
+      expect(Array.isArray(response.body.data.items)).toBe(true);
     });
 
     it('should handle invalid sort parameters gracefully', async () => {
@@ -631,7 +631,7 @@ describe('Producers API', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data.producers.length).toBeLessThanOrEqual(5);
+      expect(response.body.data.items.length).toBeLessThanOrEqual(5);
       expect(response.body.data.pagination.limit).toBe(5);
       expect(response.body.data.pagination.total).toBeGreaterThan(5);
     });
@@ -731,11 +731,11 @@ describe('Producers API', () => {
         .expect(200);
 
       expect(listResponse.body.success).toBe(true);
-      expect(listResponse.body.data.producers).toBeDefined();
-      expect(Array.isArray(listResponse.body.data.producers)).toBe(true);
+      expect(listResponse.body.data.items).toBeDefined();
+      expect(Array.isArray(listResponse.body.data.items)).toBe(true);
       
-      if (listResponse.body.data.producers.length > 0) {
-        const producer = listResponse.body.data.producers[0];
+      if (listResponse.body.data.items.length > 0) {
+        const producer = listResponse.body.data.items[0];
         expect(producer).toHaveProperty('status');
         expect(['active', 'inactive']).toContain(producer.status);
       }

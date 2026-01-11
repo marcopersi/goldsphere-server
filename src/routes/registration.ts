@@ -6,29 +6,31 @@
  */
 
 import express from 'express';
-import { UserRegistrationService } from '../services/UserRegistrationService';
-import { UserRepository } from '../repositories/UserRepository';
-import { PasswordService } from '../services/PasswordService';
-import { TokenService } from '../services/TokenService';
-import { EmailService } from '../services/EmailService';
+import { UserRegistrationServiceImpl } from '../services/user/impl/UserRegistrationServiceImpl';
+import { UserRepository } from '../services/user/repository/UserRepository';
+import { PasswordService } from '../services/user/impl/PasswordService';
+import { TokenService } from '../services/user/impl/TokenService';
+import { EmailServiceFactory } from '../services/email';
 
 const router = express.Router();
 
-// Initialize services
-const userRepository = new UserRepository();
-const passwordService = new PasswordService();
-const tokenService = new TokenService(process.env.JWT_SECRET || 'fallback-secret');
-const emailService = new EmailService(
-  process.env.APP_BASE_URL || 'http://localhost:8888',
-  undefined, // Use default transporter
-  process.env.EMAIL_FROM || 'noreply@goldsphere.vault'
-);
-const registrationService = new UserRegistrationService(
-  userRepository,
-  passwordService,
-  tokenService,
-  emailService
-);
+// Lazy service creation - gets current instances for testing
+function getRegistrationServices() {
+  const userRepository = new UserRepository();
+  const passwordService = new PasswordService();
+  const tokenService = new TokenService(process.env.JWT_SECRET || 'fallback-secret');
+  const emailService = EmailServiceFactory.create(
+    process.env.APP_BASE_URL || 'http://localhost:8888',
+    process.env.EMAIL_FROM || 'noreply@goldsphere.vault'
+  );
+  const registrationService = new UserRegistrationServiceImpl(
+    userRepository,
+    passwordService,
+    tokenService,
+    emailService
+  );
+  return { registrationService, userRepository, passwordService, tokenService, emailService };
+}
 
 /**
  * POST /api/auth/register
@@ -80,7 +82,7 @@ router.post('/register', async (req, res) => {
     };
 
     // Call registration service
-    const result = await registrationService.registerUser(req.body, clientInfo);
+    const result = await getRegistrationServices().registrationService.registerUser(req.body, clientInfo);
 
     if (result.success) {
       // Set secure HTTP-only cookie for token (optional)
@@ -137,7 +139,7 @@ router.get('/register/check-email/:email', async (req, res) => {
       });
     }
 
-    const exists = await registrationService.isEmailRegistered(email);
+    const exists = await getRegistrationServices().registrationService.isEmailRegistered(email);
     
     res.json({ exists });
   } catch (error) {
@@ -181,6 +183,7 @@ router.post('/register/resend-verification', async (req, res) => {
 
     // Always return success for security (don't reveal if email exists)
     // This prevents email enumeration attacks
+    const { registrationService, userRepository, emailService } = getRegistrationServices();
     const user = await userRepository.findUserByEmail(email);
     
     if (user) {
@@ -207,8 +210,8 @@ router.post('/register/resend-verification', async (req, res) => {
             email,
             verificationToken,
             {
-              firstName: profile.firstname,
-              lastName: profile.lastname,
+              firstName: profile.firstName,
+              lastName: profile.lastName,
             }
           );
         } else {

@@ -1,10 +1,33 @@
 import { Router, Request, Response } from "express";
 import { getPool } from "../dbConfig";
+import { z } from "zod";
 import { 
-  ProducerCreateRequestSchema,
-  ProducerUpdateRequestSchema,
-  ProducersQuerySchema
+  ApiListResponse,
+  PaginationResponse
 } from "@marcopersi/shared";
+
+// Local Producer schemas (removed from shared package in 1.4.6)
+const ProducerCreateRequestSchema = z.object({
+  producerName: z.string().min(1, 'Producer name is required').max(200, 'Producer name too long'),
+  countryId: z.string().uuid('Invalid country ID format').optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  websiteURL: z.string().url('Invalid URL format').max(500, 'URL too long').optional().nullable()
+});
+
+const ProducerUpdateRequestSchema = z.object({
+  producerName: z.string().min(1, 'Producer name is required').max(200, 'Producer name too long').optional(),
+  countryId: z.string().uuid('Invalid country ID format').optional().nullable(),
+  status: z.enum(['active', 'inactive']).optional(),
+  websiteURL: z.string().url('Invalid URL format').max(500, 'URL too long').optional().nullable()
+});
+
+const ProducersQuerySchema = z.object({
+  page: z.string().optional().transform(val => val ? Math.max(1, Number.parseInt(val)) || 1 : 1),
+  limit: z.string().optional().transform(val => val ? Math.min(100, Math.max(1, Number.parseInt(val))) || 20 : 20),
+  search: z.string().optional(),
+  sortBy: z.enum(['name', 'createdAt', 'updatedAt', 'status']).optional().default('name'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('asc')
+});
 
 const router = Router();
 
@@ -135,30 +158,32 @@ router.get("/", async (req: Request, res: Response) => {
     queryParams.push(limit, offset);
     const result = await getPool().query(dataQuery, queryParams);
 
-    const producers = result.rows.map(row => ({
+    const items = result.rows.map(row => ({
       id: row.id,
       producerName: row.producername,
       status: row.status,
       countryId: row.countryid,
       websiteURL: row.websiteurl,
-      createdAt: row.createdat,
-      updatedAt: row.updatedat
+      createdAt: row.createdat,  // ✅ camelCase mapping
+      updatedAt: row.updatedat   // ✅ camelCase mapping
     }));
 
-    res.json({
+    const response: ApiListResponse<typeof items[0]> = {
       success: true,
       data: {
-        producers,
+        items,
         pagination: {
           page,
           limit,
           total,
           totalPages,
           hasNext: page < totalPages,
-          hasPrev: page > 1
+          hasPrevious: page > 1  // ✅ Fixed: hasPrev -> hasPrevious
         }
       }
-    });
+    };
+
+    res.json(response);
   } catch (error) {
     console.error("Error fetching producers:", error);
     res.status(500).json({ 
@@ -471,10 +496,17 @@ router.put("/:id", async (req: Request, res: Response) => {
     const updateValues: any[] = [];
     let paramIndex = 1;
 
+    // Map JS field names to DB column names
+    const fieldMapping: Record<string, string> = {
+      producerName: 'producerName',
+      countryId: 'countryId',
+      status: 'status',
+      websiteURL: 'websiteURL'
+    };
+
     Object.entries(updateData).forEach(([key, value]) => {
-      if (value !== undefined) {
-        const dbField = key === 'producerName' ? 'producerName' : key;
-        updateFields.push(`${dbField} = $${paramIndex}`);
+      if (value !== undefined && fieldMapping[key]) {
+        updateFields.push(`${fieldMapping[key]} = $${paramIndex}`);
         updateValues.push(value);
         paramIndex++;
       }

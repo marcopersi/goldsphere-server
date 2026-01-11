@@ -7,7 +7,7 @@
  */
 
 import 'dotenv/config';
-import { EmailService } from '../src/services/EmailService.js';
+import { EmailService } from '../src/services/email/EmailService.js';
 
 async function testEmailConfiguration() {
   console.log('🧪 Testing Email Service Configuration...\n');

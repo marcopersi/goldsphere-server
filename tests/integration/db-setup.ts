@@ -103,7 +103,8 @@ async function initializeDatabaseSchema(): Promise<void> {
     { name: '01-schema.sql', path: path.join(__dirname, '../../initdb/01-schema.sql') },
     { name: '02-initialLoad.sql', path: path.join(__dirname, '../../initdb/02-initialLoad.sql') },
     { name: '03-sampleData.sql', path: path.join(__dirname, '../../initdb/03-sampleData.sql') },
-    { name: '04-enhanced-user-registration.sql', path: path.join(__dirname, '../../initdb/04-enhanced-user-registration.sql') }
+    { name: '04-enhanced-user-registration.sql', path: path.join(__dirname, '../../initdb/04-enhanced-user-registration.sql') },
+    { name: '05-market-data.sql', path: path.join(__dirname, '../../initdb/05-market-data.sql') }
   ];
 
   for (const sqlFile of sqlFiles) {

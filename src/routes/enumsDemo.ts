@@ -4,7 +4,7 @@ import {
   ProductTypeEnum,
   CountryEnum,
   CurrencyEnum,
-  Producer,
+  // Producer, // Removed from shared package 1.4.6
   OrderType,
   OrderStatus
 } from "@marcopersi/shared";
@@ -67,14 +67,15 @@ router.get("/demo", async (req: Request, res: Response) => {
           fromNumericCode: CurrencyEnum.fromNumericCode(756)
         }
       },
-      producers: {
-        count: Producer.values().length,
-        first3: Producer.values().slice(0, 3).map(producer => ({
-          name: producer.name,
-          toString: producer.toString()
-        })),
-        royalCanadianMint: Producer.fromName('Royal Canadian Mint')?.name
-      },
+      // TODO: Producer enum removed from shared package 1.4.6
+      // producers: {
+      //   count: Producer.values().length,
+      //   first3: Producer.values().slice(0, 3).map(producer => ({
+      //     name: producer.name,
+      //     toString: producer.toString()
+      //   })),
+      //   royalCanadianMint: Producer.fromName('Royal Canadian Mint')?.name
+      // },
       orderTypes: {
         all: OrderType.values().map(type => ({
           value: type.value,
@@ -107,11 +108,11 @@ router.get("/demo", async (req: Request, res: Response) => {
           productTypes: ProductTypeEnum.values().length,
           countries: CountryEnum.values().length,
           currencies: CurrencyEnum.values().length,
-          producers: Producer.values().length,
+          // producers: Producer.values().length, // Removed in 1.4.6
           orderTypes: OrderType.values().length,
           orderStatuses: OrderStatus.values().length
         },
-        sharedPackageVersion: "1.0.9",
+        sharedPackageVersion: "1.4.6", // Updated
         featuresEnabled: [
           "Class-based enums",
           "Type-safe validation",

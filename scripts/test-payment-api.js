@@ -63,6 +63,7 @@ async function checkServerHealth() {
     log('Server is running', 'success');
     return true;
   } catch (error) {
+    log(`Server check failed: ${error.message}`, 'error');
     log('Server is not running. Please start with: npm start', 'error');
     return false;
   }

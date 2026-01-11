@@ -4,8 +4,9 @@ import cors from "cors";
 import helmet from "helmet";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import swaggerUi from "swagger-ui-express";
 import { getPool } from "./dbConfig";
-import { updateSwaggerSpec } from "./config/swagger";
+import { updateSwaggerSpec, swaggerSpec } from "./config/swagger";
 import portfolioRoutes from "./routes/portfolio";
 import positionRoutes from "./routes/position";
 import productRoutes from "./routes/products";
@@ -15,11 +16,12 @@ import usersRoutes from "./routes/users";
 import custodiansRoutes from "./routes/custodians";
 import custodyServiceRoutes from "./routes/custodyService";
 import ordersRoutes from "./routes/orders";
-import producersRoutes from "./routes/producers";
+import producersRoutes from "./routes/producers"; // Fixed: Using local schemas
 import transactionRoutes from "./routes/transactions";
 import paymentsRoutes from "./routes/payments";
 import adminRoutes from "./routes/admin";
 import registrationRoutes from "./routes/registration";
+import marketDataRoutes from "./routes/marketData";
 import authMiddleware from "./authMiddleware";
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
 import { WebhookController } from "./controllers/WebhookController";
@@ -174,10 +176,12 @@ app.get("/api-spec", (req: any, res: any) => {
   });
 });
 
-app.get("/docs", (req: any, res: any) => {
-  res.setHeader('Content-Type', 'text/html');
-  res.send('<html><head><title>API Docs</title></head><body><div id="swagger-ui"></div></body></html>');
-});
+// Swagger UI
+app.use('/docs', swaggerUi.serve);
+app.get('/docs', swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'GoldSphere API Documentation'
+}));
 
 app.get("/api-spec.yaml", (req: any, res: any) => {
   res.setHeader('Content-Type', 'application/x-yaml');
@@ -322,7 +326,8 @@ app.get("/api-spec.json", (req: any, res: any) => {
 
 // Public routes
 app.use("/api/products", productRoutes);
-app.use("/api/producers", producersRoutes);
+app.use("/api/producers", producersRoutes); // Fixed: Using local schemas
+app.use("/api/market-data", marketDataRoutes);
 app.use("/api", referencesRoutes);
 app.use("/api/enums", enumsDemoRoutes);
 app.use("/api/auth", registrationRoutes);

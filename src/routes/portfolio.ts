@@ -18,8 +18,15 @@ import {
   TimestampSchema
 } from "@marcopersi/shared";
 import { z } from 'zod';
+import { PortfolioServiceFactory } from '../services/portfolio';
 
 const router = Router();
+
+// Initialize Portfolio service with factory
+// Lazy service creation - gets current pool for testing
+function getPortfolioService() {
+  return PortfolioServiceFactory.create(getPool());
+}
 
 // =============================================================================
 // LOCAL PORTFOLIO SCHEMAS (using shared package patterns)
@@ -476,7 +483,9 @@ router.get('/portfolios/my', async (req: Request, res: Response) => {
                   country: productResult.rows[0].country,
                   year: productResult.rows[0].year || new Date().getFullYear(),
                   description: productResult.rows[0].description || '',
-                  imageUrl: productResult.rows[0].imagefilename || '',
+                  imageUrl: productResult.rows[0].imagefilename 
+                    ? `/api/products/${productResult.rows[0].id}/image` 
+                    : null,
                   inStock: productResult.rows[0].instock || false,
                   minimumOrderQuantity: productResult.rows[0].minimumorderquantity,
                   createdAt: productResult.rows[0].createdat,

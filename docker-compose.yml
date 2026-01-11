@@ -25,7 +25,10 @@ services:
         - pg-network
 
   goldsphere-server:
-    build: .
+    build:
+      context: .
+      args:
+        NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN}
     container_name: goldsphere-server
     environment:
       - PORT=${PORT}
