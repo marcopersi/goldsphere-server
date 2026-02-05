@@ -60,4 +60,3 @@ reports/jscpd/
 
 # Optional eslint cache
 .eslintcache
-.npmrc
