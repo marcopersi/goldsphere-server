@@ -3,19 +3,38 @@
  */
 
 import request from 'supertest';
-import app from '../../src/app';
+import { generateToken } from '../../src/middleware/auth';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 import { getPool } from '../../src/dbConfig';
+
+let app: any;
 
 describe('Market Data API', () => {
   let goldMetalId: string;
   let silverMetalId: string;
   let providerId: string;
+  let adminToken: string;
 
   beforeAll(async () => {
     await setupTestDatabase();
     
+    // Import app AFTER database setup to ensure pool replacement takes effect
+    app = (await import('../../src/app')).default;
+    
     const pool = getPool();
+    
+    // Get real admin user from database for token generation
+    const adminResult = await pool.query("SELECT id, email, role FROM users WHERE role = 'admin' LIMIT 1");
+    if (adminResult.rows.length === 0) {
+      throw new Error('No admin user found in test database');
+    }
+    
+    const adminUser = adminResult.rows[0];
+    adminToken = generateToken({
+      id: adminUser.id,
+      email: adminUser.email,
+      role: adminUser.role
+    });
     
     // Get metal IDs (using chemical symbols: AU for Gold, AG for Silver)
     const goldResult = await pool.query("SELECT id FROM metal WHERE symbol = 'AU' LIMIT 1");
@@ -262,6 +281,7 @@ describe('Market Data API', () => {
       // Note: This will fail without valid API keys in environment
       const response = await request(app)
         .post('/api/market-data/update')
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(500); // Expected to fail without API keys
 
       expect(response.body).toHaveProperty('success', false);
@@ -272,6 +292,7 @@ describe('Market Data API', () => {
     it('should accept cache cleanup request', async () => {
       const response = await request(app)
         .delete('/api/market-data/cache')
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
       expect(response.body).toHaveProperty('success', true);

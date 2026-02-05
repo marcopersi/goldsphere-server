@@ -1,8 +1,9 @@
 import request from 'supertest';
-import app from '../../src/app';
 import { generateToken } from '../../src/middleware/auth';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 import { getPool } from '../../src/dbConfig';
+
+let app: any;
 
 describe('Products API', () => {
   // Reference IDs loaded ONCE for all tests (read-only data)
@@ -10,13 +11,30 @@ describe('Products API', () => {
   let testMetalId: string;
   let testProducerId: string;
   let testCountryId: string;
+  let adminToken: string;
 
   beforeAll(async () => {
-    // Setup fresh test database with complete schema and reference data
+    // Setup fresh test database BEFORE importing app
     await setupTestDatabase();
+    
+    // Import app AFTER database setup to ensure pool replacement takes effect
+    app = (await import('../../src/app')).default;
     
     // Get reference data IDs from the database (read-only, shared across tests)
     const pool = getPool();
+    
+    // Get real admin user from database for token generation
+    const adminResult = await pool.query("SELECT id, email, role FROM users WHERE role = 'admin' LIMIT 1");
+    if (adminResult.rows.length === 0) {
+      throw new Error('No admin user found in test database');
+    }
+    
+    const adminUser = adminResult.rows[0];
+    adminToken = generateToken({
+      id: adminUser.id,
+      email: adminUser.email,
+      role: adminUser.role
+    });
     
     const productTypeResult = await pool.query("SELECT id FROM productType WHERE productTypeName = 'Coin' LIMIT 1");
     const metalResult = await pool.query("SELECT id FROM metal WHERE name = 'Gold' LIMIT 1");
@@ -223,7 +241,7 @@ describe('Products API', () => {
         // Check that the response has the expected Product interface properties
         expect(product).toHaveProperty('id');
         expect(product).toHaveProperty('name');
-        expect(product).toHaveProperty('productType'); // Now uses Enum KEY (string)
+        expect(product).toHaveProperty('type'); // Now uses Enum KEY (string)
         expect(product).toHaveProperty('metal'); // Now uses Enum KEY (string)
         expect(product).toHaveProperty('weight');
         expect(product).toHaveProperty('price');
@@ -231,8 +249,8 @@ describe('Products API', () => {
         expect(product).toHaveProperty('producer');
         
         // Check Enum keys (UPPER_CASE)
-        expect(typeof product.productType).toBe('string');
-        expect(['COIN', 'BAR']).toContain(product.productType);
+        expect(typeof product.type).toBe('string');
+        expect(['COIN', 'BAR']).toContain(product.type);
         
         expect(typeof product.metal).toBe('string');
         expect(['GOLD', 'SILVER', 'PLATINUM', 'PALLADIUM']).toContain(product.metal);
@@ -277,6 +295,7 @@ describe('Products API', () => {
         // TEST: Create product
         const response = await request(app)
           .post('/api/products')
+          .set('Authorization', `Bearer ${adminToken}`)
           .send(validProductCreateData)
           .expect(201);
 
@@ -313,6 +332,7 @@ describe('Products API', () => {
 
       const response = await request(app)
         .post('/api/products')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(invalidData)
         .expect(400);
 
@@ -337,6 +357,7 @@ describe('Products API', () => {
 
       const response = await request(app)
         .post('/api/products')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(invalidData)
         .expect(400);
 
@@ -453,6 +474,7 @@ describe('Products API', () => {
 
         const response = await request(app)
           .put(`/api/products/${testProductId}`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send(updateData)
           .expect(200);
 
@@ -502,6 +524,7 @@ describe('Products API', () => {
 
         const response = await request(app)
           .put(`/api/products/${testProductId}`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send(partialUpdateData)
           .expect(200);
 
@@ -523,6 +546,7 @@ describe('Products API', () => {
 
       const response = await request(app)
         .put(`/api/products/${nonExistentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send(updateData)
         .expect(404);
 
@@ -565,6 +589,7 @@ describe('Products API', () => {
 
         const response = await request(app)
           .put(`/api/products/${testProductId}`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send(invalidUpdateData)
           .expect(400);
 
@@ -609,6 +634,7 @@ describe('Products API', () => {
         // TEST: Delete product
         const response = await request(app)
           .delete(`/api/products/${testProductId}`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .expect(200);
 
         expect(response.body).toHaveProperty('success', true);
@@ -633,6 +659,7 @@ describe('Products API', () => {
 
       const response = await request(app)
         .delete(`/api/products/${nonExistentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(404);
 
       expect(response.body.success).toBe(false);
@@ -642,6 +669,7 @@ describe('Products API', () => {
     it('should return 400 for invalid UUID format', async () => {
       const response = await request(app)
         .delete('/api/products/invalid-uuid')
+        .set('Authorization', `Bearer ${adminToken}`)
         .expect(400);
 
       expect(response.body.success).toBe(false);
@@ -1094,7 +1122,7 @@ describe('Products API', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Page number must be at least 1');
+      expect(response.body.error).toContain('Page number must be at least 1');
     });
 
     it('should reject limit greater than 100', async () => {
@@ -1104,7 +1132,7 @@ describe('Products API', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Limit must be between 1 and 100');
+      expect(response.body.error).toContain('Limit must be between 1 and 100');
     });
 
     it('should reject negative minimum price', async () => {
@@ -1114,7 +1142,7 @@ describe('Products API', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Minimum price cannot be negative');
+      expect(response.body.error).toContain('Minimum price cannot be negative');
     });
 
     it('should reject minPrice greater than maxPrice', async () => {
@@ -1124,7 +1152,7 @@ describe('Products API', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Minimum price cannot be greater than maximum price');
+      expect(response.body.error).toContain('Minimum price cannot be greater than maximum price');
     });
 
     it('should handle combined filters', async () => {
@@ -1207,6 +1235,7 @@ describe('Products API', () => {
         
         const response = await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             imageBase64: base64Image,
             contentType: 'image/png',
@@ -1255,6 +1284,7 @@ describe('Products API', () => {
 
         const response = await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             imageBase64: base64WithPrefix,
             contentType: 'image/png',
@@ -1300,6 +1330,7 @@ describe('Products API', () => {
 
         const response = await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             imageBase64: base64Image,
             contentType: 'image/jpeg',
@@ -1345,6 +1376,7 @@ describe('Products API', () => {
 
         const response = await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             imageBase64: base64Image,
             contentType: 'image/webp',
@@ -1362,6 +1394,7 @@ describe('Products API', () => {
     it('should reject invalid product ID format', async () => {
       const response = await request(app)
         .post('/api/products/invalid-id/image')
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({
           imageBase64: 'base64data',
           contentType: 'image/png',
@@ -1403,6 +1436,7 @@ describe('Products API', () => {
         // TEST
         const response = await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             contentType: 'image/png',
             filename: 'test.png'
@@ -1446,6 +1480,7 @@ describe('Products API', () => {
         // TEST
         const response = await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             imageBase64: 'base64data',
             filename: 'test.png'
@@ -1489,6 +1524,7 @@ describe('Products API', () => {
         // TEST
         const response = await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             imageBase64: 'base64data',
             contentType: 'application/pdf',
@@ -1559,6 +1595,7 @@ describe('Products API', () => {
 
       const response = await request(app)
         .post(`/api/products/${nonExistentId}/image`)
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({
           imageBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
           contentType: 'image/png',
@@ -1601,6 +1638,7 @@ describe('Products API', () => {
 
         await request(app)
           .post(`/api/products/${testProductId}/image`)
+          .set('Authorization', `Bearer ${adminToken}`)
           .send({
             imageBase64: base64Image,
             contentType: 'image/png',

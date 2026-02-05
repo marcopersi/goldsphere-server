@@ -428,6 +428,9 @@ describe("Orders API", () => {
             .set('Authorization', `Bearer ${authToken}`)
             .send({});
           
+          if (processResponse.status !== 200) {
+            throw new Error(`Process to ${expectedStatus} failed with ${processResponse.status}: ${JSON.stringify(processResponse.body)}`);
+          }
           expect(processResponse.status).toBe(200);
           expect(processResponse.body.data.status).toBe(expectedStatus);
         }

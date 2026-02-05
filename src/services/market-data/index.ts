@@ -5,18 +5,29 @@
  * Follows Facade Pattern for simplified module access
  */
 
-// Service Interface and Implementation
+// Service Interfaces
 export { IMarketDataService } from './IMarketDataService';
-export { MarketDataServiceImpl } from './impl/MarketDataServiceImpl';
+export { ILbmaPriceService } from './ILbmaPriceService';
 
-// Repository Interfaces and Implementations  
+// Service Implementations
+export { MarketDataServiceImpl } from './impl/MarketDataServiceImpl';
+export { LbmaPriceServiceImpl } from './impl/LbmaPriceServiceImpl';
+
+// Repository Interfaces
 export { IMarketDataRepository } from './repository/IMarketDataRepository';
+export { ILbmaPriceRepository } from './repository/ILbmaPriceRepository';
+
+// Repository Implementations  
 export { MarketDataRepositoryImpl } from './repository/MarketDataRepositoryImpl';
+export { LbmaPriceRepositoryImpl } from './repository/LbmaPriceRepositoryImpl';
 export { MarketDataRepositoryMock } from './mock/MarketDataRepositoryMock';
 
-// Provider Interface and Implementations
+// Provider Interfaces and Implementations
 export { IMarketDataProvider } from './providers/IMarketDataProvider';
 export { SIXSwissExchangeProvider } from './providers/SIXSwissExchangeProvider';
+export { MetalsApiLbmaProvider } from './providers/MetalsApiLbmaProvider';
+export type { ILbmaProvider } from './providers/MetalsApiLbmaProvider';
+export { GoldApiProvider } from './providers/GoldApiProvider';
 
 // Factory for Service Creation
 export { MarketDataServiceFactory } from './MarketDataServiceFactory';

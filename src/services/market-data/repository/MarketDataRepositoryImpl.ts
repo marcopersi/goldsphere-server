@@ -191,15 +191,6 @@ export class MarketDataRepositoryImpl implements IMarketDataRepository {
     );
   }
 
-  async getMetalIdBySymbol(symbol: string): Promise<string | null> {
-    const result = await this.pool.query<{ id: string }>(
-      'SELECT id FROM metal WHERE symbol = $1 LIMIT 1',
-      [symbol]
-    );
-
-    return result.rows[0]?.id || null;
-  }
-
   async getActiveProviders(): Promise<MarketDataProvider[]> {
     const result = await this.pool.query<{
       id: string;

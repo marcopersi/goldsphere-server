@@ -23,6 +23,7 @@ import {
   EmailVerificationStatus,
   IdentityVerificationStatus,
   UserRole,
+  AccountStatus,
 } from '../types';
 
 export class UserRepositoryMock implements IRegistrationRepository {
@@ -53,6 +54,14 @@ export class UserRepositoryMock implements IRegistrationRepository {
       updatedAt: new Date('2024-12-01'),
       createdBy: null,
       updatedBy: null,
+      accountStatus: AccountStatus.ACTIVE,
+      blockedAt: null,
+      blockedBy: null,
+      blockReason: null,
+      phoneNumber: null,
+      gender: null,
+      preferredCurrencyId: null,
+      preferredLanguage: null,
     };
 
     const profile1: UserProfileEntity = {
@@ -102,6 +111,14 @@ export class UserRepositoryMock implements IRegistrationRepository {
       updatedAt: now,
       createdBy: null,
       updatedBy: null,
+      accountStatus: AccountStatus.ACTIVE,
+      blockedAt: null,
+      blockedBy: null,
+      blockReason: null,
+      phoneNumber: null,
+      gender: null,
+      preferredCurrencyId: null,
+      preferredLanguage: null,
     };
 
     this.users.set(id, user);

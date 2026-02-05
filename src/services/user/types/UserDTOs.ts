@@ -35,6 +35,16 @@ export interface CreateUserProfileData {
 }
 
 /**
+ * Update user profile data
+ */
+export interface UpdateUserProfileData {
+  title?: UserTitle | null;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: Date;
+}
+
+/**
  * Create user address data
  */
 export interface CreateUserAddressData {
@@ -211,4 +221,44 @@ export interface UserDetailsResponse {
   profile: UserProfileEntity | null;
   addresses: UserAddressEntity[];
   verificationStatus: UserVerificationStatusEntity | null;
+}
+
+// =============================================================================
+// User Management Actions
+// =============================================================================
+
+/**
+ * Input data for blocking a user
+ */
+export interface BlockUserInput {
+  userId: string;
+  blockedBy: string;
+  reason: string;
+}
+
+/**
+ * Input data for unblocking a user
+ */
+export interface UnblockUserInput {
+  userId: string;
+}
+
+/**
+ * User preferences data
+ */
+export interface UserPreferences {
+  preferredCurrencyId?: string;
+  preferredLanguage?: string;
+  gender?: string;
+  phoneNumber?: string;
+}
+
+/**
+ * Extended update profile input including new user fields
+ */
+export interface UpdateProfileInput extends UpdateUserProfileData {
+  phoneNumber?: string;
+  gender?: string;
+  preferredCurrencyId?: string;
+  preferredLanguage?: string;
 }

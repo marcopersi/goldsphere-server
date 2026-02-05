@@ -1,13 +1,17 @@
 import request from 'supertest';
-import app from '../../src/app';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
+
+let app: any;
 
 describe('Position API', () => {
   let authToken: string;
 
   beforeAll(async () => {
-    // Setup fresh test database with complete schema and data
+    // Setup fresh test database BEFORE importing app
     await setupTestDatabase();
+    
+    // Import app AFTER database setup to ensure pool replacement takes effect
+    app = (await import('../../src/app')).default;
     
     // Get auth token for protected endpoints
     const loginResponse = await request(app)

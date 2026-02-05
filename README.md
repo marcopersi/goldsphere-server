@@ -105,11 +105,42 @@ npm run dev
 
 ### Build Commands
 ```bash
-npm run build         # TypeScript kompilieren
+npm run build         # TypeScript kompilieren + tsoa Routes generieren
 npm run build:watch   # Build im Watch-Mode
+npm run tsoa:routes   # Nur tsoa Routes regenerieren (nach Interface-Änderungen)
 npm run lint          # ESLint ausführen
 npm run lint:fix      # ESLint mit Auto-Fix
 ```
+
+### ⚠️ Wichtig: tsoa Route Regeneration
+
+**Das Projekt verwendet [tsoa](https://tsoa-community.github.io/docs/) für automatische Route-Generierung und OpenAPI-Dokumentation.**
+
+**Nach Änderungen an Controller-Interfaces MUSS `tsoa:routes` ausgeführt werden:**
+
+```bash
+# Manuell Routes regenerieren
+npm run tsoa:routes
+
+# Oder beim Build (wird automatisch ausgeführt)
+npm run build
+```
+
+**Warum ist das wichtig?**
+- tsoa ist konfiguriert mit `"noImplicitAdditionalProperties": "throw-on-extras"`
+- Routes validieren gegen das **generierte Schema**, nicht das TypeScript Interface
+- Ohne Regeneration: `400 Bad Request` mit "excess property" Fehlern
+
+**Wann muss regeneriert werden?**
+- ✅ Nach Hinzufügen/Ändern von Feldern in Request-Interfaces
+- ✅ Nach Änderungen an Response-Types
+- ✅ Nach Hinzufügen neuer Endpoints
+- ❌ Nicht nötig bei reinen Implementierungsänderungen (ohne Interface-Änderung)
+
+**Automatisierung:**
+- `npm run build` führt automatisch `tsoa:routes` aus (via `prebuild` hook)
+- Bei jedem Deploy/CI werden die Routes neu generiert
+- Für Development: Manuell nach Interface-Änderungen ausführen
 
 ## 🗄️ Datenbank Management
 
@@ -292,7 +323,6 @@ goldsphere-server/
 │   ├── server.ts                # Express Server Setup
 │   ├── app.ts                   # App Factory
 │   ├── dbConfig.ts              # PostgreSQL Pool Config
-│   ├── authMiddleware.ts        # JWT Authentication
 │   ├── routes/                  # API Endpoints
 │   │   ├── users.ts            # User Management & Auth
 │   │   ├── orders.ts           # Order Management

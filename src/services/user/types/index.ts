@@ -10,13 +10,19 @@ export {
   UserTitle,
   EmailVerificationStatus,
   IdentityVerificationStatus,
+  AccountStatus,
+  Gender,
   DEFAULT_USER_ROLE,
   DEFAULT_EMAIL_VERIFICATION_STATUS,
   DEFAULT_IDENTITY_VERIFICATION_STATUS,
+  DEFAULT_ACCOUNT_STATUS,
+  DEFAULT_GENDER,
   isValidUserRole,
   isValidUserTitle,
   isValidEmailVerificationStatus,
   isValidIdentityVerificationStatus,
+  isValidAccountStatus,
+  isValidGender,
 } from './UserEnums';
 
 // Entity Types
@@ -53,6 +59,10 @@ export type {
   CreateConsentLogData,
   CreateVerificationStatusData,
   UpdateVerificationStatusData,
+  BlockUserInput,
+  UnblockUserInput,
+  UserPreferences,
+  UpdateProfileInput,
 } from './UserDTOs';
 
 // Query Options and Results

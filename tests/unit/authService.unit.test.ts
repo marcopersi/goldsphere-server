@@ -1,0 +1,273 @@
+/**
+ * Auth Service Unit Tests
+ */
+
+import bcrypt from 'bcrypt';
+import { AuthServiceImpl } from '../../src/services/auth/impl/AuthServiceImpl';
+import { AuthRepositoryMock } from '../../src/services/auth/mock/AuthRepositoryMock';
+import { AuthUserRecord, AuthErrorCode } from '../../src/services/auth/types';
+
+describe('AuthService', () => {
+  let authService: AuthServiceImpl;
+  let mockRepository: AuthRepositoryMock;
+  const testSecret = 'test-jwt-secret';
+  const testPassword = 'SecurePassword123';
+  let hashedPassword: string;
+  let compareSpy: jest.SpiedFunction<typeof bcrypt.compare>;
+
+  const createTestUser = async (overrides: Partial<AuthUserRecord> = {}): Promise<AuthUserRecord> => {
+    return {
+      id: 'user-123',
+      email: 'test@goldsphere.vault',
+      passwordHash: hashedPassword,
+      role: 'user',
+      status: 'active',
+      ...overrides,
+    };
+  };
+
+  beforeAll(() => {
+    hashedPassword = bcrypt.hashSync(testPassword, 10);
+    compareSpy = jest.spyOn(bcrypt, 'compare').mockImplementation(async (password, hash) => {
+      return password === testPassword && hash === hashedPassword;
+    });
+  });
+
+  afterAll(() => {
+    compareSpy.mockRestore();
+  });
+
+  beforeEach(() => {
+    mockRepository = new AuthRepositoryMock();
+    authService = new AuthServiceImpl(mockRepository, testSecret, '1h');
+  });
+
+  afterEach(() => {
+    mockRepository.clear();
+  });
+
+  describe('login', () => {
+    it('should return success with token for valid credentials', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const result = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data!.token).toBeDefined();
+      expect(result.data!.user.email).toBe('test@goldsphere.vault');
+      expect(result.data!.user.role).toBe('user');
+    });
+
+    it('should update last login timestamp on successful login', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      const lastLoginUpdate = mockRepository.getLastLoginUpdate('user-123');
+      expect(lastLoginUpdate).toBeDefined();
+    });
+
+    it('should return error for non-existent user', async () => {
+      const result = await authService.login({
+        email: 'nonexistent@goldsphere.vault',
+        password: testPassword,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.INVALID_CREDENTIALS);
+    });
+
+    it('should return error for wrong password', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const result = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: 'wrong-password',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.INVALID_CREDENTIALS);
+    });
+
+    it('should return error for inactive account', async () => {
+      const testUser = await createTestUser({ status: 'inactive' });
+      mockRepository.addUser(testUser);
+
+      const result = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.ACCOUNT_INACTIVE);
+    });
+
+    it('should return error for missing email', async () => {
+      const result = await authService.login({
+        email: '',
+        password: testPassword,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.INVALID_CREDENTIALS);
+    });
+
+    it('should return error for missing password', async () => {
+      const result = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: '',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.INVALID_CREDENTIALS);
+    });
+
+    it('should assign admin role for admin emails', async () => {
+      const adminUser = await createTestUser({
+        email: 'admin@goldsphere.vault',
+        role: undefined, // No explicit role, should detect from email
+      });
+      mockRepository.addUser(adminUser);
+
+      const result = await authService.login({
+        email: 'admin@goldsphere.vault',
+        password: testPassword,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data!.user.role).toBe('admin');
+    });
+  });
+
+  describe('validateToken', () => {
+    it('should return payload for valid token', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const loginResult = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      const token = loginResult.data!.token;
+      const result = await authService.validateToken(token);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data!.email).toBe('test@goldsphere.vault');
+    });
+
+    it('should return error for invalid token', async () => {
+      const result = await authService.validateToken('invalid-token');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.TOKEN_INVALID);
+    });
+
+    it('should return error for expired token', async () => {
+      // Create service with very short expiry
+      const shortExpiryService = new AuthServiceImpl(mockRepository, testSecret, '1ms');
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const loginResult = await shortExpiryService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      // Wait for token to expire
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const result = await shortExpiryService.validateToken(loginResult.data!.token);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.TOKEN_EXPIRED);
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should return new token for valid token', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const loginResult = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      const originalToken = loginResult.data!.token;
+      
+      // Wait a bit to ensure different iat timestamp
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      
+      const result = await authService.refreshToken(originalToken);
+
+      expect(result.success).toBe(true);
+      expect(result.data!.token).toBeDefined();
+      expect(result.data!.token).not.toBe(originalToken);
+    });
+
+    it('should return error if user is no longer active', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const loginResult = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      // Deactivate user after login
+      mockRepository.removeUser('test@goldsphere.vault');
+      mockRepository.addUser({ ...testUser, status: 'inactive' });
+
+      const result = await authService.refreshToken(loginResult.data!.token);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.ACCOUNT_INACTIVE);
+    });
+
+    it('should return error for invalid token', async () => {
+      const result = await authService.refreshToken('invalid-token');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.TOKEN_INVALID);
+    });
+  });
+
+  describe('getCurrentUser', () => {
+    it('should return user info for valid token', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const loginResult = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      const result = await authService.getCurrentUser(loginResult.data!.token);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data!.id).toBe('user-123');
+      expect(result.data!.email).toBe('test@goldsphere.vault');
+      expect(result.data!.role).toBe('user');
+    });
+
+    it('should return error for invalid token', async () => {
+      const result = await authService.getCurrentUser('invalid-token');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.TOKEN_INVALID);
+    });
+  });
+});

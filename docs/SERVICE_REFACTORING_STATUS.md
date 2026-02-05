@@ -71,32 +71,79 @@ src/services/market-data/
 
 ---
 
-## 2. ⚠️ Product Service
+## 2. ✅ DONE: Product Service
 
-**Status:** Weitgehend umgesetzt (Factory, Mock, Repo/Impl, Interfaces, Barrel Export). Unit-Tests grün. Noch zu klären: Namensvereinheitlichung/LOC-Check/Type-Konsolidierung.
+**Status:** ✅ KOMPLETT REFACTORED (Januar 2026)
 
-### Aktuelle Struktur (Stand jetzt):
+### Struktur:
 ```
 src/services/product/
-├── IProductService.ts                        ✅ Interface
-├── IProductManagementService.ts              ✅ Interface
+├── IProductService.ts                        ✅ Interface (Order-bezogen)
+├── IProductManagementService.ts              ✅ Interface (CRUD + Preise + Bilder)
 ├── impl/
-│   ├── ProductServiceImpl.ts                 ✅ DI
-│   └── ProductManagementService.ts           ✅ DI
+│   ├── ProductServiceImpl.ts                 ✅ DI (Order-Enrichment)
+│   └── ProductManagementService.ts           ✅ DI (CRUD-Operationen)
 ├── repository/
-│   ├── IProductRepository.ts                 ✅ Interface
+│   ├── IProductRepository.ts                 ✅ Interface (15+ Methoden)
 │   └── ProductRepositoryImpl.ts              ✅ Implementation
 ├── mock/
-│   └── ProductRepositoryMock.ts              ✅ Tests grün
+│   └── ProductRepositoryMock.ts              ✅ Mock für Tests
 ├── types/
-│   └── ProductTypes.ts                       ✅ Types
-├── ProductServiceFactory.ts                  ✅ Factory
+│   └── ProductTypes.ts                       ✅ Types (inkl. neue DTOs)
+├── ProductServiceFactory.ts                  ✅ Factory mit DI
 └── index.ts                                  ✅ Barrel Export
 ```
 
-### Offene Punkte:
-- [ ] Naming/LOC Check und Konsolidierung der Types
-- [ ] Evtl. überflüssige Importe/Barrel-Abhängigkeiten prüfen
+### Service-Methoden (IProductManagementService):
+- `createProduct(data)` - Create by name references
+- `createProductById(data)` - Create by ID references ✅ NEU
+- `getProductById(id)` - Get single product
+- `listProducts(options)` - List with pagination & filters
+- `updateProduct(id, data)` - Update by name references  
+- `updateProductById(id, data)` - Update by ID references ✅ NEU
+- `deleteProduct(id)` - Delete with order check
+- `uploadImage(id, base64, contentType, filename)` - Image upload
+- `getProductImage(id)` - Get image with metadata ✅ NEU
+- `getProductPrice(id)` - Single price lookup ✅ NEU
+- `getProductPrices(ids[])` - Batch price lookup ✅ NEU
+
+### Repository-Methoden (IProductRepository):
+- CRUD: `create`, `findById`, `findAll`, `update`, `delete`
+- ID-basiert: `createById`, `updateById` ✅ NEU
+- Bilder: `saveImage`, `getImage`, `getImageWithMetadata` ✅ NEU
+- Preise: `findPriceById`, `findPricesByIds` ✅ NEU
+- Validierung: `validateReferenceIds`, `exists`, `hasOrders` ✅ NEU
+- Lookup: `findLookupIds`
+
+### Refactored Route:
+- `src/routes/products.ts` - **KOMPLETT auf ProductService umgestellt**
+- **0 direkte SQL-Queries** - Alle 10 Endpoints nutzen Service
+- Alle CRUD-Operationen via IProductManagementService
+
+### Migrierte Endpoints:
+| Endpoint | Service-Methode | Status |
+|----------|----------------|--------|
+| GET / | `listProducts()` | ✅ |
+| GET /:id | `getProductById()` | ✅ |
+| GET /price/:id | `getProductPrice()` | ✅ |
+| POST /prices | `getProductPrices()` | ✅ |
+| PUT /:id | `updateProductById()` | ✅ |
+| DELETE /:id | `deleteProduct()` | ✅ |
+| POST / | `createProductById()` | ✅ |
+| GET /:id/image | `getProductImage()` | ✅ |
+| POST /:id/image | `uploadImage()` | ✅ |
+| POST /validate | Schema-Validierung | ✅ |
+
+### Highlights:
+- ✅ Vollständige DI (Constructor Injection)
+- ✅ Repository Pattern mit Interface
+- ✅ Factory Pattern
+- ✅ Mock Implementation für Tests
+- ✅ Strong Typing (Metal, ProductTypeEnum Enums)
+- ✅ ID-basierte und Name-basierte CRUD-Methoden
+- ✅ Order-Dependency Check beim Löschen
+- ✅ Reference Validation (Metal, ProductType, Producer, Country)
+- ✅ **Unit Tests grün** (productManagementService.unit.test.ts)
 
 ---
 
@@ -321,16 +368,57 @@ Aktuell vermischt in User Service (`TokenService`, etc.)
 - [ ] Session Management
 - [ ] Factory + DI
 
-### 10. ❌ TODO: Custodian Service
+### 10. ✅ DONE: Custodian Service
 
-Aktuell in Routes (`src/routes/custodians.ts`)
+**Status:** ✅ KOMPLETT REFACTORED (Januar 2026)
 
-**TODO:**
-- [ ] Neue Domain `src/services/custodian/` erstellen
-- [ ] Business Logic aus Routes extrahieren
-- [ ] Repository Pattern implementieren
+**Struktur:**
+```
+src/services/custodian/
+├── ICustodianService.ts                      ✅ Interface
+├── impl/
+│   └── CustodianServiceImpl.ts               ✅ Implementation (DI)
+├── repository/
+│   ├── ICustodianRepository.ts               ✅ Interface
+│   └── CustodianRepositoryImpl.ts            ✅ Implementation
+├── mock/
+│   └── CustodianRepositoryMock.ts            ✅ Mock für Tests
+├── types/
+│   └── CustodianTypes.ts                     ✅ Types
+├── CustodianServiceFactory.ts                ✅ Factory mit DI
+└── index.ts                                  ✅ Barrel Export
+```
 
-### 11. ❌ TODO: Transaction Service
+**Refactored Route:**
+- `src/routes/custodians.ts` - Komplett auf CustodianService umgestellt
+- 0 direkte SQL-Queries
+
+### 11. ✅ DONE: Custody Service
+
+**Status:** ✅ KOMPLETT REFACTORED (Januar 2026)
+
+**Struktur:**
+```
+src/services/custody/
+├── ICustodyService.ts                        ✅ Interface
+├── impl/
+│   └── CustodyServiceImpl.ts                 ✅ Implementation (DI)
+├── repository/
+│   ├── ICustodyRepository.ts                 ✅ Interface
+│   └── CustodyRepositoryImpl.ts              ✅ Implementation
+├── mock/
+│   └── CustodyRepositoryMock.ts              ✅ Mock für Tests
+├── types/
+│   └── CustodyTypes.ts                       ✅ Types
+├── CustodyServiceFactory.ts                  ✅ Factory mit DI
+└── index.ts                                  ✅ Barrel Export
+```
+
+**Refactored Route:**
+- `src/routes/custodyService.ts` - Komplett auf CustodyService umgestellt
+- 0 direkte SQL-Queries
+
+### 12. ❌ TODO: Transaction Service
 
 ### Producer Hinweis
 - Shared Package 1.4.6 hat `Producer` entfernt. Producer-API weiter funktionsfähig durch lokale Schemas in `src/routes/producers.ts` und reaktivierte Route in `app.ts`.
@@ -409,16 +497,18 @@ Für jeden Service folgende Steps durchführen:
 
 ## Status Übersicht
 
-| Service | Interface | Impl | Repository | Mock | Factory | Types | Export | Status |
-|---------|-----------|------|------------|------|---------|-------|--------|--------|
-| Market Data | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ DONE |
-| Product | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ca. 80% (Naming/LOC/Types prüfen) |
-| User | ✅ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | 20% (Passwortfeld erledigt) |
-| Order | ✅ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | 20% |
-| Portfolio | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ca. 70% (Import-Fix offen) |
-| Calculation | ✅ | ⚠️ | ❓ | ❌ | ❌ | ❌ | ❌ | 20% |
-| Payment | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | 10% |
-| Email | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | 10% |
+| Service | Interface | Impl | Repository | Mock | Factory | Types | Export | Route | Status |
+|---------|-----------|------|------------|------|---------|-------|--------|-------|--------|
+| Market Data | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ DONE |
+| Product | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ DONE |
+| User | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ DONE |
+| Custodian | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ DONE |
+| Custody | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ DONE |
+| Order | ✅ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 20% |
+| Portfolio | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | 70% (Route TODO) |
+| Calculation | ✅ | ⚠️ | ❓ | ❌ | ❌ | ❌ | ❌ | ❌ | 20% |
+| Payment | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 10% |
+| Email | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 10% |
 
 **Legende:**
 - ✅ Done
@@ -428,21 +518,176 @@ Für jeden Service folgende Steps durchführen:
 
 ---
 
-## Nächste Schritte
+## 🚀 TSOA Migration - Bye Bye Manual Routes!
 
-1. **Product Service** komplett refactoren (HIGH PRIORITY)
-2. **Order Service** komplett refactoren (HIGH PRIORITY)
-3. **User Service** cleanup und Repository hinzufügen (HIGH PRIORITY)
-4. **Portfolio Service** refactoren (HIGH PRIORITY)
-5. Rest nach Priorität abarbeiten
+**Datum:** 3. Februar 2026
+
+### Warum tsoa?
+
+Die aktuelle Architektur hat fundamentale Probleme:
+
+| Problem | Beispiel | Impact |
+|---------|----------|--------|
+| **Swagger inline in Routes** | `custodyService.ts` hat 8 `@swagger` Blöcke | 583 LOC statt ~100 |
+| **Manuelle Routes** | Jede Route braucht Express-Boilerplate | Code-Duplikation |
+| **Inkonsistente Benennung** | `custodyService.ts` statt `custody.ts` | Verwirrung |
+| **Validation dupliziert** | Zod in Routes UND in Services | DRY verletzt |
+| **Keine Type-Safety** | `req.body as any`, `req.params` untyped | Runtime-Fehler |
+
+### tsoa Vorteile
+
+- ✅ **Swagger auto-generiert** aus Controller-Decorators
+- ✅ **Routes auto-generiert** - kein manuelles Express-Routing
+- ✅ **Type-safe** - Request/Response aus TypeScript Types
+- ✅ **Validation built-in** - aus den Types, keine Zod-Duplikation
+- ✅ **DI-Support** - passt zu unserer Clean Architecture
+- ✅ **OpenAPI 3.0** - Industry Standard
+
+### Neue Ziel-Architektur
+
+```
+src/
+├── controllers/                    # tsoa Controllers (HTTP-Layer)
+│   ├── CustodyController.ts       # @Route, @Get, @Post, etc.
+│   ├── PortfolioController.ts
+│   └── ...
+├── services/{domain}/              # Business Logic (unverändert)
+│   ├── I{Domain}Service.ts
+│   ├── impl/
+│   ├── repository/
+│   ├── types/
+│   └── index.ts
+├── generated/                      # Auto-generiert von tsoa
+│   ├── routes.ts                  # Express Routes (DO NOT EDIT)
+│   └── swagger.json               # OpenAPI Spec (DO NOT EDIT)
+└── routes/                         # ❌ WIRD GELÖSCHT nach Migration
+```
+
+### Controller-Beispiel (Ziel)
+
+```typescript
+// src/controllers/CustodyController.ts
+import { Controller, Get, Post, Put, Delete, Route, Tags, Security, Query, Path, Body } from 'tsoa';
+import { CustodyServiceFactory } from '../services/custody';
+import { CustodyServiceEntity, ListCustodyServicesOptions } from '../services/custody/types/CustodyTypes';
+
+@Route('custody')
+@Tags('Custody Services')
+export class CustodyController extends Controller {
+  
+  @Get('/')
+  @Security('bearerAuth')
+  public async getCustodyServices(
+    @Query() page?: number,
+    @Query() limit?: number,
+    @Query() search?: string,
+    @Query() custodianId?: string
+  ): Promise<{ custodyServices: CustodyServiceEntity[]; pagination: Pagination }> {
+    const service = CustodyServiceFactory.createService(getPool());
+    const result = await service.getCustodyServices({ page, limit, search, custodianId });
+    
+    if (!result.success) {
+      this.setStatus(500);
+      throw new Error(result.message);
+    }
+    
+    return result.data;
+  }
+
+  @Get('{id}')
+  @Security('bearerAuth')
+  public async getCustodyServiceById(@Path() id: string): Promise<CustodyServiceEntity> {
+    const service = CustodyServiceFactory.createService(getPool());
+    const result = await service.getCustodyServiceById(id);
+    
+    if (!result.success) {
+      this.setStatus(404);
+      throw new Error('Custody service not found');
+    }
+    
+    return result.data;
+  }
+
+  @Post('/')
+  @Security('bearerAuth')
+  public async createCustodyService(@Body() body: CreateCustodyServiceRequest): Promise<CustodyServiceEntity> {
+    // ...
+  }
+}
+```
+
+### Migrations-Plan
+
+#### Phase 1: Setup (1h)
+- [ ] `npm install tsoa swagger-ui-express`
+- [ ] `tsoa.json` Konfiguration erstellen
+- [ ] `src/controllers/` Verzeichnis erstellen
+- [ ] Build-Scripts anpassen (`tsoa spec-and-routes`)
+- [ ] Swagger UI in `app.ts` einbinden
+
+#### Phase 2: Migration pro Domain (je 30-60min)
+Reihenfolge nach Komplexität (einfach → komplex):
+
+1. **Reference** - Einfache Read-Only API
+2. **Custodian** - CRUD, bereits refactored
+3. **Custody** - CRUD, bereits refactored
+4. **Portfolio** - CRUD + Positions
+5. **Product** - CRUD + Images
+6. **User** - Auth + CRUD
+7. **Order** - Complex Business Logic
+8. **Payment** - External Integration
+9. **Market Data** - Provider Pattern
+10. **Auth** - JWT Handling
+
+#### Phase 3: Cleanup
+- [ ] Alte `src/routes/` Dateien löschen
+- [ ] Swagger-Blöcke aus alten Dateien entfernen
+- [ ] `app.ts` aufräumen (keine manuellen Route-Imports mehr)
+- [ ] Tests auf neue Controller umstellen
+
+### Checkliste pro Controller-Migration
+
+```markdown
+- [ ] Controller erstellen: `src/controllers/{Domain}Controller.ts`
+- [ ] Decorators: @Route, @Tags, @Security, @Get/@Post/@Put/@Delete
+- [ ] Request Types definieren (oder aus Service Types importieren)
+- [ ] Response Types definieren
+- [ ] Error Handling mit this.setStatus()
+- [ ] `tsoa spec-and-routes` ausführen
+- [ ] Alte Route-Datei löschen
+- [ ] Tests anpassen
+- [ ] Swagger UI testen
+```
+
+### Geschätzter Aufwand
+
+| Phase | Aufwand |
+|-------|---------|
+| Setup | 1h |
+| 10 Controller migrieren | 5-8h |
+| Cleanup & Tests | 2h |
+| **Gesamt** | **8-11h** |
 
 ---
 
-**Geschätzter Aufwand:** 
-- Pro High-Priority Service: 2-4 Stunden
-- Pro Medium-Priority Service: 1-2 Stunden
-- Pro Low-Priority Service: 0.5-1 Stunde
-- **Gesamt: ~15-25 Stunden** für komplette Migration
+## Nächste Schritte
 
-**Stand:** 11. Januar 2026
-**Fortschritt:** 1/8 Services komplett (12.5%) – Product & Portfolio deutlich weiter, siehe Status unten
+1. ~~**Product Service** komplett refactoren (HIGH PRIORITY)~~
+2. ~~**Order Service** komplett refactoren (HIGH PRIORITY)~~
+3. ~~**User Service** cleanup und Repository hinzufügen (HIGH PRIORITY)~~
+4. ~~**Portfolio Service** refactoren (HIGH PRIORITY)~~
+5. ~~Rest nach Priorität abarbeiten~~
+
+### NEU: tsoa Migration
+
+1. **Phase 1: tsoa Setup** ← START HERE
+2. **Phase 2: Reference Controller** (einfachster Test)
+3. **Phase 2: Custody Controller** (bereits sauber refactored)
+4. **Phase 2: Weitere Controller...**
+5. **Phase 3: Cleanup**
+
+---
+
+**Stand:** 3. Februar 2026
+**Fortschritt:** 6/10 Services komplett (60%) – Market Data, User, Product, Custodian, Custody, Portfolio
+**Nächster Schritt:** tsoa Setup & erste Controller-Migration

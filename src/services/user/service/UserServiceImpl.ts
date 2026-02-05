@@ -23,6 +23,7 @@ import {
   ListUsersOptions,
   GetUsersResult,
 } from '../types';
+import { AuditTrailUser } from '../../../utils/auditTrail';
 
 // Password hashing configuration
 const SALT_ROUNDS = 10;
@@ -38,7 +39,10 @@ export class UserServiceImpl implements IUserService {
   // User CRUD Operations
   // =========================================================================
 
-  async createUser(input: CreateUserInput): Promise<UserOperationResult<UserEntity>> {
+  async createUser(
+    input: CreateUserInput,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserOperationResult<UserEntity>> {
     try {
       // Validate email format
       if (!this.validateEmailFormat(input.email)) {
@@ -81,7 +85,24 @@ export class UserServiceImpl implements IUserService {
         termsAcceptedAt: input.termsAcceptedAt,
       };
 
-      const user = await this.userRepository.createUser(userData);
+      const user = await this.userRepository.createUser(userData, authenticatedUser);
+
+      // Create user profile if profile fields are provided
+      if (input.firstName && input.lastName && input.birthDate) {
+        try {
+          await this.userRepository.createUserProfile({
+            userId: user.id,
+            title: input.title || null,
+            firstName: input.firstName,
+            lastName: input.lastName,
+            birthDate: input.birthDate,
+          });
+        } catch (profileError) {
+          console.error('Error creating user profile:', profileError);
+          // Profile creation failed, but user was created
+          // We don't fail the entire operation
+        }
+      }
 
       return { success: true, data: user };
     } catch (error) {
@@ -186,7 +207,11 @@ export class UserServiceImpl implements IUserService {
     }
   }
 
-  async updateUser(id: string, input: UpdateUserInput): Promise<UserOperationResult<UserEntity>> {
+  async updateUser(
+    id: string,
+    input: UpdateUserInput,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserOperationResult<UserEntity>> {
     try {
       // Check user exists
       const existingUser = await this.userRepository.findUserById(id);
@@ -249,7 +274,7 @@ export class UserServiceImpl implements IUserService {
         updateData.identityVerified = input.identityVerified;
       }
 
-      const updatedUser = await this.userRepository.updateUser(id, updateData);
+      const updatedUser = await this.userRepository.updateUser(id, updateData, authenticatedUser);
 
       if (!updatedUser) {
         return {
@@ -257,6 +282,37 @@ export class UserServiceImpl implements IUserService {
           error: 'Failed to update user',
           errorCode: UserErrorCode.INTERNAL_ERROR,
         };
+      }
+
+      // Update user profile if profile fields are provided
+      if (input.title || input.firstName || input.lastName || input.birthDate) {
+        try {
+          const existingProfile = await this.userRepository.findUserProfileByUserId(id);
+          
+          if (existingProfile) {
+            // Update existing profile
+            const profileUpdateData: any = {};
+            if (input.title !== undefined) profileUpdateData.title = input.title;
+            if (input.firstName !== undefined) profileUpdateData.firstName = input.firstName;
+            if (input.lastName !== undefined) profileUpdateData.lastName = input.lastName;
+            if (input.birthDate !== undefined) profileUpdateData.birthDate = input.birthDate;
+            
+            await this.userRepository.updateUserProfile(id, profileUpdateData);
+          } else if (input.firstName && input.lastName && input.birthDate) {
+            // Create profile if all required fields are present
+            await this.userRepository.createUserProfile({
+              userId: id,
+              title: input.title || null,
+              firstName: input.firstName,
+              lastName: input.lastName,
+              birthDate: input.birthDate,
+            });
+          }
+        } catch (profileError) {
+          console.error('Error updating user profile:', profileError);
+          // Profile update failed, but user was updated
+          // We don't fail the entire operation
+        }
       }
 
       return { success: true, data: updatedUser };
@@ -312,6 +368,187 @@ export class UserServiceImpl implements IUserService {
       return {
         success: false,
         error: 'Failed to delete user',
+        errorCode: UserErrorCode.INTERNAL_ERROR,
+      };
+    }
+  }
+
+  // =========================================================================
+  // User Account Management
+  // =========================================================================
+
+  async blockUser(
+    userId: string,
+    blockedBy: string,
+    reason: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserOperationResult<UserEntity>> {
+    try {
+      // Check if user exists
+      const user = await this.userRepository.findUserById(userId);
+      if (!user) {
+        return {
+          success: false,
+          error: 'User not found',
+          errorCode: UserErrorCode.USER_NOT_FOUND,
+        };
+      }
+
+      // Check if user is trying to block themselves
+      if (userId === blockedBy) {
+        return {
+          success: false,
+          error: 'Cannot block yourself',
+          errorCode: UserErrorCode.CANNOT_BLOCK_SELF,
+        };
+      }
+
+      // Check if user is already blocked
+      if (user.accountStatus === 'blocked' || user.accountStatus === 'suspended') {
+        return {
+          success: false,
+          error: 'User is already blocked or suspended',
+          errorCode: UserErrorCode.USER_ALREADY_BLOCKED,
+        };
+      }
+
+      // Validate reason is not empty
+      if (!reason || reason.trim().length === 0) {
+        return {
+          success: false,
+          error: 'Block reason is required',
+          errorCode: UserErrorCode.VALIDATION_ERROR,
+        };
+      }
+
+      // Block user
+      const blockedUser = await this.userRepository.blockUser(
+        userId,
+        blockedBy,
+        reason.trim(),
+        authenticatedUser
+      );
+      
+      if (!blockedUser) {
+        return {
+          success: false,
+          error: 'Failed to block user',
+          errorCode: UserErrorCode.INTERNAL_ERROR,
+        };
+      }
+
+      return { success: true, data: blockedUser };
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      return {
+        success: false,
+        error: 'Failed to block user',
+        errorCode: UserErrorCode.INTERNAL_ERROR,
+      };
+    }
+  }
+
+  async unblockUser(
+    userId: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserOperationResult<UserEntity>> {
+    try {
+      // Check if user exists
+      const user = await this.userRepository.findUserById(userId);
+      if (!user) {
+        return {
+          success: false,
+          error: 'User not found',
+          errorCode: UserErrorCode.USER_NOT_FOUND,
+        };
+      }
+
+      // Check if user is actually blocked
+      if (user.accountStatus !== 'blocked' && user.accountStatus !== 'suspended') {
+        return {
+          success: false,
+          error: 'User is not blocked',
+          errorCode: UserErrorCode.USER_NOT_BLOCKED,
+        };
+      }
+
+      // Unblock user
+      const unblockedUser = await this.userRepository.unblockUser(userId, authenticatedUser);
+      
+      if (!unblockedUser) {
+        return {
+          success: false,
+          error: 'Failed to unblock user',
+          errorCode: UserErrorCode.INTERNAL_ERROR,
+        };
+      }
+
+      return { success: true, data: unblockedUser };
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      return {
+        success: false,
+        error: 'Failed to unblock user',
+        errorCode: UserErrorCode.INTERNAL_ERROR,
+      };
+    }
+  }
+
+  async softDeleteUser(
+    userId: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserOperationResult<UserEntity>> {
+    try {
+      // Check if user exists
+      const user = await this.userRepository.findUserById(userId);
+      if (!user) {
+        return {
+          success: false,
+          error: 'User not found',
+          errorCode: UserErrorCode.USER_NOT_FOUND,
+        };
+      }
+
+      // Check if user is already deleted
+      if (user.accountStatus === 'deleted') {
+        return {
+          success: false,
+          error: 'User is already deleted',
+          errorCode: UserErrorCode.INVALID_STATUS_TRANSITION,
+        };
+      }
+
+      // Soft delete user
+      const deletedUser = await this.userRepository.softDeleteUser(userId, authenticatedUser);
+      
+      if (!deletedUser) {
+        return {
+          success: false,
+          error: 'Failed to soft delete user',
+          errorCode: UserErrorCode.INTERNAL_ERROR,
+        };
+      }
+
+      return { success: true, data: deletedUser };
+    } catch (error) {
+      console.error('Error soft deleting user:', error);
+      return {
+        success: false,
+        error: 'Failed to soft delete user',
+        errorCode: UserErrorCode.INTERNAL_ERROR,
+      };
+    }
+  }
+
+  async findBlockedUsers(): Promise<UserOperationResult<UserEntity[]>> {
+    try {
+      const blockedUsers = await this.userRepository.findBlockedUsers();
+      return { success: true, data: blockedUsers };
+    } catch (error) {
+      console.error('Error finding blocked users:', error);
+      return {
+        success: false,
+        error: 'Failed to find blocked users',
         errorCode: UserErrorCode.INTERNAL_ERROR,
       };
     }

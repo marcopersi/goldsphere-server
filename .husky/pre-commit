@@ -11,6 +11,15 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+# Run jscpd copy-paste detection
+echo "🔎 Running jscpd copy-paste detection..."
+jscpd --config .jscpd.json
+if [ $? -ne 0 ]; then
+  echo "❌ jscpd found too much code duplication. Please reduce duplication and try again."
+  echo "💡 Run 'node scripts/jscpd-html-report.mjs' to see detailed report."
+  exit 1
+fi
+
 # Run build
 echo "🔨 Building project..."
 bun run build

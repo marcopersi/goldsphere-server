@@ -48,7 +48,7 @@ echo "2. Getting available products..."
 PRODUCTS_RESPONSE=$(curl -s -X GET "${SERVER_URL}/api/products?limit=1" \
   -H "Authorization: Bearer $TOKEN")
 
-PRODUCT_ID=$(echo $PRODUCTS_RESPONSE | jq -r '.data.products[0].id // empty')
+PRODUCT_ID=$(echo $PRODUCTS_RESPONSE | jq -r '.data.items[0].id // empty')
 
 if [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ]; then
   echo "❌ No products available for testing"
@@ -56,7 +56,7 @@ if [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ]; then
   exit 1
 fi
 
-PRODUCT_NAME=$(echo $PRODUCTS_RESPONSE | jq -r '.data.products[0].name // "Unknown Product"')
+PRODUCT_NAME=$(echo $PRODUCTS_RESPONSE | jq -r '.data.items[0].name // "Unknown Product"')
 echo "✅ Found test product: $PRODUCT_NAME (ID: $PRODUCT_ID)"
 echo ""
 
@@ -66,25 +66,14 @@ echo ""
 # This is the NEW pattern - frontend sends minimal data (no userId - extracted from JWT)
 MINIMAL_ORDER_REQUEST='{
   "type": "buy",
+  "currency": "CHF",
+  "source": "web",
   "items": [
     {
       "productId": "'$PRODUCT_ID'",
       "quantity": 2
     }
   ],
-  "shippingAddress": {
-    "type": "shipping",
-    "firstName": "John",
-    "lastName": "Doe",
-    "street": "123 Test St",
-    "city": "Test City",
-    "state": "CA",
-    "zipCode": "12345",
-    "country": "USA"
-  },
-  "paymentMethod": {
-    "type": "card"
-  },
   "notes": "Test order created with corrected API pattern - userId extracted from JWT"
 }'
 
@@ -107,15 +96,14 @@ if echo "$ORDER_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
   # Show the enrichment
   echo "📊 Backend enrichments:"
   echo "  - Order ID: $(echo $ORDER_RESPONSE | jq -r '.data.id')"
+  echo "  - Order Number: $(echo $ORDER_RESPONSE | jq -r '.data.orderNumber')"
   echo "  - Product Name: $(echo $ORDER_RESPONSE | jq -r '.data.items[0].productName')"
-  echo "  - Unit Price: \$$(echo $ORDER_RESPONSE | jq -r '.data.items[0].unitPrice')"
-  echo "  - Total Price: \$$(echo $ORDER_RESPONSE | jq -r '.data.items[0].totalPrice')"
-  echo "  - Subtotal: \$$(echo $ORDER_RESPONSE | jq -r '.data.subtotal')"
-  echo "  - Processing Fee: \$$(echo $ORDER_RESPONSE | jq -r '.data.fees.processing')"
-  echo "  - Shipping Fee: \$$(echo $ORDER_RESPONSE | jq -r '.data.fees.shipping')"
-  echo "  - Insurance Fee: \$$(echo $ORDER_RESPONSE | jq -r '.data.fees.insurance')"
-  echo "  - Taxes: \$$(echo $ORDER_RESPONSE | jq -r '.data.taxes')"
-  echo "  - Total Amount: \$$(echo $ORDER_RESPONSE | jq -r '.data.totalAmount')"
+  echo "  - Unit Price: $(echo $ORDER_RESPONSE | jq -r '.data.currency') $(echo $ORDER_RESPONSE | jq -r '.data.items[0].unitPrice')"
+  echo "  - Total Price: $(echo $ORDER_RESPONSE | jq -r '.data.currency') $(echo $ORDER_RESPONSE | jq -r '.data.items[0].totalPrice')"
+  echo "  - Subtotal: $(echo $ORDER_RESPONSE | jq -r '.data.currency') $(echo $ORDER_RESPONSE | jq -r '.data.subtotal')"
+  echo "  - Taxes: $(echo $ORDER_RESPONSE | jq -r '.data.currency') $(echo $ORDER_RESPONSE | jq -r '.data.taxes')"
+  echo "  - Total Amount: $(echo $ORDER_RESPONSE | jq -r '.data.currency') $(echo $ORDER_RESPONSE | jq -r '.data.totalAmount')"
+  echo "  - Status: $(echo $ORDER_RESPONSE | jq -r '.data.status')"
   echo "  - Created At: $(echo $ORDER_RESPONSE | jq -r '.data.createdAt')"
   echo ""
   
@@ -140,10 +128,13 @@ fi
 echo ""
 echo "=== Test Summary ==="
 echo "✅ Demonstrated corrected order API pattern:"
-echo "  1. Frontend sent minimal request (type, items, shipping, payment)"
+echo "  1. Frontend sent minimal request (type, currency, source, items)"
 echo "  2. Backend enriched with product details, prices, and calculations"
-echo "  3. Backend generated IDs, timestamps, and business logic"
+echo "  3. Backend generated IDs, order number, timestamps, and business logic"
 echo "  4. Response contains complete order object for frontend use"
 echo ""
 echo "This pattern follows @marcopersi/shared package expectations and"
 echo "ensures proper separation of concerns between frontend and backend."
+echo ""
+echo "Note: After changing OrdersCreateInput interface, run:"
+echo "  npx tsoa spec-and-routes && npm run build"

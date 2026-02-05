@@ -1,0 +1,46 @@
+{
+  "entryFile": "src/server.ts",
+  "noImplicitAdditionalProperties": "throw-on-extras",
+  "controllerPathGlobs": ["src/controllers/**/*Controller.ts"],
+  "spec": {
+    "outputDirectory": "src/generated",
+    "specVersion": 3,
+    "securityDefinitions": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "basePath": "/api",
+    "host": "localhost:3000",
+    "schemes": ["http", "https"],
+    "info": {
+      "title": "Goldsphere API",
+      "version": "1.0.0",
+      "description": "API for precious metals portfolio management",
+      "contact": {
+        "name": "Goldsphere Team"
+      }
+    },
+    "tags": [
+      { "name": "Reference", "description": "Reference data (metals, producers, product types)" },
+      { "name": "Custodians", "description": "Custodian management" },
+      { "name": "Custody Services", "description": "Custody service management" },
+      { "name": "Portfolios", "description": "Portfolio management" },
+      { "name": "Positions", "description": "Position management" },
+      { "name": "Products", "description": "Product catalog" },
+      { "name": "Orders", "description": "Order management" },
+      { "name": "Users", "description": "User management" },
+      { "name": "Auth", "description": "Authentication" },
+      { "name": "Market Data", "description": "Market data and pricing" }
+    ]
+  },
+  "routes": {
+    "routesDir": "src/generated",
+    "middleware": "express",
+    "basePath": "/api",
+    "authenticationModule": "src/middleware/tsoaAuth.ts"
+  },
+  "ignore": ["**/node_modules/**"]
+}

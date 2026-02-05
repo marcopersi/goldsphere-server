@@ -11,8 +11,14 @@ import {
   ListPortfoliosOptions, 
   GetPortfoliosResult 
 } from '../types/PortfolioTypes';
+import { AuditTrailUser } from '../../../utils/auditTrail';
 
 export interface IPortfolioRepository {
+  /**
+   * Get all portfolios with filtering and pagination (admin/global view)
+   */
+  getAllPortfolios(options: ListPortfoliosOptions): Promise<GetPortfoliosResult>;
+
   /**
    * Get user portfolios with filtering and pagination
    */
@@ -31,15 +37,31 @@ export interface IPortfolioRepository {
   /**
    * Create a new portfolio
    */
-  create(userId: string, name: string, description?: string): Promise<PortfolioSummary>;
+  create(userId: string, name: string, description?: string, authenticatedUser?: AuditTrailUser): Promise<PortfolioSummary>;
 
   /**
    * Update portfolio
    */
-  update(portfolioId: string, updates: Partial<PortfolioSummary>): Promise<void>;
+  update(portfolioId: string, updates: Partial<PortfolioSummary>, authenticatedUser?: AuditTrailUser): Promise<PortfolioSummary | null>;
 
   /**
    * Delete portfolio
    */
-  delete(portfolioId: string): Promise<void>;
+  delete(portfolioId: string, authenticatedUser?: AuditTrailUser): Promise<void>;
+
+  /**
+   * Check if user exists
+   */
+  userExists(userId: string): Promise<boolean>;
+
+  /**
+   * Check if portfolio name exists for user
+   */
+  nameExistsForUser(userId: string, name: string, excludePortfolioId?: string): Promise<boolean>;
+
+  /**
+   * Get position count for portfolio
+   */
+  getPositionCount(portfolioId: string): Promise<number>;
 }
+

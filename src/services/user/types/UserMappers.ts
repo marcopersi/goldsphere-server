@@ -25,10 +25,13 @@ import {
   UserTitle,
   EmailVerificationStatus,
   IdentityVerificationStatus,
+  AccountStatus,
   isValidUserRole,
   isValidUserTitle,
   isValidEmailVerificationStatus,
   isValidIdentityVerificationStatus,
+  isValidAccountStatus,
+  isValidGender,
 } from './UserEnums';
 
 // =============================================================================
@@ -40,6 +43,12 @@ import {
  */
 export function mapUserEntity(row: UserDbRow): UserEntity {
   const role = isValidUserRole(row.role) ? row.role : UserRole.CUSTOMER;
+  const accountStatus = isValidAccountStatus(row.account_status) 
+    ? row.account_status 
+    : AccountStatus.ACTIVE;
+  const gender = row.gender && isValidGender(row.gender) 
+    ? row.gender 
+    : null;
   
   return {
     id: row.id,
@@ -55,6 +64,14 @@ export function mapUserEntity(row: UserDbRow): UserEntity {
     updatedAt: row.updatedat,
     createdBy: row.createdby,
     updatedBy: row.updatedby,
+    accountStatus: accountStatus,
+    blockedAt: row.blocked_at,
+    blockedBy: row.blocked_by,
+    blockReason: row.block_reason,
+    phoneNumber: row.phone_number,
+    gender: gender,
+    preferredCurrencyId: row.preferred_currency_id,
+    preferredLanguage: row.preferred_language,
   };
 }
 

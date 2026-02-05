@@ -8,7 +8,8 @@ import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { Metal, ProductTypeEnum } from '@marcopersi/shared';
 import { IProductRepository } from './IProductRepository';
-import { CreateProductRequest, UpdateProductRequest, ProductManagementResponse, ProductLookupIds, ProductImageUpload, ProductListOptions, ProductListResponse } from '../types/ProductTypes';
+import { CreateProductRequest, UpdateProductRequest, ProductManagementResponse, ProductLookupIds, ProductImageUpload, ProductListOptions, ProductListResponse, CreateProductByIdRequest, UpdateProductByIdRequest } from '../types/ProductTypes';
+import { AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
 
 export class ProductRepositoryImpl implements IProductRepository {
   constructor(private readonly pool: Pool) {}
@@ -62,9 +63,10 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
 
-  async create(data: CreateProductRequest): Promise<ProductManagementResponse> {
+  async create(data: CreateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
     const id = uuidv4();
     const now = new Date();
+    const auditUser = getAuditUser(authenticatedUser);
     
     try {
       // Get lookup IDs for foreign keys
@@ -84,8 +86,8 @@ export class ProductRepositoryImpl implements IProductRepository {
           id, name, producttypeid, metalid, countryid, producerid,
           weight, weightunit, purity, price, currency, year, description,
           imageurl, imagefilename, instock, stockquantity, minimumorderquantity,
-          premiumpercentage, createdat, updatedat
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+          premiumpercentage, createdat, updatedat, createdBy, updatedBy
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
         RETURNING *
       `;
       
@@ -110,7 +112,9 @@ export class ProductRepositoryImpl implements IProductRepository {
         data.minimumOrderQuantity || 1,
         data.premiumPercentage || null,
         now,
-        now
+        now,
+        auditUser.id,
+        auditUser.id
       ];
       
       const result = await this.pool.query(query, values);
@@ -259,7 +263,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     };
   }
   
-  async update(id: string, data: UpdateProductRequest): Promise<ProductManagementResponse> {
+  async update(id: string, data: UpdateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
     try {
       // Get lookup IDs if references changed
       let lookupIds: ProductLookupIds | null = null;
@@ -375,7 +379,9 @@ export class ProductRepositoryImpl implements IProductRepository {
         throw new Error('No fields to update');
       }
       
-      // Always update timestamp
+      const auditUser = getAuditUser(authenticatedUser);
+      updateFields.push(`updatedBy = $${paramIndex++}`);
+      values.push(auditUser.id);
       updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
       
       const query = `
@@ -400,7 +406,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
   
-  async delete(id: string): Promise<void> {
+  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
     try {
       const result = await this.pool.query(
         'DELETE FROM product WHERE id = $1',
@@ -415,13 +421,14 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
   
-  async saveImage(productId: string, image: ProductImageUpload): Promise<void> {
+  async saveImage(productId: string, image: ProductImageUpload, authenticatedUser?: AuditTrailUser): Promise<void> {
     try {
+      const auditUser = getAuditUser(authenticatedUser);
       const result = await this.pool.query(
         `UPDATE product 
-         SET imagedata = $1, imagecontenttype = $2, imagefilename = $3, updatedat = CURRENT_TIMESTAMP
-         WHERE id = $4`,
-        [image.imageData, image.contentType, image.filename, productId]
+         SET imagedata = $1, imagecontenttype = $2, imagefilename = $3, updatedBy = $4, updatedat = CURRENT_TIMESTAMP
+         WHERE id = $5`,
+        [image.imageData, image.contentType, image.filename, auditUser.id, productId]
       );
       
       if (result.rowCount === 0) {
@@ -446,6 +453,328 @@ export class ProductRepositoryImpl implements IProductRepository {
       return result.rows[0].imagedata;
     } catch (error) {
       throw error instanceof Error ? error : new Error('Failed to get product image');
+    }
+  }
+  
+  async getImageWithMetadata(productId: string): Promise<{ data: Buffer; contentType: string; filename: string } | null> {
+    try {
+      const result = await this.pool.query(
+        'SELECT imagedata, imagecontenttype, imagefilename FROM product WHERE id = $1',
+        [productId]
+      );
+      
+      if (result.rows.length === 0 || !result.rows[0].imagedata) {
+        return null;
+      }
+      
+      return {
+        data: result.rows[0].imagedata,
+        contentType: result.rows[0].imagecontenttype || 'image/jpeg',
+        filename: result.rows[0].imagefilename || `product-${productId}.jpg`
+      };
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to get product image');
+    }
+  }
+  
+  async findPriceById(id: string): Promise<{ id: string; price: number; currency: string } | null> {
+    try {
+      const result = await this.pool.query(
+        'SELECT id, price, currency FROM product WHERE id = $1',
+        [id]
+      );
+      
+      if (result.rows.length === 0) {
+        return null;
+      }
+      
+      return {
+        id: result.rows[0].id,
+        price: Number.parseFloat(result.rows[0].price) || 0,
+        currency: result.rows[0].currency
+      };
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to get product price');
+    }
+  }
+  
+  async findPricesByIds(ids: string[]): Promise<{ id: string; price: number; currency: string }[]> {
+    try {
+      if (ids.length === 0) {
+        return [];
+      }
+      
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+      const result = await this.pool.query(
+        `SELECT id, price, currency FROM product WHERE id IN (${placeholders})`,
+        ids
+      );
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        price: Number.parseFloat(row.price) || 0,
+        currency: row.currency
+      }));
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to get product prices');
+    }
+  }
+  
+  async exists(id: string): Promise<boolean> {
+    try {
+      const result = await this.pool.query(
+        'SELECT 1 FROM product WHERE id = $1',
+        [id]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to check product existence');
+    }
+  }
+  
+  async hasOrders(productId: string): Promise<boolean> {
+    try {
+      const result = await this.pool.query(
+        'SELECT 1 FROM order_items WHERE productid = $1 LIMIT 1',
+        [productId]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to check product orders');
+    }
+  }
+  
+  async validateReferenceIds(
+    metalId?: string, 
+    productTypeId?: string, 
+    producerId?: string, 
+    countryId?: string
+  ): Promise<{ valid: boolean; errors: string[] }> {
+    const errors: string[] = [];
+    
+    try {
+      const validationPromises: Promise<{ type: string; valid: boolean }>[] = [];
+      
+      if (metalId) {
+        validationPromises.push(
+          this.pool.query('SELECT id FROM metal WHERE id = $1', [metalId])
+            .then(r => ({ type: 'metal', valid: r.rows.length > 0 }))
+        );
+      }
+      if (productTypeId) {
+        validationPromises.push(
+          this.pool.query('SELECT id FROM producttype WHERE id = $1', [productTypeId])
+            .then(r => ({ type: 'productType', valid: r.rows.length > 0 }))
+        );
+      }
+      if (producerId) {
+        validationPromises.push(
+          this.pool.query('SELECT id FROM producer WHERE id = $1', [producerId])
+            .then(r => ({ type: 'producer', valid: r.rows.length > 0 }))
+        );
+      }
+      if (countryId) {
+        validationPromises.push(
+          this.pool.query('SELECT id FROM country WHERE id = $1', [countryId])
+            .then(r => ({ type: 'country', valid: r.rows.length > 0 }))
+        );
+      }
+      
+      const results = await Promise.all(validationPromises);
+      
+      for (const result of results) {
+        if (!result.valid) {
+          errors.push(`Invalid ${result.type} ID`);
+        }
+      }
+      
+      return { valid: errors.length === 0, errors };
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to validate reference IDs');
+    }
+  }
+  
+  async createById(data: CreateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+    const id = uuidv4();
+    const auditUser = getAuditUser(authenticatedUser);
+    
+    try {
+      const query = `
+        INSERT INTO product (
+          id, name, producttypeid, metalid, countryid, producerid,
+          weight, weightunit, purity, price, currency, year, description,
+          imagefilename, instock, stockquantity, minimumorderquantity,
+          premiumpercentage, diameter, thickness, mintage, certification, createdBy, updatedBy
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+          $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+        )
+        RETURNING *
+      `;
+      
+      const values = [
+        id,
+        data.name,
+        data.productTypeId,
+        data.metalId,
+        data.countryId || null,
+        data.producerId,
+        data.weight,
+        data.weightUnit,
+        data.purity,
+        data.price,
+        data.currency,
+        data.year || null,
+        data.description || null,
+        data.imageFilename || null,
+        data.inStock !== false,
+        data.stockQuantity || 0,
+        data.minimumOrderQuantity || 1,
+        data.premiumPercentage || null,
+        data.diameter || null,
+        data.thickness || null,
+        data.mintage || null,
+        data.certification || null,
+        auditUser.id,
+        auditUser.id
+      ];
+      
+      await this.pool.query(query, values);
+      
+      // Fetch the complete product with joins
+      const product = await this.findById(id);
+      if (!product) {
+        throw new Error('Failed to create product');
+      }
+      
+      return product;
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to create product');
+    }
+  }
+  
+  async updateById(id: string, data: UpdateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+    try {
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
+      let paramIndex = 1;
+      
+      if (data.name !== undefined) {
+        updateFields.push(`name = $${paramIndex++}`);
+        updateValues.push(data.name);
+      }
+      if (data.productTypeId !== undefined) {
+        updateFields.push(`producttypeid = $${paramIndex++}`);
+        updateValues.push(data.productTypeId);
+      }
+      if (data.metalId !== undefined) {
+        updateFields.push(`metalid = $${paramIndex++}`);
+        updateValues.push(data.metalId);
+      }
+      if (data.countryId !== undefined) {
+        updateFields.push(`countryid = $${paramIndex++}`);
+        updateValues.push(data.countryId);
+      }
+      if (data.producerId !== undefined) {
+        updateFields.push(`producerid = $${paramIndex++}`);
+        updateValues.push(data.producerId);
+      }
+      if (data.weight !== undefined) {
+        updateFields.push(`weight = $${paramIndex++}`);
+        updateValues.push(data.weight);
+      }
+      if (data.weightUnit !== undefined) {
+        updateFields.push(`weightunit = $${paramIndex++}`);
+        updateValues.push(data.weightUnit);
+      }
+      if (data.purity !== undefined) {
+        updateFields.push(`purity = $${paramIndex++}`);
+        updateValues.push(data.purity);
+      }
+      if (data.price !== undefined) {
+        updateFields.push(`price = $${paramIndex++}`);
+        updateValues.push(data.price);
+      }
+      if (data.currency !== undefined) {
+        updateFields.push(`currency = $${paramIndex++}`);
+        updateValues.push(data.currency);
+      }
+      if (data.year !== undefined) {
+        updateFields.push(`year = $${paramIndex++}`);
+        updateValues.push(data.year);
+      }
+      if (data.description !== undefined) {
+        updateFields.push(`description = $${paramIndex++}`);
+        updateValues.push(data.description);
+      }
+      if (data.imageFilename !== undefined) {
+        updateFields.push(`imagefilename = $${paramIndex++}`);
+        updateValues.push(data.imageFilename);
+      }
+      if (data.inStock !== undefined) {
+        updateFields.push(`instock = $${paramIndex++}`);
+        updateValues.push(data.inStock);
+      }
+      if (data.stockQuantity !== undefined) {
+        updateFields.push(`stockquantity = $${paramIndex++}`);
+        updateValues.push(data.stockQuantity);
+      }
+      if (data.minimumOrderQuantity !== undefined) {
+        updateFields.push(`minimumorderquantity = $${paramIndex++}`);
+        updateValues.push(data.minimumOrderQuantity);
+      }
+      if (data.premiumPercentage !== undefined) {
+        updateFields.push(`premiumpercentage = $${paramIndex++}`);
+        updateValues.push(data.premiumPercentage);
+      }
+      if (data.diameter !== undefined) {
+        updateFields.push(`diameter = $${paramIndex++}`);
+        updateValues.push(data.diameter);
+      }
+      if (data.thickness !== undefined) {
+        updateFields.push(`thickness = $${paramIndex++}`);
+        updateValues.push(data.thickness);
+      }
+      if (data.mintage !== undefined) {
+        updateFields.push(`mintage = $${paramIndex++}`);
+        updateValues.push(data.mintage);
+      }
+      if (data.certification !== undefined) {
+        updateFields.push(`certification = $${paramIndex++}`);
+        updateValues.push(data.certification);
+      }
+      
+      if (updateFields.length === 0) {
+        throw new Error('No fields to update');
+      }
+      
+      const auditUser = getAuditUser(authenticatedUser);
+      updateFields.push(`updatedBy = $${paramIndex++}`);
+      updateValues.push(auditUser.id);
+      updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
+      
+      updateValues.push(id);
+      
+      const updateQuery = `
+        UPDATE product 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
+      `;
+      
+      const result = await this.pool.query(updateQuery, updateValues);
+      
+      if (result.rowCount === 0) {
+        throw new Error(`Product not found: ${id}`);
+      }
+      
+      const product = await this.findById(id);
+      if (!product) {
+        throw new Error('Failed to fetch updated product');
+      }
+      
+      return product;
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to update product');
     }
   }
   

@@ -15,7 +15,9 @@ import {
   ListUsersOptions,
   GetUsersResult,
   UserRole,
+  UserTitle,
 } from '../types';
+import { AuditTrailUser } from '../../../utils/auditTrail';
 
 /**
  * Result type for user operations that may fail with validation errors
@@ -39,6 +41,10 @@ export enum UserErrorCode {
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   UNAUTHORIZED = 'UNAUTHORIZED',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
+  USER_ALREADY_BLOCKED = 'USER_ALREADY_BLOCKED',
+  USER_NOT_BLOCKED = 'USER_NOT_BLOCKED',
+  INVALID_STATUS_TRANSITION = 'INVALID_STATUS_TRANSITION',
+  CANNOT_BLOCK_SELF = 'CANNOT_BLOCK_SELF',
 }
 
 /**
@@ -60,6 +66,11 @@ export interface CreateUserInput {
   role?: UserRole;
   termsVersion?: string;
   termsAcceptedAt?: Date;
+  // Optional profile data
+  title?: UserTitle | null;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: Date;
 }
 
 /**
@@ -71,6 +82,11 @@ export interface UpdateUserInput {
   role?: UserRole;
   emailVerified?: boolean;
   identityVerified?: boolean;
+  // Optional profile data
+  title?: UserTitle | null;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: Date;
 }
 
 /**
@@ -90,7 +106,7 @@ export interface IUserService {
    * @param input User creation data including plain password
    * @returns Created user entity (without password hash)
    */
-  createUser(input: CreateUserInput): Promise<UserOperationResult<UserEntity>>;
+  createUser(input: CreateUserInput, authenticatedUser?: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
 
   /**
    * Get user by ID
@@ -126,7 +142,11 @@ export interface IUserService {
    * @param input Updated fields
    * @returns Updated user entity
    */
-  updateUser(id: string, input: UpdateUserInput): Promise<UserOperationResult<UserEntity>>;
+  updateUser(
+    id: string,
+    input: UpdateUserInput,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserOperationResult<UserEntity>>;
 
   /**
    * Delete user (with dependency checks)
@@ -134,6 +154,47 @@ export interface IUserService {
    * @returns Success status
    */
   deleteUser(id: string): Promise<UserOperationResult<void>>;
+
+  // =========================================================================
+  // User Account Management
+  // =========================================================================
+
+  /**
+   * Block a user account (admin only)
+   * Sets account_status to 'blocked' and records who blocked and why
+   * @param userId User UUID to block
+   * @param blockedBy Admin user UUID performing the action
+   * @param reason Reason for blocking
+   * @returns Updated user entity
+   */
+  blockUser(
+    userId: string,
+    blockedBy: string,
+    reason: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserOperationResult<UserEntity>>;
+
+  /**
+   * Unblock a user account (admin only)
+   * Sets account_status back to 'active'
+   * @param userId User UUID to unblock
+   * @returns Updated user entity
+   */
+  unblockUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
+
+  /**
+   * Soft delete a user account (admin only)
+   * Sets account_status to 'deleted' but preserves data
+   * @param userId User UUID to soft delete
+   * @returns Updated user entity
+   */
+  softDeleteUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
+
+  /**
+   * Find all blocked users
+   * @returns List of blocked/suspended users
+   */
+  findBlockedUsers(): Promise<UserOperationResult<UserEntity[]>>;
 
   // =========================================================================
   // Authentication Support

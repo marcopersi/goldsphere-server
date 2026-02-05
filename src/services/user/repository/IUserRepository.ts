@@ -15,6 +15,7 @@ import {
   ConsentLogEntity,
   CreateUserData,
   CreateUserProfileData,
+  UpdateUserProfileData,
   CreateUserAddressData,
   CreateDocumentLogData,
   CreateConsentLogData,
@@ -23,7 +24,10 @@ import {
   UpdateVerificationStatusData,
   ListUsersOptions,
   GetUsersResult,
+  BlockUserInput,
+  UnblockUserInput,
 } from '../types';
+import { AuditTrailUser } from '../../../utils/auditTrail';
 
 // =============================================================================
 // Transaction Callback Type
@@ -46,7 +50,7 @@ export interface IUserRepository {
   /**
    * Create a new user
    */
-  createUser(userData: CreateUserData): Promise<UserEntity>;
+  createUser(userData: CreateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity>;
   
   /**
    * Find user by ID
@@ -66,7 +70,7 @@ export interface IUserRepository {
   /**
    * Update user by ID
    */
-  updateUser(id: string, data: UpdateUserData): Promise<UserEntity | null>;
+  updateUser(id: string, data: UpdateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null>;
   
   /**
    * Delete user by ID
@@ -77,6 +81,38 @@ export interface IUserRepository {
    * Check if email exists
    */
   emailExists(email: string, excludeUserId?: string): Promise<boolean>;
+
+  // =========================================================================
+  // User Account Management Operations
+  // =========================================================================
+  
+  /**
+   * Block a user account
+   * Sets account_status to 'blocked', records blocked_at, blocked_by, and reason
+   */
+  blockUser(
+    userId: string,
+    blockedBy: string,
+    reason: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserEntity | null>;
+  
+  /**
+   * Unblock a user account
+   * Sets account_status back to 'active', clears blocked_at, blocked_by, block_reason
+   */
+  unblockUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null>;
+  
+  /**
+   * Soft delete a user account
+   * Sets account_status to 'deleted'
+   */
+  softDeleteUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null>;
+  
+  /**
+   * Find all blocked users
+   */
+  findBlockedUsers(): Promise<UserEntity[]>;
 
   // =========================================================================
   // User Profile Operations
@@ -91,6 +127,11 @@ export interface IUserRepository {
    * Find user profile by user ID
    */
   findUserProfileByUserId(userId: string): Promise<UserProfileEntity | null>;
+  
+  /**
+   * Update user profile by user ID
+   */
+  updateUserProfile(userId: string, data: UpdateUserProfileData): Promise<UserProfileEntity | null>;
 
   // =========================================================================
   // User Address Operations

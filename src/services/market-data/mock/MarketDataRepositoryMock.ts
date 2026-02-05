@@ -83,10 +83,6 @@ export class MarketDataRepositoryMock implements IMarketDataRepository {
     this.prices.set(key, newPrice);
   }
 
-  async getMetalIdBySymbol(symbol: string): Promise<string | null> {
-    return this.metals.get(symbol) || null;
-  }
-
   async getActiveProviders(): Promise<MarketDataProvider[]> {
     return this.providers.filter(p => p.isActive);
   }

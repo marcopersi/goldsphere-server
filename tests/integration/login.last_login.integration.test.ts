@@ -4,14 +4,29 @@
  */
 
 import request from 'supertest';
-import app from '../../src/app';
+import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 import { getPool } from '../../src/dbConfig';
+
+let app: any;
 
 describe('Login last_login Integration Tests', () => {
   const testUserEmail = 'bank.technical@goldsphere.vault';
   const testUserPassword = 'GoldspherePassword';
 
-  test('should update last_login timestamp on successful login', async () => {
+  beforeAll(async () => {
+    // Setup fresh test database BEFORE importing app
+    await setupTestDatabase();
+    
+    // Import app AFTER database setup to ensure pool replacement takes effect
+    app = (await import('../../src/app')).default;
+  });
+
+  afterAll(async () => {
+    // Clean up test database
+    await teardownTestDatabase();
+  });
+
+  it('should update last_login timestamp on successful login', async () => {
     // Clear the last_login first to ensure we have a clean state
     await getPool().query(
       'UPDATE users SET last_login = NULL WHERE email = $1',
@@ -59,7 +74,7 @@ describe('Login last_login Integration Tests', () => {
     expect(secondsAgo).toBeGreaterThanOrEqual(0);
   });
 
-  test('should not update last_login on failed login', async () => {
+  it('should not update last_login on failed login', async () => {
     // Set a known timestamp first
     const testTimestamp = '2023-01-01 12:00:00';
     await getPool().query(
@@ -101,7 +116,7 @@ describe('Login last_login Integration Tests', () => {
     expect(lastLoginAfter).toEqual(lastLoginBefore);
   });
 
-  test('should handle multiple successive logins correctly', async () => {
+  it('should handle multiple successive logins correctly', async () => {
     // Clear the last_login first
     await getPool().query(
       'UPDATE users SET last_login = NULL WHERE email = $1',

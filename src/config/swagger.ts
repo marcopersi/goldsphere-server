@@ -331,6 +331,148 @@ const swaggerDefinition = {
           email: { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 6 }
         }
+      },
+      User: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid', description: 'User unique identifier' },
+          email: { type: 'string', format: 'email', description: 'User email address' },
+          role: { type: 'string', enum: ['customer', 'advisor', 'admin'], description: 'User role' },
+          accountStatus: { type: 'string', enum: ['active', 'blocked', 'suspended', 'deleted'], description: 'Account status' },
+          emailVerified: { type: 'boolean', description: 'Email verification status' },
+          createdAt: { type: 'string', format: 'date-time', description: 'Account creation timestamp' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Last update timestamp' },
+          blockedAt: { type: 'string', format: 'date-time', nullable: true, description: 'When the user was blocked' },
+          blockedBy: { type: 'string', format: 'uuid', nullable: true, description: 'Admin who blocked the user' },
+          blockReason: { type: 'string', nullable: true, description: 'Reason for blocking' }
+        }
+      },
+      BlockUserRequest: {
+        type: 'object',
+        required: ['reason'],
+        properties: {
+          reason: { 
+            type: 'string', 
+            minLength: 1,
+            description: 'Reason for blocking the user'
+          }
+        }
+      },
+      BlockUserResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          message: { type: 'string' },
+          data: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              email: { type: 'string', format: 'email' },
+              accountStatus: { type: 'string', enum: ['blocked'] },
+              blockedAt: { type: 'string', format: 'date-time' },
+              blockedBy: { type: 'string', format: 'uuid' },
+              blockReason: { type: 'string' }
+            }
+          }
+        }
+      },
+      UnblockUserResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          message: { type: 'string' },
+          data: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              email: { type: 'string', format: 'email' },
+              accountStatus: { type: 'string', enum: ['active'] }
+            }
+          }
+        }
+      },
+      SoftDeleteUserResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          message: { type: 'string' },
+          data: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              email: { type: 'string', format: 'email' },
+              accountStatus: { type: 'string', enum: ['deleted'] }
+            }
+          }
+        }
+      },
+      BlockedUsersResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          data: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', format: 'uuid' },
+                email: { type: 'string', format: 'email' },
+                accountStatus: { type: 'string', enum: ['blocked', 'suspended'] },
+                blockedAt: { type: 'string', format: 'date-time' },
+                blockedBy: { type: 'string', format: 'uuid' },
+                blockReason: { type: 'string' }
+              }
+            }
+          }
+        }
+      },
+      Custodian: {
+        type: 'object',
+        required: ['id', 'name', 'createdAt', 'updatedAt'],
+        properties: {
+          id: { type: 'string', format: 'uuid', description: 'Unique identifier' },
+          name: { type: 'string', description: 'Custodian name' },
+          createdAt: { type: 'string', format: 'date-time', description: 'Creation timestamp' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Last update timestamp' }
+        }
+      },
+      CustodianCreateRequest: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string', minLength: 1, description: 'Custodian name' }
+        }
+      },
+      CustodyService: {
+        type: 'object',
+        required: ['id', 'custodyServiceName', 'custodianId', 'custodianName', 'fee', 'paymentFrequency', 'currencyId', 'currency'],
+        properties: {
+          id: { type: 'string', format: 'uuid', description: 'Unique identifier' },
+          custodyServiceName: { type: 'string', description: 'Service name' },
+          custodianId: { type: 'string', format: 'uuid', description: 'Associated custodian ID' },
+          custodianName: { type: 'string', description: 'Custodian name' },
+          fee: { type: 'number', description: 'Service fee amount' },
+          paymentFrequency: { type: 'string', enum: ['Monthly', 'Quarterly', 'Annual'], description: 'Payment frequency' },
+          currencyId: { type: 'string', format: 'uuid', description: 'Currency ID' },
+          currency: { type: 'string', description: 'Currency ISO code' },
+          minWeight: { type: 'number', nullable: true, description: 'Minimum weight requirement' },
+          maxWeight: { type: 'number', nullable: true, description: 'Maximum weight limit' },
+          createdAt: { type: 'string', format: 'date-time', description: 'Creation timestamp' },
+          updatedAt: { type: 'string', format: 'date-time', description: 'Last update timestamp' }
+        }
+      },
+      CustodyServiceCreateRequest: {
+        type: 'object',
+        required: ['custodyServiceName', 'custodianId', 'fee', 'paymentFrequency', 'currencyId'],
+        properties: {
+          custodyServiceName: { type: 'string', minLength: 1, description: 'Service name' },
+          custodianId: { type: 'string', format: 'uuid', description: 'Custodian ID' },
+          fee: { type: 'number', minimum: 0, description: 'Service fee' },
+          paymentFrequency: { type: 'string', enum: ['Monthly', 'Quarterly', 'Annual'], description: 'Payment frequency' },
+          currencyId: { type: 'string', format: 'uuid', description: 'Currency ID' },
+          minWeight: { type: 'number', nullable: true, description: 'Minimum weight' },
+          maxWeight: { type: 'number', nullable: true, description: 'Maximum weight' }
+        }
       }
     }
   },

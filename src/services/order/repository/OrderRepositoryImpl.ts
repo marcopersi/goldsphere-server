@@ -8,70 +8,35 @@
 import { Pool } from 'pg';
 import { IOrderRepository } from './IOrderRepository';
 import { Order, OrderItem, GetOrdersOptions, GetOrdersResult } from '../types/OrderTypes';
-import { createOrderWithAudit, createOrderItemWithAudit, updateOrderWithAudit, AuditTrailUser } from '../../../utils/auditTrail';
+import { createOrderWithAudit, createOrderItemWithAudit, updateOrderWithAudit, AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
 
 export class OrderRepositoryImpl implements IOrderRepository {
   constructor(private readonly pool: Pool) {}
 
   async create(order: Order, authenticatedUser?: AuditTrailUser): Promise<void> {
     try {
-      if (authenticatedUser) {
-        // Use audit trail functions when user context is available
-        await createOrderWithAudit({
-          id: order.id,
-          userid: order.userId,
-          type: order.type,
-          orderstatus: order.status,
-          custodyserviceid: undefined,
-          payment_intent_id: undefined,
-          payment_status: 'pending'
-        }, authenticatedUser);
+      const auditUser = getAuditUser(authenticatedUser);
 
-        // Insert order items with audit trail
-        for (const item of order.items) {
-          await createOrderItemWithAudit({
-            orderid: order.id,
-            productid: item.productId,
-            productname: item.productName,
-            quantity: item.quantity,
-            unitprice: item.unitPrice,
-            totalprice: item.totalPrice
-          }, authenticatedUser);
-        }
-      } else {
-        // Fallback to direct SQL when no user context
-        await this.pool.query(
-          `INSERT INTO orders (
-            id, userid, type, orderstatus, custodyserviceid, createdat, updatedat
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            order.id,
-            order.userId,
-            order.type,
-            order.status,
-            null,
-            order.createdAt,
-            order.updatedAt
-          ]
-        );
+      await createOrderWithAudit({
+        id: order.id,
+        userid: order.userId,
+        type: order.type,
+        orderstatus: order.status,
+        custodyserviceid: undefined,
+        payment_intent_id: undefined,
+        payment_status: 'pending'
+      }, auditUser);
 
-        // Insert order items
-        for (const item of order.items) {
-          await this.pool.query(
-            `INSERT INTO order_items (
-              orderid, productid, productname, quantity, unitprice, totalprice, createdat
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [
-              order.id,
-              item.productId,
-              item.productName,
-              item.quantity,
-              item.unitPrice,
-              item.totalPrice,
-              order.createdAt
-            ]
-          );
-        }
+      // Insert order items with audit trail
+      for (const item of order.items) {
+        await createOrderItemWithAudit({
+          orderid: order.id,
+          productid: item.productId,
+          productname: item.productName,
+          quantity: item.quantity,
+          unitprice: item.unitPrice,
+          totalprice: item.totalPrice
+        }, auditUser);
       }
     } catch (error) {
       throw new Error(`Failed to create order: ${(error as Error).message}`);
@@ -205,21 +170,13 @@ export class OrderRepositoryImpl implements IOrderRepository {
 
   async updateStatus(orderId: string, newStatus: string, authenticatedUser?: AuditTrailUser): Promise<void> {
     try {
-      if (authenticatedUser) {
-        await updateOrderWithAudit(orderId, {
-          orderstatus: newStatus
-        }, authenticatedUser);
-      } else {
-        const result = await this.pool.query(
-          `UPDATE orders 
-           SET orderstatus = $1, updatedat = CURRENT_TIMESTAMP 
-           WHERE id = $2`,
-          [newStatus, orderId]
-        );
+      const auditUser = getAuditUser(authenticatedUser);
+      const updatedOrder = await updateOrderWithAudit(orderId, {
+        orderstatus: newStatus
+      }, auditUser);
 
-        if (result.rowCount === 0) {
-          throw new Error(`Order not found: ${orderId}`);
-        }
+      if (!updatedOrder) {
+        throw new Error(`Order not found: ${orderId}`);
       }
     } catch (error) {
       throw new Error(`Failed to update order status: ${(error as Error).message}`);
@@ -228,37 +185,25 @@ export class OrderRepositoryImpl implements IOrderRepository {
 
   async update(orderId: string, updates: Partial<Order>, authenticatedUser?: AuditTrailUser): Promise<void> {
     try {
-      const updateFields: string[] = [];
-      const updateValues: any[] = [];
-      let paramIndex = 1;
-
+      const updateData: { type?: string; orderstatus?: string } = {};
       if (updates.type) {
-        updateFields.push(`type = $${paramIndex}`);
-        updateValues.push(updates.type);
-        paramIndex++;
+        updateData.type = updates.type;
       }
 
       if (updates.status) {
-        updateFields.push(`orderstatus = $${paramIndex}`);
-        updateValues.push(updates.status);
-        paramIndex++;
+        updateData.orderstatus = updates.status;
       }
 
-      // Always update timestamp
-      updateFields.push(`updatedat = CURRENT_TIMESTAMP`);
-
-      if (updateFields.length === 1) {
+      if (!updateData.type && !updateData.orderstatus) {
         throw new Error('No valid fields provided for update');
       }
 
-      const updateQuery = `
-        UPDATE orders 
-        SET ${updateFields.join(', ')} 
-        WHERE id = $${paramIndex}
-      `;
-      updateValues.push(orderId);
+      const auditUser = getAuditUser(authenticatedUser);
+      const updatedOrder = await updateOrderWithAudit(orderId, updateData, auditUser);
 
-      await this.pool.query(updateQuery, updateValues);
+      if (!updatedOrder) {
+        throw new Error(`Order not found: ${orderId}`);
+      }
     } catch (error) {
       throw new Error(`Failed to update order: ${(error as Error).message}`);
     }

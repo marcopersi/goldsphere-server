@@ -12,6 +12,7 @@ import {
   GetPortfoliosResult
 } from '../types/PortfolioTypes';
 import { CommonPaginationSchema } from '@marcopersi/shared';
+import { AuditTrailUser } from '../../../utils/auditTrail';
 
 export class PortfolioRepositoryMock implements IPortfolioRepository {
   private readonly portfolios: Map<string, PortfolioSummary> = new Map();
@@ -57,41 +58,43 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
     this.portfolios.set(portfolio2.id, portfolio2);
   }
 
-  async getUserPortfolios(userId: string, options: ListPortfoliosOptions): Promise<GetPortfoliosResult> {
+  async getAllPortfolios(options: ListPortfoliosOptions): Promise<GetPortfoliosResult> {
     const page = Math.max(1, options.page || 1);
     const limit = Math.min(100, Math.max(1, options.limit || 20));
     const offset = (page - 1) * limit;
 
-    // Filter portfolios
-    let filtered = Array.from(this.portfolios.values()).filter(p => p.ownerId === userId);
+    let filtered = Array.from(this.portfolios.values());
 
+    // Apply filters
+    if (options.ownerId) {
+      filtered = filtered.filter(p => p.ownerId === options.ownerId);
+    }
     if (typeof options.isActive === 'boolean') {
       filtered = filtered.filter(p => p.isActive === options.isActive);
     }
-
     if (options.search) {
       const searchLower = options.search.toLowerCase();
       filtered = filtered.filter(
-        p =>
-          p.portfolioName.toLowerCase().includes(searchLower) ||
-          (p.description && p.description.toLowerCase().includes(searchLower))
+        p => p.portfolioName.toLowerCase().includes(searchLower) ||
+             (p.description && p.description.toLowerCase().includes(searchLower))
       );
     }
 
-    // Pagination
     const total = filtered.length;
     const portfolios = filtered.slice(offset, offset + limit);
 
     const pagination = CommonPaginationSchema.parse({
-      page,
-      limit,
-      total,
+      page, limit, total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       hasNext: offset + portfolios.length < total,
-      hasPrev: page > 1
+      hasPrevious: page > 1,
     });
 
     return { portfolios, pagination };
+  }
+
+  async getUserPortfolios(userId: string, options: ListPortfoliosOptions): Promise<GetPortfoliosResult> {
+    return this.getAllPortfolios({ ...options, ownerId: userId });
   }
 
   async getById(portfolioId: string): Promise<PortfolioSummary | null> {
@@ -135,7 +138,12 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
     return { ...summary, positions: positions as any };
   }
 
-  async create(userId: string, name: string, description?: string): Promise<PortfolioSummary> {
+  async create(
+    userId: string,
+    name: string,
+    description?: string,
+    _authenticatedUser?: AuditTrailUser
+  ): Promise<PortfolioSummary> {
     const id = `portfolio-${Date.now()}`;
     const now = new Date();
 
@@ -159,18 +167,41 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
     return portfolio;
   }
 
-  async update(portfolioId: string, updates: Partial<PortfolioSummary>): Promise<void> {
+  async update(
+    portfolioId: string,
+    updates: Partial<PortfolioSummary>,
+    _authenticatedUser?: AuditTrailUser
+  ): Promise<PortfolioSummary | null> {
     const portfolio = this.portfolios.get(portfolioId);
     if (!portfolio) {
-      throw new Error(`Portfolio not found: ${portfolioId}`);
+      return null;
     }
 
     const updated = { ...portfolio, ...updates, updatedAt: new Date() };
     this.portfolios.set(portfolioId, updated);
+    return updated;
   }
 
-  async delete(portfolioId: string): Promise<void> {
+  async delete(portfolioId: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
     this.portfolios.delete(portfolioId);
+  }
+
+  async userExists(userId: string): Promise<boolean> {
+    // In mock, just check if there are portfolios for this user
+    return Array.from(this.portfolios.values()).some(p => p.ownerId === userId);
+  }
+
+  async nameExistsForUser(userId: string, name: string, excludePortfolioId?: string): Promise<boolean> {
+    return Array.from(this.portfolios.values()).some(
+      p => p.ownerId === userId && 
+           p.portfolioName === name && 
+           p.id !== excludePortfolioId
+    );
+  }
+
+  async getPositionCount(portfolioId: string): Promise<number> {
+    const portfolio = this.portfolios.get(portfolioId);
+    return portfolio?.positionCount || 0;
   }
 
   // Test helper methods
@@ -178,7 +209,8 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
     this.portfolios.clear();
   }
 
-  getAllPortfolios(): PortfolioSummary[] {
+  /** Test helper: Get all portfolios from internal storage (no pagination) */
+  getAllPortfoliosSync(): PortfolioSummary[] {
     return Array.from(this.portfolios.values());
   }
 

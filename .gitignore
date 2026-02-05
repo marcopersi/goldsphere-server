@@ -48,6 +48,9 @@ Thumbs.db
 uploads/
 temp/
 
+# jscpd reports
+reports/jscpd/
+
 # Cache directories
 .cache/
 .parcel-cache/
@@ -57,3 +60,4 @@ temp/
 
 # Optional eslint cache
 .eslintcache
+.npmrc

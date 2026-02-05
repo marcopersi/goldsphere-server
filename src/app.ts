@@ -2,27 +2,34 @@ import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
 import swaggerUi from "swagger-ui-express";
 import { getPool } from "./dbConfig";
 import { updateSwaggerSpec, swaggerSpec } from "./config/swagger";
-import portfolioRoutes from "./routes/portfolio";
-import positionRoutes from "./routes/position";
-import productRoutes from "./routes/products";
-import referencesRoutes from "./routes/references";
-import enumsDemoRoutes from "./routes/enumsDemo";
-import usersRoutes from "./routes/users";
-import custodiansRoutes from "./routes/custodians";
-import custodyServiceRoutes from "./routes/custodyService";
-import ordersRoutes from "./routes/orders";
-import producersRoutes from "./routes/producers"; // Fixed: Using local schemas
-import transactionRoutes from "./routes/transactions";
-import paymentsRoutes from "./routes/payments";
-import adminRoutes from "./routes/admin";
-import registrationRoutes from "./routes/registration";
-import marketDataRoutes from "./routes/marketData";
-import authMiddleware from "./authMiddleware";
+// tsoa generated routes and swagger
+import { RegisterRoutes } from "./generated/routes";
+import * as tsoaSwaggerSpec from "./generated/swagger.json";
+// Legacy routes (will be migrated to tsoa controllers)
+// portfolioRoutes now handled by tsoa PortfolioController
+// positionRoutes now handled by tsoa PositionsController
+// import positionRoutes from "./routes/position";
+// productRoutes now handled by tsoa ProductController
+// referencesRoutes now handled by tsoa ReferenceData/Countries/Currencies controllers
+// enumsDemoRoutes removed (not needed in production)
+// usersRoutes now handled by tsoa UserController
+// custodiansRoutes now handled by tsoa CustodiansController
+// custodyServiceRoutes now handled by tsoa CustodyServiceController
+// ordersRoutes now handled by tsoa OrdersController
+// import ordersRoutes from "./routes/orders";
+// producersRoutes now handled by tsoa ProducersController
+// transactionRoutes now handled by tsoa TransactionsController
+// import transactionRoutes from "./routes/transactions";
+// paymentsRoutes now handled by tsoa PaymentsController
+// adminRoutes now handled by tsoa AdminController
+// registrationRoutes now handled by tsoa RegistrationController
+// marketDataRoutes now handled by tsoa MarketDataController
+// lbmaRoutes now handled by tsoa LbmaController
+// Auth routes now handled by tsoa AuthController
+// Authentication now handled by tsoa via @Security decorators and src/middleware/auth.ts
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
 import { WebhookController } from "./controllers/WebhookController";
 
@@ -32,7 +39,22 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", "https:", "data:"],
+        upgradeInsecureRequests: null, // Disable for local development
+      },
+    },
+    hsts: false, // Disable HSTS for local development
+  })
+);
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -50,64 +72,6 @@ app.use(cors({
 // Use raw body middleware for webhook endpoints before JSON parsing
 app.use(rawBodyMiddleware);
 app.use(express.json({ limit: "5mb" }));
-
-// Login endpoint with database authentication
-app.post("/api/auth/login", async (req: any, res: any) => {
-  const { email, password } = req.body;
-  
-  // Validate required fields
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
-  }
-
-  try {
-    // Check database for user
-    const result = await getPool().query("SELECT id, email, passwordhash FROM users WHERE email = $1", [email]);
-    
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    const user = result.rows[0];
-    const isValidPassword = await bcrypt.compare(password, user.passwordhash);
-
-    if (!isValidPassword) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    // Update last_login timestamp
-    await getPool().query("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
-
-    // Generate JWT token with role
-    const userRole = user.email.includes('admin') ? 'admin' : 'user';
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: userRole },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "24h" }
-    );
-
-    res.json({ 
-      success: true,
-      token, 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        role: userRole
-      } 
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Auth validation endpoint
-app.get("/api/auth/validate", authMiddleware, (req: any, res: any) => {
-  res.json({ 
-    success: true,
-    user: req.user 
-  });
-});
 
 // Health endpoint with database connectivity check
 app.get("/health", async (req: any, res: any) => {
@@ -176,11 +140,14 @@ app.get("/api-spec", (req: any, res: any) => {
   });
 });
 
-// Swagger UI
+// Swagger UI - serve assets locally to avoid CDN/TLS issues
 app.use('/docs', swaggerUi.serve);
 app.get('/docs', swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'GoldSphere API Documentation'
+  customSiteTitle: 'GoldSphere API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true
+  }
 }));
 
 app.get("/api-spec.yaml", (req: any, res: any) => {
@@ -324,13 +291,27 @@ app.get("/api-spec.json", (req: any, res: any) => {
   res.json(spec);
 });
 
-// Public routes
-app.use("/api/products", productRoutes);
-app.use("/api/producers", producersRoutes); // Fixed: Using local schemas
-app.use("/api/market-data", marketDataRoutes);
-app.use("/api", referencesRoutes);
-app.use("/api/enums", enumsDemoRoutes);
-app.use("/api/auth", registrationRoutes);
+// tsoa generated routes (auto-generated controllers)
+// Auth and Reference controllers are now handled by tsoa
+RegisterRoutes(app);
+
+// Legacy routes (will be migrated to tsoa controllers)
+// productRoutes now handled by tsoa ProductController
+// producersRoutes now handled by tsoa ProducersController
+// marketDataRoutes now handled by tsoa MarketDataController
+// lbmaRoutes now handled by tsoa LbmaController
+// Legacy reference routes migrated to tsoa
+// enumsDemoRoutes removed (not needed in production)
+// registrationRoutes now handled by tsoa RegistrationController
+
+// Swagger UI for tsoa-generated spec (accessible at /api-docs)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(tsoaSwaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'GoldSphere API Documentation (tsoa)',
+  swaggerOptions: {
+    persistAuthorization: true
+  }
+}));
 
 // Webhook routes (no auth required)
 app.use("/api/payments/webhook", (req, res) => {
@@ -339,15 +320,15 @@ app.use("/api/payments/webhook", (req, res) => {
 });
 
 // Protected routes
-app.use("/api", authMiddleware, portfolioRoutes);
-app.use("/api", authMiddleware, positionRoutes);
-app.use("/api", authMiddleware, usersRoutes);
-app.use("/api", authMiddleware, custodiansRoutes);
-app.use("/api", authMiddleware, custodyServiceRoutes);
-app.use("/api", authMiddleware, ordersRoutes);
-app.use("/api", authMiddleware, transactionRoutes);
-app.use("/api/payments", authMiddleware, paymentsRoutes);
-app.use("/api/admin", authMiddleware, adminRoutes);
+// portfolioRoutes now handled by tsoa PortfolioController
+// positionRoutes now handled by tsoa PositionsController
+// usersRoutes now handled by tsoa UserController
+// custodiansRoutes now handled by tsoa CustodiansController
+// custodyServiceRoutes now handled by tsoa CustodyServiceController
+// ordersRoutes now handled by tsoa OrdersController
+// transactionRoutes now handled by tsoa TransactionsController
+// paymentsRoutes now handled by tsoa PaymentsController
+// adminRoutes now handled by tsoa AdminController
 
 // 404 handler - must be AFTER all routes
 app.use("*", (req: any, res: any) => {
@@ -355,6 +336,27 @@ app.use("*", (req: any, res: any) => {
     error: "Route not found",
     details: `Cannot ${req.method} ${req.originalUrl}`,
     availableEndpoints: ["/health", "/info", "/api/products", "/api/auth/login"]
+  });
+});
+
+// Error handler middleware - must be LAST
+app.use((err: any, req: any, res: any, next: any) => {
+  // tsoa validation errors
+  if (err.status === 400 && err.fields) {
+    return res.status(400).json({
+      success: false,
+      error: "Validation failed",
+      details: err.fields
+    });
+  }
+  
+  // Generic error handler
+  const status = err.status || 500;
+  const message = err.message || "Internal server error";
+  
+  res.status(status).json({
+    success: false,
+    error: message
   });
 });
 

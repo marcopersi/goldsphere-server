@@ -8,11 +8,13 @@
  * Dependencies:
  * - Repository for data persistence
  * - Providers array for external API access (Strategy Pattern)
+ * - ReferenceService for metal symbol → ID resolution
  */
 
 import type { IMarketDataService } from '../IMarketDataService';
 import type { IMarketDataRepository } from '../repository/IMarketDataRepository';
 import type { IMarketDataProvider } from '../providers/IMarketDataProvider';
+import type { IReferenceService } from '../../reference/IReferenceService';
 import type {
   MarketPrice,
   PriceHistory,
@@ -26,11 +28,20 @@ import { SUPPORTED_METALS, CACHE_DURATION_MINUTES } from '../types/MarketDataTyp
 export class MarketDataServiceImpl implements IMarketDataService {
   constructor(
     private readonly repository: IMarketDataRepository,
-    private readonly providers: ReadonlyArray<IMarketDataProvider>
+    private readonly providers: ReadonlyArray<IMarketDataProvider>,
+    private readonly referenceService: IReferenceService
   ) {
     if (providers.length === 0) {
       console.warn('[MarketDataService] No providers configured');
     }
+  }
+
+  /**
+   * Resolve metal symbol to ID using ReferenceService
+   */
+  private async resolveMetalId(metalSymbol: string): Promise<string | null> {
+    const metal = await this.referenceService.getMetalBySymbol(metalSymbol);
+    return metal?.id || null;
   }
 
   async getCurrentPrice(metalSymbol: string, currency = 'USD'): Promise<MarketPrice | null> {
@@ -43,8 +54,8 @@ export class MarketDataServiceImpl implements IMarketDataService {
         return cached;
       }
 
-      // Get metal ID
-      const metalId = await this.repository.getMetalIdBySymbol(metalSymbol);
+      // Resolve metal ID via ReferenceService
+      const metalId = await this.resolveMetalId(metalSymbol);
       if (!metalId) {
         console.warn(`[MarketDataService] Unknown metal symbol: ${metalSymbol}`);
         return null;
@@ -82,9 +93,9 @@ export class MarketDataServiceImpl implements IMarketDataService {
 
       let metalId: string | null = query.metalId || null;
       
-      // Get metal ID if symbol provided
+      // Resolve metal ID via ReferenceService if symbol provided
       if (!metalId && query.metalSymbol) {
-        metalId = await this.repository.getMetalIdBySymbol(query.metalSymbol);
+        metalId = await this.resolveMetalId(query.metalSymbol);
         if (!metalId) {
           console.warn(`[MarketDataService] Unknown metal symbol: ${query.metalSymbol}`);
           return [];
@@ -204,7 +215,7 @@ export class MarketDataServiceImpl implements IMarketDataService {
 
       // Save each price
       for (const priceData of prices) {
-        const metalId = await this.repository.getMetalIdBySymbol(priceData.symbol);
+        const metalId = await this.resolveMetalId(priceData.symbol);
         
         if (!metalId) {
           console.warn(`[MarketDataService] Metal ${priceData.symbol} not found, skipping`);

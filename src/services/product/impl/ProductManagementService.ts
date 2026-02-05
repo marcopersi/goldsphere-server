@@ -6,14 +6,15 @@
 
 import { IProductManagementService } from '../IProductManagementService';
 import { IProductRepository } from '../repository/IProductRepository';
-import { CreateProductRequest, UpdateProductRequest, ProductManagementResponse, ProductListOptions, ProductListResponse } from '../types/ProductTypes';
+import { CreateProductRequest, UpdateProductRequest, ProductManagementResponse, ProductListOptions, ProductListResponse, CreateProductByIdRequest, UpdateProductByIdRequest } from '../types/ProductTypes';
+import { AuditTrailUser } from '../../../utils/auditTrail';
 
 export class ProductManagementService implements IProductManagementService {
   constructor(private readonly repository: IProductRepository) {}
   
-  async createProduct(data: CreateProductRequest): Promise<ProductManagementResponse> {
+  async createProduct(data: CreateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
     this.validateProductData(data);
-    return await this.repository.create(data);
+    return await this.repository.create(data, authenticatedUser);
   }
   
   async getProductById(id: string): Promise<ProductManagementResponse | null> {
@@ -60,7 +61,7 @@ export class ProductManagementService implements IProductManagementService {
     return await this.repository.findAll(options);
   }
   
-  async updateProduct(id: string, data: UpdateProductRequest): Promise<ProductManagementResponse> {
+  async updateProduct(id: string, data: UpdateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
     // Validate ID
     if (!id || typeof id !== 'string' || id.trim().length === 0) {
       throw new Error('Valid product ID is required');
@@ -74,10 +75,10 @@ export class ProductManagementService implements IProductManagementService {
     // Validate update data (only validate fields that are present)
     this.validateUpdateData(data);
     
-    return await this.repository.update(id, data);
+    return await this.repository.update(id, data, authenticatedUser);
   }
   
-  async deleteProduct(id: string): Promise<void> {
+  async deleteProduct(id: string, authenticatedUser?: AuditTrailUser): Promise<void> {
     // Validate ID
     if (!id || typeof id !== 'string' || id.trim().length === 0) {
       throw new Error('Valid product ID is required');
@@ -88,10 +89,22 @@ export class ProductManagementService implements IProductManagementService {
       throw new Error('Invalid product ID format');
     }
     
-    await this.repository.delete(id);
+    // Check for existing orders referencing this product
+    const hasOrders = await this.repository.hasOrders(id);
+    if (hasOrders) {
+      throw new Error('Cannot delete product with existing orders');
+    }
+    
+    await this.repository.delete(id, authenticatedUser);
   }
   
-  async uploadImage(productId: string, imageBase64: string, contentType: string, filename: string): Promise<void> {
+  async uploadImage(
+    productId: string,
+    imageBase64: string,
+    contentType: string,
+    filename: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<void> {
     // Validate product ID
     if (!productId || typeof productId !== 'string' || productId.trim().length === 0) {
       throw new Error('Valid product ID is required');
@@ -129,7 +142,52 @@ export class ProductManagementService implements IProductManagementService {
       imageData: imageBuffer,
       contentType,
       filename
-    });
+    }, authenticatedUser);
+  }
+  
+  async getProductPrice(id: string): Promise<{ id: string; price: number; currency: string } | null> {
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Valid product ID is required');
+    }
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new Error('Invalid product ID format');
+    }
+    
+    return await this.repository.findPriceById(id);
+  }
+  
+  async getProductPrices(ids: string[]): Promise<{ id: string; price: number; currency: string }[]> {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new Error('Product IDs array is required');
+    }
+    
+    if (ids.length > 100) {
+      throw new Error('Maximum 100 product IDs allowed');
+    }
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const id of ids) {
+      if (typeof id !== 'string' || !uuidRegex.test(id)) {
+        throw new Error(`Invalid product ID format: ${id}`);
+      }
+    }
+    
+    return await this.repository.findPricesByIds(ids);
+  }
+  
+  async getProductImage(id: string): Promise<{ data: Buffer; contentType: string; filename: string } | null> {
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return null; // Return null instead of throwing for invalid input
+    }
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return null; // Return null instead of throwing for invalid UUID format
+    }
+    
+    return await this.repository.getImageWithMetadata(id);
   }
   
   private validateUpdateData(data: UpdateProductRequest): void {
@@ -236,5 +294,121 @@ export class ProductManagementService implements IProductManagementService {
     if (!validWeightUnits.includes(data.weightUnit)) {
       throw new Error(`Weight unit must be one of: ${validWeightUnits.join(', ')}`);
     }
+  }
+  
+  async createProductById(data: CreateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+    // Validate required fields
+    if (!data.name || data.name.trim().length === 0) {
+      throw new Error('Product name is required');
+    }
+    
+    if (!data.productTypeId || !data.metalId || !data.producerId) {
+      throw new Error('productTypeId, metalId, and producerId are required');
+    }
+    
+    // Validate UUID formats
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(data.productTypeId)) {
+      throw new Error('Invalid productTypeId format');
+    }
+    if (!uuidRegex.test(data.metalId)) {
+      throw new Error('Invalid metalId format');
+    }
+    if (!uuidRegex.test(data.producerId)) {
+      throw new Error('Invalid producerId format');
+    }
+    if (data.countryId && !uuidRegex.test(data.countryId)) {
+      throw new Error('Invalid countryId format');
+    }
+    
+    // Validate reference IDs exist
+    const validation = await this.repository.validateReferenceIds(
+      data.metalId,
+      data.productTypeId,
+      data.producerId,
+      data.countryId
+    );
+    
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(', '));
+    }
+    
+    // Validate numeric fields
+    if (data.weight <= 0) {
+      throw new Error('Weight must be greater than 0');
+    }
+    if (data.purity < 0 || data.purity > 1) {
+      throw new Error('Purity must be between 0 and 1');
+    }
+    if (data.price <= 0) {
+      throw new Error('Price must be greater than 0');
+    }
+    
+    return await this.repository.createById(data, authenticatedUser);
+  }
+  
+  async updateProductById(id: string, data: UpdateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+    // Validate ID
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Valid product ID is required');
+    }
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new Error('Invalid product ID format');
+    }
+    
+    // Check if product exists
+    const exists = await this.repository.exists(id);
+    if (!exists) {
+      throw new Error('Product not found');
+    }
+    
+    // Check if there are any fields to update
+    const hasUpdates = Object.keys(data).some(key => data[key as keyof UpdateProductByIdRequest] !== undefined);
+    if (!hasUpdates) {
+      throw new Error('No fields to update');
+    }
+    
+    // Validate UUID formats for reference IDs if provided
+    if (data.productTypeId && !uuidRegex.test(data.productTypeId)) {
+      throw new Error('Invalid productTypeId format');
+    }
+    if (data.metalId && !uuidRegex.test(data.metalId)) {
+      throw new Error('Invalid metalId format');
+    }
+    if (data.producerId && !uuidRegex.test(data.producerId)) {
+      throw new Error('Invalid producerId format');
+    }
+    if (data.countryId && !uuidRegex.test(data.countryId)) {
+      throw new Error('Invalid countryId format');
+    }
+    
+    // Validate reference IDs exist if provided
+    if (data.metalId || data.productTypeId || data.producerId || data.countryId) {
+      const validation = await this.repository.validateReferenceIds(
+        data.metalId,
+        data.productTypeId,
+        data.producerId,
+        data.countryId
+      );
+      
+      if (!validation.valid) {
+        throw new Error(validation.errors.join(', '));
+      }
+    }
+    
+    // Validate numeric fields if provided
+    if (data.weight !== undefined && data.weight <= 0) {
+      throw new Error('Weight must be greater than 0');
+    }
+    if (data.purity !== undefined && (data.purity < 0 || data.purity > 1)) {
+      throw new Error('Purity must be between 0 and 1');
+    }
+    if (data.price !== undefined && data.price <= 0) {
+      throw new Error('Price must be greater than 0');
+    }
+    
+    return await this.repository.updateById(id, data, authenticatedUser);
   }
 }

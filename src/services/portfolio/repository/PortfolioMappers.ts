@@ -1,0 +1,119 @@
+/**
+ * Portfolio Row Mappers
+ * 
+ * Transform database rows to domain types
+ */
+
+import { Pool } from 'pg';
+import { PositionSchema } from '@marcopersi/shared';
+import { PortfolioSummary, Position } from '../types/PortfolioTypes';
+import { PRODUCT_SELECT_QUERY, CUSTODY_SELECT_QUERY } from './PortfolioQueries';
+
+/**
+ * Map database row to PortfolioSummary
+ */
+export function mapRowToSummary(row: Record<string, unknown>): PortfolioSummary {
+  return {
+    id: row.id as string,
+    portfolioName: row.portfolioname as string,
+    ownerId: row.ownerid as string,
+    description: row.description as string | null,
+    isActive: (row.isactive as boolean) ?? true,
+    totalValue: Number.parseFloat(row.total_value as string) || 0,
+    totalCost: Number.parseFloat(row.total_cost as string) || 0,
+    totalGainLoss: Number.parseFloat(row.total_gain_loss as string) || 0,
+    totalGainLossPercentage: Number.parseFloat(row.total_gain_loss_percentage as string) || 0,
+    positionCount: Number.parseInt(row.position_count as string) || 0,
+    lastUpdated: (row.last_updated || row.updatedat) as Date,
+    createdAt: row.createdat as Date,
+    updatedAt: row.updatedat as Date,
+  };
+}
+
+/**
+ * Map database row to Position with product and custody enrichment
+ */
+export async function mapRowToPosition(pool: Pool, row: Record<string, unknown>): Promise<Position> {
+  const product = await fetchProductForPosition(pool, row.productid as string);
+  const custody = row.custodyserviceid 
+    ? await fetchCustodyForPosition(pool, row.custodyserviceid as string)
+    : null;
+
+  const position = {
+    id: row.id as string,
+    userId: row.userid as string,
+    productId: row.productid as string,
+    portfolioId: row.portfolioid as string,
+    product,
+    purchaseDate: (row.purchasedate as Date) || new Date(),
+    purchasePrice: Number.parseFloat(row.purchaseprice as string) || 0,
+    marketPrice: Number.parseFloat(row.marketprice as string) || 0,
+    quantity: Number.parseFloat(row.quantity as string) || 0,
+    custodyServiceId: (row.custodyserviceid as string) || undefined,
+    custody: custody || undefined,
+    status: (row.status as string) || 'active',
+    notes: (row.notes as string) || '',
+    createdAt: (row.createdat as Date) || new Date(),
+    updatedAt: (row.updatedat as Date) || new Date(),
+  };
+
+  return PositionSchema.parse(position);
+}
+
+/**
+ * Fetch product details for position
+ */
+async function fetchProductForPosition(pool: Pool, productId: string) {
+  const result = await pool.query(PRODUCT_SELECT_QUERY, [productId]);
+  if (result.rows.length === 0) {
+    throw new Error(`Product not found: ${productId}`);
+  }
+
+  const row = result.rows[0];
+  let imageUrl = 'https://example.com/images/placeholder.jpg';
+  if (row.imageurl) {
+    imageUrl = row.imageurl.startsWith('http') ? row.imageurl : `https://example.com/images/${row.imageurl}`;
+  }
+
+  return {
+    id: row.id,
+    name: row.productname,
+    type: row.producttype,
+    productTypeId: row.producttypeid,
+    metal: { id: row.metal_id, name: row.metalname, symbol: row.metal_symbol },
+    metalId: row.metalid,
+    producer: row.producer,
+    producerId: row.producerid,
+    weight: Number.parseFloat(row.fineweight) || 0,
+    weightUnit: row.unitofmeasure,
+    purity: Number.parseFloat(row.purity) || 0.999,
+    price: Number.parseFloat(row.price) || 0,
+    currency: row.currency,
+    country: row.country || undefined,
+    year: row.productyear || undefined,
+    description: row.description || '',
+    imageUrl,
+    inStock: row.instock ?? true,
+    minimumOrderQuantity: row.minimumorderquantity || 1,
+    createdAt: row.createdat || new Date(),
+    updatedAt: row.updatedat || new Date(),
+  };
+}
+
+/**
+ * Fetch custody details for position
+ */
+async function fetchCustodyForPosition(pool: Pool, custodyServiceId: string) {
+  const result = await pool.query(CUSTODY_SELECT_QUERY, [custodyServiceId]);
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    custodyServiceId: row.custodyserviceid,
+    custodyServiceName: row.custodyservicename,
+    custodianId: row.custodianid,
+    custodianName: row.custodianname,
+    fee: Number.parseFloat(row.fee) || 0,
+    paymentFrequency: row.paymentfrequency,
+  };
+}

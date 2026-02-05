@@ -18,10 +18,10 @@ afterAll(async () => {
 
 describe("References API", () => {
 
-  describe("GET /api/", () => {
+  describe("GET /api/references/", () => {
     it("should return reference data without authentication", async () => {
       const response = await request(app)
-        .get("/api/");
+        .get("/api/references/");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -41,7 +41,7 @@ describe("References API", () => {
 
     it("should return valid metal data structure", async () => {
       const response = await request(app)
-        .get("/api/");
+        .get("/api/references/");
 
       expect(response.status).toBe(200);
       const { metals } = response.body.data;
@@ -57,7 +57,7 @@ describe("References API", () => {
 
     it("should return valid currency data structure", async () => {
       const response = await request(app)
-        .get("/api/");
+        .get("/api/references/");
 
       expect(response.status).toBe(200);
       const { currencies } = response.body.data;
@@ -75,7 +75,7 @@ describe("References API", () => {
 
     it("should return valid product type data structure", async () => {
       const response = await request(app)
-        .get("/api/");
+        .get("/api/references/");
 
       expect(response.status).toBe(200);
       const { productTypes } = response.body.data;
@@ -89,7 +89,7 @@ describe("References API", () => {
 
     it("should return valid country data structure", async () => {
       const response = await request(app)
-        .get("/api/");
+        .get("/api/references/");
 
       expect(response.status).toBe(200);
       const { countries } = response.body.data;
@@ -106,7 +106,7 @@ describe("References API", () => {
     it("should handle database errors gracefully", async () => {
       // This test ensures the endpoint handles database connection issues
       const response = await request(app)
-        .get("/api/");
+        .get("/api/references/");
 
       // Either success or graceful error handling
       expect([200, 500].includes(response.status)).toBe(true);

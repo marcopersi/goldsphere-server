@@ -13,7 +13,14 @@ export {
   PortfolioSummary,
   PortfolioWithPositions,
   ListPortfoliosOptions,
-  GetPortfoliosResult
+  GetPortfoliosResult,
+  CreatePortfolioRequest,
+  UpdatePortfolioRequest,
+  PortfolioResult,
+  PortfolioError,
+  PortfolioErrorCode,
+  validateCreateRequest,
+  validateUpdateRequest
 } from './types/PortfolioTypes';
 
 // Implementations

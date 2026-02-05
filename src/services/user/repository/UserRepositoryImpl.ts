@@ -7,6 +7,7 @@
 
 import { Pool, PoolClient } from 'pg';
 import { IUserRepository, TransactionCallback } from './IUserRepository';
+import { AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
 import {
   UserEntity,
   UserProfileEntity,
@@ -16,6 +17,7 @@ import {
   ConsentLogEntity,
   CreateUserData,
   CreateUserProfileData,
+  UpdateUserProfileData,
   CreateUserAddressData,
   CreateDocumentLogData,
   CreateConsentLogData,
@@ -46,22 +48,32 @@ export class UserRepositoryImpl implements IUserRepository {
   // User CRUD Operations
   // =========================================================================
 
-  async createUser(userData: CreateUserData): Promise<UserEntity> {
+  async createUser(userData: CreateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity> {
     const role = userData.role ?? DEFAULT_USER_ROLE;
-    
-    const result = await this.pool.query<UserDbRow>(
-      `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING *`,
-      [
-        userData.email,
-        userData.passwordHash,
-        role,
-        false,
-        userData.termsVersion ?? null,
-        userData.termsAcceptedAt ?? null,
-      ]
-    );
+    const auditUser = authenticatedUser ? getAuditUser(authenticatedUser) : null;
+
+    const query = auditUser
+      ? `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at, createdBy, updatedBy) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+         RETURNING *`
+      : `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING *`;
+
+    const values = [
+      userData.email,
+      userData.passwordHash,
+      role,
+      false,
+      userData.termsVersion ?? null,
+      userData.termsAcceptedAt ?? null,
+    ];
+
+    if (auditUser) {
+      values.push(auditUser.id, auditUser.id);
+    }
+
+    const result = await this.pool.query<UserDbRow>(query, values);
 
     if (result.rows.length === 0) {
       throw new Error('Failed to create user');
@@ -146,7 +158,7 @@ export class UserRepositoryImpl implements IUserRepository {
     };
   }
 
-  async updateUser(id: string, data: UpdateUserData): Promise<UserEntity | null> {
+  async updateUser(id: string, data: UpdateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null> {
     const updates: string[] = [];
     const values: (string | boolean | Date | null)[] = [];
     let paramIndex = 1;
@@ -180,6 +192,12 @@ export class UserRepositoryImpl implements IUserRepository {
       return this.findUserById(id);
     }
 
+    const auditUser = authenticatedUser ? getAuditUser(authenticatedUser) : null;
+    if (auditUser) {
+      updates.push(`updatedBy = $${paramIndex++}`);
+      values.push(auditUser.id);
+    }
+
     updates.push(`updatedat = CURRENT_TIMESTAMP`);
     values.push(id);
 
@@ -207,6 +225,76 @@ export class UserRepositoryImpl implements IUserRepository {
     
     const result = await this.pool.query(query, params);
     return result.rows.length > 0;
+  }
+
+  // =========================================================================
+  // User Account Management Operations
+  // =========================================================================
+
+  async blockUser(
+    userId: string,
+    blockedBy: string,
+    reason: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<UserEntity | null> {
+    const auditUser = getAuditUser(authenticatedUser);
+    const result = await this.pool.query<UserDbRow>(
+      `UPDATE users 
+       SET account_status = 'blocked',
+           blocked_at = CURRENT_TIMESTAMP,
+           blocked_by = $2,
+           block_reason = $3,
+           updatedat = CURRENT_TIMESTAMP,
+           updatedBy = $4
+       WHERE id = $1
+       RETURNING *`,
+      [userId, blockedBy, reason, auditUser.id]
+    );
+    
+    return result.rows.length > 0 ? mapUserEntity(result.rows[0]) : null;
+  }
+
+  async unblockUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null> {
+    const auditUser = getAuditUser(authenticatedUser);
+    const result = await this.pool.query<UserDbRow>(
+      `UPDATE users 
+       SET account_status = 'active',
+           blocked_at = NULL,
+           blocked_by = NULL,
+           block_reason = NULL,
+           updatedat = CURRENT_TIMESTAMP,
+           updatedBy = $2
+       WHERE id = $1
+       RETURNING *`,
+      [userId, auditUser.id]
+    );
+    
+    return result.rows.length > 0 ? mapUserEntity(result.rows[0]) : null;
+  }
+
+  async softDeleteUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null> {
+    const auditUser = getAuditUser(authenticatedUser);
+    const result = await this.pool.query<UserDbRow>(
+      `UPDATE users 
+       SET account_status = 'deleted',
+           updatedat = CURRENT_TIMESTAMP,
+           updatedBy = $2
+       WHERE id = $1
+       RETURNING *`,
+      [userId, auditUser.id]
+    );
+    
+    return result.rows.length > 0 ? mapUserEntity(result.rows[0]) : null;
+  }
+
+  async findBlockedUsers(): Promise<UserEntity[]> {
+    const result = await this.pool.query<UserDbRow>(
+      `SELECT * FROM users 
+       WHERE account_status IN ('blocked', 'suspended')
+       ORDER BY blocked_at DESC`
+    );
+    
+    return result.rows.map(row => mapUserEntity(row));
   }
 
   // =========================================================================
@@ -239,6 +327,46 @@ export class UserRepositoryImpl implements IUserRepository {
       'SELECT * FROM user_profiles WHERE user_id = $1',
       [userId]
     );
+    return result.rows.length > 0 ? mapUserProfileEntity(result.rows[0]) : null;
+  }
+
+  async updateUserProfile(userId: string, data: UpdateUserProfileData): Promise<UserProfileEntity | null> {
+    const updateFields: string[] = [];
+    const params: (string | Date | null)[] = [];
+    let paramIndex = 1;
+
+    if (data.title !== undefined) {
+      updateFields.push(`title = $${paramIndex++}`);
+      params.push(data.title);
+    }
+    if (data.firstName !== undefined) {
+      updateFields.push(`first_name = $${paramIndex++}`);
+      params.push(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      updateFields.push(`last_name = $${paramIndex++}`);
+      params.push(data.lastName);
+    }
+    if (data.birthDate !== undefined) {
+      updateFields.push(`birth_date = $${paramIndex++}`);
+      params.push(data.birthDate);
+    }
+
+    if (updateFields.length === 0) {
+      return this.findUserProfileByUserId(userId);
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    params.push(userId);
+
+    const result = await this.pool.query<UserProfileDbRow>(
+      `UPDATE user_profiles 
+       SET ${updateFields.join(', ')}
+       WHERE user_id = $${paramIndex}
+       RETURNING *`,
+      params
+    );
+
     return result.rows.length > 0 ? mapUserProfileEntity(result.rows[0]) : null;
   }
 

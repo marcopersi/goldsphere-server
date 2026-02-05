@@ -6,137 +6,149 @@
  */
 
 import { Pool } from 'pg';
-import { CommonPaginationSchema, PositionSchema } from '@marcopersi/shared';
+import { CommonPaginationSchema } from '@marcopersi/shared';
 import { IPortfolioRepository } from './IPortfolioRepository';
 import {
   PortfolioSummary,
   PortfolioWithPositions,
   ListPortfoliosOptions,
   GetPortfoliosResult,
-  Position
 } from '../types/PortfolioTypes';
+import { PORTFOLIO_STATS_SUBQUERY, PORTFOLIO_SELECT_FIELDS, SORT_COLUMN_MAP } from './PortfolioQueries';
+import { mapRowToSummary, mapRowToPosition } from './PortfolioMappers';
+import { AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
 
 export class PortfolioRepositoryImpl implements IPortfolioRepository {
   constructor(private readonly pool: Pool) {}
 
+  async getAllPortfolios(options: ListPortfoliosOptions): Promise<GetPortfoliosResult> {
+    return this.queryPortfolios(options);
+  }
+
   async getUserPortfolios(userId: string, options: ListPortfoliosOptions): Promise<GetPortfoliosResult> {
+    return this.queryPortfolios({ ...options, ownerId: userId });
+  }
+
+  private async queryPortfolios(options: ListPortfoliosOptions): Promise<GetPortfoliosResult> {
     const page = Math.max(1, options.page || 1);
     const limit = Math.min(100, Math.max(1, options.limit || 20));
     const offset = (page - 1) * limit;
+    const sortBy = options.sortBy || 'createdAt';
+    const sortOrder = options.sortOrder?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-    const where: string[] = ['p.ownerid = $1'];
-    const params: any[] = [userId];
-    let idx = params.length + 1;
-
-    if (typeof options.isActive === 'boolean') {
-      where.push(`COALESCE(p.isactive, true) = $${idx++}`);
-      params.push(options.isActive);
-    }
-    if (options.search) {
-      where.push(`(p.portfolioname ILIKE $${idx} OR p.description ILIKE $${idx})`);
-      params.push(`%${options.search}%`);
-      idx++;
-    }
+    const { whereClause, params } = this.buildWhereClause(options);
+    const orderByColumn = SORT_COLUMN_MAP[sortBy] || 'p.createdat';
 
     const baseQuery = `
       FROM public.portfolio p
-      LEFT JOIN (
-        SELECT 
-          pos.portfolioid,
-          SUM(pos.quantity * COALESCE(pos.marketprice, pos.purchaseprice, 0)) as total_value,
-          SUM(pos.quantity * COALESCE(pos.purchaseprice, 0)) as total_cost,
-          COUNT(pos.id) as position_count,
-          MAX(pos.updatedat) as last_position_update
-        FROM public.position pos
-        GROUP BY pos.portfolioid
-      ) portfolio_stats ON p.id = portfolio_stats.portfolioid
-      WHERE ${where.join(' AND ')}
+      LEFT JOIN (${PORTFOLIO_STATS_SUBQUERY}) portfolio_stats ON p.id = portfolio_stats.portfolioid
+      ${whereClause}
     `;
-
-    const dataQuery = `
-      SELECT 
-        p.id,
-        p.portfolioname,
-        p.ownerid,
-        p.description,
-        COALESCE(p.isactive, true) as isactive,
-        COALESCE(portfolio_stats.total_value, 0) as total_value,
-        COALESCE(portfolio_stats.total_cost, 0) as total_cost,
-        COALESCE(portfolio_stats.total_value - portfolio_stats.total_cost, 0) as total_gain_loss,
-        CASE 
-          WHEN portfolio_stats.total_cost > 0 
-          THEN ((portfolio_stats.total_value - portfolio_stats.total_cost) / portfolio_stats.total_cost) * 100
-          ELSE 0
-        END as total_gain_loss_percentage,
-        COALESCE(portfolio_stats.position_count, 0) as position_count,
-        GREATEST(p.updatedat, COALESCE(portfolio_stats.last_position_update, p.updatedat)) as last_updated,
-        p.createdat,
-        p.updatedat
-      ${baseQuery}
-      ORDER BY p.createdat DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    const countQuery = `SELECT COUNT(*) as count ${baseQuery}`;
 
     const [dataResult, countResult] = await Promise.all([
-      this.pool.query(dataQuery, params),
-      this.pool.query(countQuery, params)
+      this.pool.query(
+        `SELECT ${PORTFOLIO_SELECT_FIELDS} ${baseQuery} ORDER BY ${orderByColumn} ${sortOrder} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+      this.pool.query(`SELECT COUNT(*) as count ${baseQuery}`, params),
     ]);
 
     const total = Number.parseInt(countResult.rows[0]?.count || '0', 10);
-    const portfolios: PortfolioSummary[] = dataResult.rows.map(this.mapRowToSummary);
+    const portfolios: PortfolioSummary[] = dataResult.rows.map(mapRowToSummary);
 
     const pagination = CommonPaginationSchema.parse({
-      page,
-      limit,
-      total,
+      page, limit, total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       hasNext: offset + portfolios.length < total,
-      hasPrev: page > 1
+      hasPrevious: page > 1,
     });
 
     return { portfolios, pagination };
   }
 
-  async getById(portfolioId: string): Promise<PortfolioSummary | null> {
-    const query = `
-      SELECT 
-        p.id,
-        p.portfolioname,
-        p.ownerid,
-        p.description,
-        COALESCE(p.isactive, true) as isactive,
-        COALESCE(portfolio_stats.total_value, 0) as total_value,
-        COALESCE(portfolio_stats.total_cost, 0) as total_cost,
-        COALESCE(portfolio_stats.total_value - portfolio_stats.total_cost, 0) as total_gain_loss,
-        CASE 
-          WHEN portfolio_stats.total_cost > 0 
-          THEN ((portfolio_stats.total_value - portfolio_stats.total_cost) / portfolio_stats.total_cost) * 100
-          ELSE 0
-        END as total_gain_loss_percentage,
-        COALESCE(portfolio_stats.position_count, 0) as position_count,
-        GREATEST(p.updatedat, COALESCE(portfolio_stats.last_position_update, p.updatedat)) as last_updated,
-        p.createdat,
-        p.updatedat
-      FROM public.portfolio p
-      LEFT JOIN (
-        SELECT 
-          pos.portfolioid,
-          SUM(pos.quantity * COALESCE(pos.marketprice, pos.purchaseprice, 0)) as total_value,
-          SUM(pos.quantity * COALESCE(pos.purchaseprice, 0)) as total_cost,
-          COUNT(pos.id) as position_count,
-          MAX(pos.updatedat) as last_position_update
-        FROM public.position pos
-        GROUP BY pos.portfolioid
-      ) portfolio_stats ON p.id = portfolio_stats.portfolioid
-      WHERE p.id = $1
-    `;
+  private buildWhereClause(options: ListPortfoliosOptions): { whereClause: string; params: (string | number | boolean)[] } {
+    const conditions: string[] = [];
+    const params: (string | number | boolean)[] = [];
+    let idx = 1;
 
-    const result = await this.pool.query(query, [portfolioId]);
-    if (result.rows.length === 0) return null;
-    
-    return this.mapRowToSummary(result.rows[0]);
+    if (options.ownerId) {
+      conditions.push(`p.ownerid = $${idx++}`);
+      params.push(options.ownerId);
+    }
+    if (typeof options.isActive === 'boolean') {
+      conditions.push(`COALESCE(p.isactive, true) = $${idx++}`);
+      params.push(options.isActive);
+    }
+    if (options.search) {
+      conditions.push(`(p.portfolioname ILIKE $${idx} OR p.description ILIKE $${idx})`);
+      params.push(`%${options.search}%`);
+      idx++;
+    }
+    if (options.minValue !== undefined) {
+      conditions.push(`portfolio_stats.total_value >= $${idx++}`);
+      params.push(options.minValue);
+    }
+    if (options.maxValue !== undefined) {
+      conditions.push(`portfolio_stats.total_value <= $${idx++}`);
+      params.push(options.maxValue);
+    }
+    if (options.minPositionCount !== undefined) {
+      conditions.push(`portfolio_stats.position_count >= $${idx++}`);
+      params.push(options.minPositionCount);
+    }
+    if (options.maxPositionCount !== undefined) {
+      conditions.push(`portfolio_stats.position_count <= $${idx++}`);
+      params.push(options.maxPositionCount);
+    }
+    if (options.minGainLoss !== undefined) {
+      conditions.push(`portfolio_stats.total_gain_loss >= $${idx++}`);
+      params.push(options.minGainLoss);
+    }
+    if (options.maxGainLoss !== undefined) {
+      conditions.push(`portfolio_stats.total_gain_loss <= $${idx++}`);
+      params.push(options.maxGainLoss);
+    }
+    if (options.createdAfter) {
+      conditions.push(`p.createdat >= $${idx++}`);
+      params.push(options.createdAfter);
+    }
+    if (options.createdBefore) {
+      conditions.push(`p.createdat <= $${idx++}`);
+      params.push(options.createdBefore);
+    }
+    if (options.updatedAfter) {
+      conditions.push(`p.updatedat >= $${idx++}`);
+      params.push(options.updatedAfter);
+    }
+    if (options.updatedBefore) {
+      conditions.push(`p.updatedat <= $${idx++}`);
+      params.push(options.updatedBefore);
+    }
+    if (options.metal) {
+      conditions.push(`EXISTS (
+        SELECT 1 FROM public.position pos 
+        JOIN public.product prod ON pos.productid = prod.id 
+        JOIN public.metal m ON prod.metalid = m.id
+        WHERE pos.portfolioid = p.id AND LOWER(m.metalname) = LOWER($${idx++})
+      )`);
+      params.push(options.metal);
+    }
+
+    return {
+      whereClause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+      params,
+    };
+  }
+
+  async getById(portfolioId: string): Promise<PortfolioSummary | null> {
+    const result = await this.pool.query(
+      `SELECT ${PORTFOLIO_SELECT_FIELDS}
+       FROM public.portfolio p
+       LEFT JOIN (${PORTFOLIO_STATS_SUBQUERY}) portfolio_stats ON p.id = portfolio_stats.portfolioid
+       WHERE p.id = $1`,
+      [portfolioId]
+    );
+    return result.rows.length === 0 ? null : mapRowToSummary(result.rows[0]);
   }
 
   async getWithPositions(portfolioId: string): Promise<PortfolioWithPositions | null> {
@@ -144,222 +156,84 @@ export class PortfolioRepositoryImpl implements IPortfolioRepository {
     if (!summary) return null;
 
     const positionsResult = await this.pool.query(
-      `SELECT * FROM position WHERE portfolioId = $1 ORDER BY createdat DESC`,
+      'SELECT * FROM position WHERE portfolioId = $1 ORDER BY createdat DESC',
       [portfolioId]
     );
 
     const positions = await Promise.all(
-      positionsResult.rows.map(row => this.mapRowToPosition(row))
+      positionsResult.rows.map(row => mapRowToPosition(this.pool, row))
     );
 
     return { ...summary, positions };
   }
 
-  async create(userId: string, name: string, description?: string): Promise<PortfolioSummary> {
+  async create(
+    userId: string,
+    name: string,
+    description?: string,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<PortfolioSummary> {
+    const auditUser = getAuditUser(authenticatedUser);
     const result = await this.pool.query(
-      `INSERT INTO portfolio (ownerid, portfolioname, description, isactive, createdat, updatedat)
-       VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `INSERT INTO portfolio (ownerid, portfolioname, description, isactive, createdat, updatedat, createdBy, updatedBy)
+       VALUES ($1, $2, $3, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $4, $5)
        RETURNING *`,
-      [userId, name, description || null]
+      [userId, name, description || null, auditUser.id, auditUser.id]
     );
 
-    const row = result.rows[0];
-    return this.mapRowToSummary({
-      ...row,
-      total_value: 0,
-      total_cost: 0,
-      total_gain_loss: 0,
-      total_gain_loss_percentage: 0,
-      position_count: 0,
-      last_updated: row.updatedat
+    return mapRowToSummary({
+      ...result.rows[0],
+      total_value: 0, total_cost: 0, total_gain_loss: 0,
+      total_gain_loss_percentage: 0, position_count: 0,
+      last_updated: result.rows[0].updatedat,
     });
   }
 
-  async update(portfolioId: string, updates: Partial<PortfolioSummary>): Promise<void> {
+  async update(
+    portfolioId: string,
+    updates: Partial<PortfolioSummary>,
+    authenticatedUser?: AuditTrailUser
+  ): Promise<PortfolioSummary | null> {
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | boolean)[] = [];
     let idx = 1;
 
-    if (updates.portfolioName) {
-      fields.push(`portfolioname = $${idx++}`);
-      values.push(updates.portfolioName);
-    }
-    if (updates.description !== undefined) {
-      fields.push(`description = $${idx++}`);
-      values.push(updates.description);
-    }
-    if (typeof updates.isActive === 'boolean') {
-      fields.push(`isactive = $${idx++}`);
-      values.push(updates.isActive);
-    }
+    if (updates.portfolioName) { fields.push(`portfolioname = $${idx++}`); values.push(updates.portfolioName); }
+    if (updates.description !== undefined) { fields.push(`description = $${idx++}`); values.push(updates.description || ''); }
+    if (typeof updates.isActive === 'boolean') { fields.push(`isactive = $${idx++}`); values.push(updates.isActive); }
 
-    if (fields.length === 0) return;
+    if (fields.length === 0) return this.getById(portfolioId);
 
-    fields.push(`updatedat = CURRENT_TIMESTAMP`);
+    const auditUser = getAuditUser(authenticatedUser);
+    fields.push(`updatedBy = $${idx++}`);
+    values.push(auditUser.id);
+    fields.push('updatedat = CURRENT_TIMESTAMP');
     values.push(portfolioId);
 
-    await this.pool.query(
-      `UPDATE portfolio SET ${fields.join(', ')} WHERE id = $${idx}`,
-      values
-    );
+    await this.pool.query(`UPDATE portfolio SET ${fields.join(', ')} WHERE id = $${idx}`, values);
+    return this.getById(portfolioId);
   }
 
-  async delete(portfolioId: string): Promise<void> {
+  async delete(portfolioId: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
     await this.pool.query('DELETE FROM portfolio WHERE id = $1', [portfolioId]);
   }
 
-  // ============================================================================
-  // Private Mapping Methods
-  // ============================================================================
-
-  private mapRowToSummary(row: any): PortfolioSummary {
-    return {
-      id: row.id,
-      portfolioName: row.portfolioname,
-      ownerId: row.ownerid,
-      description: row.description,
-      isActive: row.isactive ?? true,
-      totalValue: Number.parseFloat(row.total_value) || 0,
-      totalCost: Number.parseFloat(row.total_cost) || 0,
-      totalGainLoss: Number.parseFloat(row.total_gain_loss) || 0,
-      totalGainLossPercentage: Number.parseFloat(row.total_gain_loss_percentage) || 0,
-      positionCount: Number.parseInt(row.position_count) || 0,
-      lastUpdated: row.last_updated || row.updatedat,
-      createdAt: row.createdat,
-      updatedAt: row.updatedat
-    };
+  async userExists(userId: string): Promise<boolean> {
+    const result = await this.pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+    return result.rows.length > 0;
   }
 
-  private async mapRowToPosition(row: any): Promise<Position> {
-    const product = await this.fetchProductForPosition(row.productid);
-    let custody = null;
-
-    if (row.custodyserviceid) {
-      custody = await this.fetchCustodyForPosition(row.custodyserviceid);
-    }
-
-    const position = {
-      id: row.id,
-      userId: row.userid,
-      productId: row.productid,
-      portfolioId: row.portfolioid,
-      product,
-      purchaseDate: row.purchasedate || new Date(),
-      purchasePrice: Number.parseFloat(row.purchaseprice) || 0,
-      marketPrice: Number.parseFloat(row.marketprice) || 0,
-      quantity: Number.parseFloat(row.quantity) || 0,
-      custodyServiceId: row.custodyserviceid || undefined,
-      custody: custody || undefined,
-      status: row.status || 'active',
-      notes: row.notes || '',
-      createdAt: row.createdat || new Date(),
-      updatedAt: row.updatedat || new Date()
-    };
-
-    return PositionSchema.parse(position);
+  async nameExistsForUser(userId: string, name: string, excludePortfolioId?: string): Promise<boolean> {
+    const query = excludePortfolioId
+      ? 'SELECT 1 FROM portfolio WHERE ownerid = $1 AND portfolioname = $2 AND id != $3'
+      : 'SELECT 1 FROM portfolio WHERE ownerid = $1 AND portfolioname = $2';
+    const params = excludePortfolioId ? [userId, name, excludePortfolioId] : [userId, name];
+    const result = await this.pool.query(query, params);
+    return result.rows.length > 0;
   }
 
-  private async fetchProductForPosition(productId: string) {
-    const productQuery = `
-      SELECT 
-        product.id, 
-        product.name AS productname, 
-        product.productTypeId,
-        productType.productTypeName AS producttype, 
-        product.metalId,
-        metal.id AS metal_id,
-        metal.name AS metalname,
-        metal.symbol AS metal_symbol,
-        product.producerId,
-        product.weight AS fineweight, 
-        product.weightUnit AS unitofmeasure, 
-        product.purity,
-        product.price,
-        product.currency,
-        producer.producerName AS producer,
-        country.countryName AS country,
-        product.year AS productyear,
-        product.description,
-        product.imageFilename AS imageurl,
-        product.inStock,
-        product.minimumOrderQuantity,
-        product.createdat,
-        product.updatedat
-      FROM product 
-      JOIN productType ON productType.id = product.productTypeId 
-      JOIN metal ON metal.id = product.metalId 
-      JOIN producer ON producer.id = product.producerId
-      LEFT JOIN country ON country.id = product.countryId
-      WHERE product.id = $1
-    `;
-
-    const result = await this.pool.query(productQuery, [productId]);
-    if (result.rows.length === 0) {
-      throw new Error(`Product not found: ${productId}`);
-    }
-
-    const row = result.rows[0];
-    let imageUrl = 'https://example.com/images/placeholder.jpg';
-    if (row.imageurl) {
-      imageUrl = row.imageurl.startsWith('http') 
-        ? row.imageurl 
-        : `https://example.com/images/${row.imageurl}`;
-    }
-
-    return {
-      id: row.id,
-      name: row.productname,
-      type: row.producttype,
-      productTypeId: row.producttypeid,
-      metal: {
-        id: row.metal_id,
-        name: row.metalname,
-        symbol: row.metal_symbol
-      },
-      metalId: row.metalid,
-      producer: row.producer,
-      producerId: row.producerid,
-      weight: Number.parseFloat(row.fineweight) || 0,
-      weightUnit: row.unitofmeasure,
-      purity: Number.parseFloat(row.purity) || 0.999,
-      price: Number.parseFloat(row.price) || 0,
-      currency: row.currency,
-      country: row.country || undefined,
-      year: row.productyear || undefined,
-      description: row.description || '',
-      imageUrl,
-      inStock: row.instock ?? true,
-      minimumOrderQuantity: row.minimumorderquantity || 1,
-      createdAt: row.createdat || new Date(),
-      updatedAt: row.updatedat || new Date()
-    };
-  }
-
-  private async fetchCustodyForPosition(custodyServiceId: string) {
-    const custodyQuery = `
-      SELECT 
-        cs.id as custodyServiceId,
-        cs.custodyServiceName,
-        c.id as custodianId,
-        c.custodianName,
-        cs.fee,
-        cs.paymentFrequency
-      FROM custodyService cs
-      JOIN custodian c ON cs.custodianId = c.id
-      WHERE cs.id = $1
-    `;
-
-    const result = await this.pool.query(custodyQuery, [custodyServiceId]);
-    if (result.rows.length === 0) return null;
-
-    const row = result.rows[0];
-    return {
-      custodyServiceId: row.custodyserviceid,
-      custodyServiceName: row.custodyservicename,
-      custodianId: row.custodianid,
-      custodianName: row.custodianname,
-      fee: Number.parseFloat(row.fee) || 0,
-      paymentFrequency: row.paymentfrequency
-    };
+  async getPositionCount(portfolioId: string): Promise<number> {
+    const result = await this.pool.query('SELECT COUNT(*) as count FROM position WHERE portfolioid = $1', [portfolioId]);
+    return Number.parseInt(result.rows[0]?.count || '0', 10);
   }
 }

@@ -6,7 +6,8 @@
 
 import { Metal, ProductTypeEnum } from '@marcopersi/shared';
 import { IProductRepository } from '../repository/IProductRepository';
-import { CreateProductRequest, UpdateProductRequest, ProductManagementResponse, ProductLookupIds, ProductImageUpload, ProductListOptions, ProductListResponse } from '../types/ProductTypes';
+import { CreateProductRequest, UpdateProductRequest, ProductManagementResponse, ProductLookupIds, ProductImageUpload, ProductListOptions, ProductListResponse, CreateProductByIdRequest, UpdateProductByIdRequest } from '../types/ProductTypes';
+import type { AuditTrailUser } from '../../../utils/auditTrail';
 
 export class ProductRepositoryMock implements IProductRepository {
   private products: Map<string, ProductManagementResponse> = new Map();
@@ -131,7 +132,7 @@ export class ProductRepositoryMock implements IProductRepository {
     return this.lookupData.get(key) || null;
   }
 
-  async create(data: CreateProductRequest): Promise<ProductManagementResponse> {
+  async create(data: CreateProductRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
     const lookupIds = await this.findLookupIds(data.productType, data.metal, data.producer, data.country);
 
     if (!lookupIds) {
@@ -272,7 +273,7 @@ export class ProductRepositoryMock implements IProductRepository {
     };
   }
 
-  async update(id: string, data: UpdateProductRequest): Promise<ProductManagementResponse> {
+  async update(id: string, data: UpdateProductRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
     const product = this.products.get(id);
     if (!product) {
       throw new Error(`Product not found: ${id}`);
@@ -305,7 +306,7 @@ export class ProductRepositoryMock implements IProductRepository {
     return updated;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
     if (!this.products.has(id)) {
       throw new Error(`Product not found: ${id}`);
     }
@@ -313,7 +314,7 @@ export class ProductRepositoryMock implements IProductRepository {
     this.imageData.delete(id);
   }
 
-  async saveImage(productId: string, image: ProductImageUpload): Promise<void> {
+  async saveImage(productId: string, image: ProductImageUpload, _authenticatedUser?: AuditTrailUser): Promise<void> {
     if (!this.products.has(productId)) {
       throw new Error(`Product not found: ${productId}`);
     }
@@ -324,6 +325,132 @@ export class ProductRepositoryMock implements IProductRepository {
     return this.imageData.get(productId) || null;
   }
 
+  async getImageWithMetadata(productId: string): Promise<{ data: Buffer; contentType: string; filename: string } | null> {
+    const imageBuffer = this.imageData.get(productId);
+    if (!imageBuffer) {
+      return null;
+    }
+    
+    const product = this.products.get(productId);
+    return {
+      data: imageBuffer,
+      contentType: 'image/jpeg',
+      filename: product?.imageFilename || 'product-image.jpg'
+    };
+  }
+
+  async findPriceById(id: string): Promise<{ id: string; price: number; currency: string } | null> {
+    const product = this.products.get(id);
+    if (!product) {
+      return null;
+    }
+    
+    return {
+      id: product.id,
+      price: product.price,
+      currency: product.currency
+    };
+  }
+
+  async findPricesByIds(ids: string[]): Promise<{ id: string; price: number; currency: string }[]> {
+    const prices: { id: string; price: number; currency: string }[] = [];
+    
+    for (const id of ids) {
+      const product = this.products.get(id);
+      if (product) {
+        prices.push({
+          id: product.id,
+          price: product.price,
+          currency: product.currency
+        });
+      }
+    }
+    
+    return prices;
+  }
+
+  async exists(id: string): Promise<boolean> {
+    return this.products.has(id);
+  }
+  
+  async hasOrders(_productId: string): Promise<boolean> {
+    // Mock always returns false - no orders in test data
+    return false;
+  }
+  
+  async validateReferenceIds(
+    _metalId?: string,
+    _productTypeId?: string,
+    _producerId?: string,
+    _countryId?: string
+  ): Promise<{ valid: boolean; errors: string[] }> {
+    // Mock always returns valid - no real database to check
+    return { valid: true, errors: [] };
+  }
+  
+  async createById(data: CreateProductByIdRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+    const id = `prod-${Date.now()}`;
+    const now = new Date();
+    
+    // Mock product type and metal based on IDs
+    const productType = ProductTypeEnum.COIN;
+    const metal = Metal.GOLD;
+    
+    const product: ProductManagementResponse = {
+      id,
+      name: data.name,
+      productType,
+      metal,
+      weight: data.weight,
+      weightUnit: data.weightUnit,
+      purity: data.purity,
+      price: data.price,
+      currency: data.currency,
+      producer: 'Mock Producer',
+      country: null,
+      year: data.year || null,
+      description: data.description || null,
+      imageUrl: null,
+      imageFilename: data.imageFilename || null,
+      inStock: data.inStock !== false,
+      stockQuantity: data.stockQuantity || 0,
+      minimumOrderQuantity: data.minimumOrderQuantity || 1,
+      premiumPercentage: data.premiumPercentage || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    this.products.set(id, product);
+    return product;
+  }
+  
+  async updateById(id: string, data: UpdateProductByIdRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+    const product = this.products.get(id);
+    if (!product) {
+      throw new Error(`Product not found: ${id}`);
+    }
+    
+    const updated: ProductManagementResponse = {
+      ...product,
+      name: data.name ?? product.name,
+      weight: data.weight ?? product.weight,
+      weightUnit: data.weightUnit ?? product.weightUnit,
+      purity: data.purity ?? product.purity,
+      price: data.price ?? product.price,
+      currency: data.currency ?? product.currency,
+      year: data.year ?? product.year,
+      description: data.description ?? product.description,
+      imageFilename: data.imageFilename ?? product.imageFilename,
+      inStock: data.inStock ?? product.inStock,
+      stockQuantity: data.stockQuantity ?? product.stockQuantity,
+      minimumOrderQuantity: data.minimumOrderQuantity ?? product.minimumOrderQuantity,
+      premiumPercentage: data.premiumPercentage ?? product.premiumPercentage,
+      updatedAt: new Date()
+    };
+    
+    this.products.set(id, updated);
+    return updated;
+  }
   
   // Test helper methods (not part of interface)
   clear(): void {

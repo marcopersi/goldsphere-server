@@ -22,18 +22,9 @@ jest.setTimeout(30000);
 // Global cleanup for integration tests
 // This ensures database cleanup even if tests fail
 let teardownFunction: (() => Promise<void>) | null = null;
+let signalsRegistered = false;
 
-// Allow integration tests to register their teardown function
-(globalThis as any).registerTeardown = (fn: () => Promise<void>) => {
-  teardownFunction = fn;
-};
-
-// Global teardown - called when Jest process is about to exit
-process.on('exit', () => {
-  console.log('🧹 Jest process exiting - performing global cleanup...');
-});
-
-process.on('SIGINT', async () => {
+const handleSigint = async () => {
   console.log('🛑 SIGINT received - performing emergency cleanup...');
   if (teardownFunction) {
     try {
@@ -43,9 +34,9 @@ process.on('SIGINT', async () => {
     }
   }
   process.exit(0);
-});
+};
 
-process.on('SIGTERM', async () => {
+const handleSigterm = async () => {
   console.log('🛑 SIGTERM received - performing emergency cleanup...');
   if (teardownFunction) {
     try {
@@ -55,14 +46,37 @@ process.on('SIGTERM', async () => {
     }
   }
   process.exit(0);
+};
+
+const registerSignalHandlers = () => {
+  if (signalsRegistered) return;
+  signalsRegistered = true;
+  process.on('SIGINT', handleSigint);
+  process.on('SIGTERM', handleSigterm);
+};
+
+// Allow integration tests to register their teardown function
+(globalThis as any).registerTeardown = (fn: () => Promise<void>) => {
+  teardownFunction = fn;
+  registerSignalHandlers();
+};
+
+// Global teardown - called when Jest process is about to exit
+process.on('exit', () => {
+  console.log('🧹 Jest process exiting - performing global cleanup...');
 });
 
-// Mock console methods to reduce noise in tests
-globalThis.console = {
-  ...console,
-  log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-};
+
+const isLeakCheck = process.env.JEST_LEAK_CHECK === 'true';
+
+// Mock console methods to reduce noise in tests (skip for leak diagnostics)
+if (!isLeakCheck) {
+  globalThis.console = {
+    ...console,
+    log: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  };
+}

@@ -5,6 +5,13 @@
  * using mock repository for isolation.
  */
 
+const MOCK_PASSWORD = 'SecurePass123';
+
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(async () => '$2b$10$mockedhash'),
+  compare: jest.fn(async (password: string) => password === MOCK_PASSWORD),
+}));
+
 import { UserServiceImpl } from '../../src/services/user/service/UserServiceImpl';
 import { 
   IUserRepository,
@@ -14,12 +21,14 @@ import {
   UserVerificationStatusEntity,
   CreateUserData,
   UpdateUserData,
+  UpdateUserProfileData,
   ListUsersOptions,
   GetUsersResult,
   UserRole,
   UserTitle,
   EmailVerificationStatus,
   IdentityVerificationStatus,
+  AccountStatus,
   UserErrorCode,
 } from '../../src/services/user';
 
@@ -49,6 +58,14 @@ class UserRepositoryMock implements IUserRepository {
       updatedAt: new Date(),
       createdBy: null,
       updatedBy: null,
+      accountStatus: AccountStatus.ACTIVE,
+      blockedAt: null,
+      blockedBy: null,
+      blockReason: null,
+      phoneNumber: null,
+      gender: null,
+      preferredCurrencyId: null,
+      preferredLanguage: null,
     };
     this.users.set(existingUser.id, existingUser);
 
@@ -81,6 +98,14 @@ class UserRepositoryMock implements IUserRepository {
       updatedAt: new Date(),
       createdBy: null,
       updatedBy: null,
+      accountStatus: AccountStatus.ACTIVE,
+      blockedAt: null,
+      blockedBy: null,
+      blockReason: null,
+      phoneNumber: null,
+      gender: null,
+      preferredCurrencyId: null,
+      preferredLanguage: null,
     };
     this.users.set(id, user);
     return user;
@@ -153,8 +178,73 @@ class UserRepositoryMock implements IUserRepository {
     return false;
   }
 
+  async blockUser(userId: string, blockedBy: string, reason: string): Promise<UserEntity | null> {
+    const user = this.users.get(userId);
+    if (!user) return null;
+
+    const blocked: UserEntity = {
+      ...user,
+      accountStatus: AccountStatus.BLOCKED,
+      blockedAt: new Date(),
+      blockedBy,
+      blockReason: reason,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, blocked);
+    return blocked;
+  }
+
+  async unblockUser(userId: string): Promise<UserEntity | null> {
+    const user = this.users.get(userId);
+    if (!user) return null;
+
+    const unblocked: UserEntity = {
+      ...user,
+      accountStatus: AccountStatus.ACTIVE,
+      blockedAt: null,
+      blockedBy: null,
+      blockReason: null,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, unblocked);
+    return unblocked;
+  }
+
+  async softDeleteUser(userId: string): Promise<UserEntity | null> {
+    const user = this.users.get(userId);
+    if (!user) return null;
+
+    const deleted: UserEntity = {
+      ...user,
+      accountStatus: AccountStatus.DELETED,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, deleted);
+    return deleted;
+  }
+
+  async findBlockedUsers(): Promise<UserEntity[]> {
+    return Array.from(this.users.values()).filter(
+      user => user.accountStatus === AccountStatus.BLOCKED || 
+              user.accountStatus === AccountStatus.SUSPENDED
+    );
+  }
+
   async findUserProfileByUserId(userId: string): Promise<UserProfileEntity | null> {
     return this.profiles.get(userId) ?? null;
+  }
+
+  async updateUserProfile(userId: string, data: UpdateUserProfileData): Promise<UserProfileEntity | null> {
+    const profile = this.profiles.get(userId);
+    if (!profile) return null;
+
+    const updated: UserProfileEntity = {
+      ...profile,
+      ...data,
+      updatedAt: new Date(),
+    };
+    this.profiles.set(userId, updated);
+    return updated;
   }
 
   async findUserAddressByUserId(userId: string): Promise<UserAddressEntity | null> {

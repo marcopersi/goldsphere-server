@@ -1,0 +1,22 @@
+{
+  "threshold": 6,
+  "reporters": ["json", "console"],
+  "output": "reports/jscpd",
+  "format": ["typescript", "javascript"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/reports/**",
+    "**/coverage/**",
+    "**/*.min.js",
+    "**/*.d.ts",
+    "**/initdb/**",
+    "**/__tests__/**",
+    "**/tests/**"
+  ],
+  "minLines": 5,
+  "minTokens": 50,
+  "skipLocal": false,
+  "absolute": true
+}

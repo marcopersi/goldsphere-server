@@ -6,7 +6,7 @@
  * DbRow types represent raw database results with snake_case columns.
  */
 
-import { UserRole, UserTitle, EmailVerificationStatus, IdentityVerificationStatus } from './UserEnums';
+import { UserRole, UserTitle, EmailVerificationStatus, IdentityVerificationStatus, AccountStatus, Gender } from './UserEnums';
 
 // =============================================================================
 // Database Entity Types (map to database tables)
@@ -25,6 +25,16 @@ export interface UserEntity {
   termsVersion: string | null;
   termsAcceptedAt: Date | null;
   lastLogin: Date | null;
+  // Account status management (from 08-user-account-status.sql)
+  accountStatus: AccountStatus;
+  blockedAt: Date | null;
+  blockedBy: string | null;
+  blockReason: string | null;
+  // Extended profile fields (from 08-user-account-status.sql)
+  phoneNumber: string | null;
+  gender: Gender | null;
+  preferredCurrencyId: string | null;
+  preferredLanguage: string | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -125,6 +135,16 @@ export interface UserDbRow {
   updatedat: Date;
   createdby: string | null;
   updatedby: string | null;
+  // Account status management
+  account_status: string;
+  blocked_at: Date | null;
+  blocked_by: string | null;
+  block_reason: string | null;
+  // Extended profile fields
+  phone_number: string | null;
+  gender: string | null;
+  preferred_currency_id: string | null;
+  preferred_language: string | null;
 }
 
 /**

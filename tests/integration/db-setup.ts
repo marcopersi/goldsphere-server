@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -14,7 +15,7 @@ export async function setupTestDatabase(): Promise<Pool> {
   console.log('🔧 Setting up fresh test database...');
   
   // Generate unique test database name
-  testDbName = `goldsphere_test_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  testDbName = `goldsphere_test_${randomUUID().replace(/-/g, '')}`;
   
   console.log(`📊 Creating test database: ${testDbName}`);
   

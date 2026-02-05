@@ -6,15 +6,19 @@
  */
 
 import request from 'supertest';
-import app from '../../src/app';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 import { getPool } from '../../src/dbConfig';
 import bcrypt from 'bcrypt';
+
+let app: any;
 
 describe('Login with Password Field (Shared Package 1.4.6)', () => {
   
   beforeAll(async () => {
     await setupTestDatabase();
+    
+    // Import app AFTER database setup to ensure pool replacement takes effect
+    app = (await import('../../src/app')).default;
     
     // Create a test user with hashed password
     const passwordHash = await bcrypt.hash('TestPassword123', 10);
@@ -62,7 +66,8 @@ describe('Login with Password Field (Shared Package 1.4.6)', () => {
 
       // Should fail because 'password' field is missing
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error', 'Email and password are required');
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should authenticate with existing admin user', async () => {
@@ -113,6 +118,7 @@ describe('Login with Password Field (Shared Package 1.4.6)', () => {
         })
         .expect(400);
 
+      expect(response1.body).toHaveProperty('success', false);
       expect(response1.body).toHaveProperty('error', 'Email and password are required');
 
       const response2 = await request(app)

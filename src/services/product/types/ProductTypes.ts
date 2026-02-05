@@ -183,3 +183,71 @@ export interface ProductAvailability {
   stockQuantity: number;
   requestedQuantity: number;
 }
+
+// ============================================================================
+// Price Types
+// ============================================================================
+
+export interface ProductPriceDTO {
+  id: string;
+  price: number;
+  currency: string;
+}
+
+export interface ProductImageDTO {
+  data: Buffer;
+  contentType: string;
+  filename: string;
+}
+
+// ============================================================================
+// ID-based Request Types (for API endpoints using foreign key IDs)
+// ============================================================================
+
+export interface CreateProductByIdRequest {
+  name: string;
+  productTypeId: string;
+  metalId: string;
+  producerId: string;
+  countryId?: string;
+  weight: number;
+  weightUnit: string;
+  purity: number;
+  price: number;
+  currency: string;
+  year?: number;
+  description?: string;
+  imageFilename?: string;
+  inStock?: boolean;
+  stockQuantity?: number;
+  minimumOrderQuantity?: number;
+  premiumPercentage?: number;
+  diameter?: number;
+  thickness?: number;
+  mintage?: number;
+  certification?: string;
+}
+
+export interface UpdateProductByIdRequest {
+  name?: string;
+  productTypeId?: string;
+  metalId?: string;
+  producerId?: string;
+  countryId?: string;
+  weight?: number;
+  weightUnit?: string;
+  purity?: number;
+  price?: number;
+  currency?: string;
+  year?: number;
+  description?: string;
+  imageFilename?: string;
+  inStock?: boolean;
+  stockQuantity?: number;
+  minimumOrderQuantity?: number;
+  premiumPercentage?: number;
+  diameter?: number;
+  thickness?: number;
+  mintage?: number;
+  certification?: string;
+}

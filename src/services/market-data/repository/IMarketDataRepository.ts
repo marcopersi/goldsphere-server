@@ -46,11 +46,6 @@ export interface IMarketDataRepository {
   upsertPrice(priceData: PriceData): Promise<void>;
 
   /**
-   * Get metal ID by symbol
-   */
-  getMetalIdBySymbol(symbol: string): Promise<string | null>;
-
-  /**
    * Get all active providers ordered by priority
    */
   getActiveProviders(): Promise<MarketDataProvider[]>;

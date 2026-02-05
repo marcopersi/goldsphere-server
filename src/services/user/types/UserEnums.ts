@@ -101,3 +101,57 @@ export function isValidEmailVerificationStatus(value: string): value is EmailVer
 export function isValidIdentityVerificationStatus(value: string): value is IdentityVerificationStatus {
   return Object.values(IdentityVerificationStatus).includes(value as IdentityVerificationStatus);
 }
+
+// =============================================================================
+// Account Status
+// =============================================================================
+
+/**
+ * Account status for user lifecycle management
+ * Maps to PostgreSQL: account_status ENUM ('active', 'blocked', 'suspended', 'deleted')
+ */
+export enum AccountStatus {
+  ACTIVE = 'active',
+  BLOCKED = 'blocked',
+  SUSPENDED = 'suspended',
+  DELETED = 'deleted'
+}
+
+/**
+ * Default account status for new users
+ */
+export const DEFAULT_ACCOUNT_STATUS = AccountStatus.ACTIVE;
+
+/**
+ * Check if a string is a valid AccountStatus
+ */
+export function isValidAccountStatus(value: string): value is AccountStatus {
+  return Object.values(AccountStatus).includes(value as AccountStatus);
+}
+
+// =============================================================================
+// Gender Type
+// =============================================================================
+
+/**
+ * Gender identification for user profiles
+ * Maps to PostgreSQL: gender_type ENUM ('male', 'female', 'diverse', 'not_specified')
+ */
+export enum Gender {
+  MALE = 'male',
+  FEMALE = 'female',
+  DIVERSE = 'diverse',
+  NOT_SPECIFIED = 'not_specified'
+}
+
+/**
+ * Default gender for new users
+ */
+export const DEFAULT_GENDER = Gender.NOT_SPECIFIED;
+
+/**
+ * Check if a string is a valid Gender
+ */
+export function isValidGender(value: string): value is Gender {
+  return Object.values(Gender).includes(value as Gender);
+}

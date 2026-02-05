@@ -24,6 +24,8 @@
     "dev:prod": "NODE_ENV=production node -r dotenv/config dist/index.js dotenv_config_path=.env.prod",
     "build": "tsc && cp -r src/queries dist/",
     "build:watch": "tsc --watch",
+    "tsoa:routes": "tsoa spec-and-routes",
+    "prebuild": "npm run tsoa:routes",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "prestart": "npm run build",
@@ -79,7 +81,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@marcopersi/shared": "^1.4.6",
+    "@marcopersi/shared": "^1.5.2",
     "@types/bcrypt": "^6.0.0",
     "@types/nodemailer": "^7.0.1",
     "@types/stripe": "^8.0.416",
@@ -98,6 +100,7 @@
     "stripe": "^18.4.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "tsoa": "^7.0.0-alpha.0",
     "uuid": "^11.1.0",
     "zod": "^4.0.15"
   }

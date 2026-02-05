@@ -17,6 +17,16 @@ export interface AuditTrailUser {
   role: string;
 }
 
+export const SYSTEM_USER: AuditTrailUser = {
+  id: '00000000-0000-0000-0000-000000000000',
+  email: 'system@internal',
+  role: 'user'
+} as const;
+
+export function getAuditUser(user?: AuditTrailUser): AuditTrailUser {
+  return user ?? SYSTEM_USER;
+}
+
 export interface CreateAuditFields {
   createdBy: string;
   updatedBy: string;
