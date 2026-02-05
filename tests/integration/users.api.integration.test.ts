@@ -11,6 +11,7 @@ import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 let app: any;
 let createdUserId: string;
 let authToken: string;
+const NON_EXISTENT_USER_ID = '11111111-1111-4111-8111-111111111111';
 
 // Helper to get auth token via login
 async function loginAsAdmin(): Promise<string> {
@@ -240,10 +241,8 @@ describe('Users API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent user', async () => {
-      const fakeUuid = '00000000-0000-0000-0000-000000000000';
-      
       const response = await request(app)
-        .get(`/api/users/${fakeUuid}`)
+        .get(`/api/users/${NON_EXISTENT_USER_ID}`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
 
@@ -276,10 +275,8 @@ describe('Users API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent user', async () => {
-      const fakeUuid = '00000000-0000-0000-0000-000000000000';
-      
       const response = await request(app)
-        .get(`/api/users/${fakeUuid}/details`)
+        .get(`/api/users/${NON_EXISTENT_USER_ID}/details`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
 
@@ -339,10 +336,8 @@ describe('Users API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent user', async () => {
-      const fakeUuid = '00000000-0000-0000-0000-000000000000';
-      
       const response = await request(app)
-        .put(`/api/users/${fakeUuid}`)
+        .put(`/api/users/${NON_EXISTENT_USER_ID}`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({ email: 'new@example.com' })
         .expect(404);
@@ -381,10 +376,8 @@ describe('Users API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent user', async () => {
-      const fakeUuid = '00000000-0000-0000-0000-000000000000';
-      
       const response = await request(app)
-        .delete(`/api/users/${fakeUuid}`)
+        .delete(`/api/users/${NON_EXISTENT_USER_ID}`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
 
