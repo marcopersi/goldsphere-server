@@ -219,21 +219,27 @@ jobs:
             echo "=== Testing Application Startup ==="
             echo "Starting application in background to test health endpoint..."
             
-            # Start the app in background with test environment
-            NODE_ENV=test DB_HOST=localhost DB_PORT=5432 DB_NAME=goldsphere_test DB_USER=postgres DB_PASSWORD=test_password JWT_SECRET=test-jwt-secret STRIPE_SECRET_KEY=dummy npm start &
+            # Start the already-built app in background with test environment
+            NODE_ENV=test DB_HOST=localhost DB_PORT=5432 DB_NAME=goldsphere_test DB_USER=postgres DB_PASSWORD=test_password JWT_SECRET=test-jwt-secret STRIPE_SECRET_KEY=dummy node dist/index.js > app.log 2>&1 &
             APP_PID=$!
             
             echo "App started with PID: $APP_PID"
             echo "Waiting for app to be ready..."
-            sleep 10
             
-            # Test health endpoint
-            if curl -f http://localhost:8080/health; then
-              echo "✅ Application health endpoint is responding"
-            else
+            # Wait up to 40s for health endpoint
+            for i in {1..20}; do
+              if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+                echo "✅ Application health endpoint is responding"
+                break
+              fi
+              echo "Waiting... ($i/20)"
+              sleep 2
+            done
+            
+            if ! curl -f http://localhost:8080/health > /dev/null 2>&1; then
               echo "❌ Application health endpoint failed"
               echo "App logs:"
-              jobs
+              cat app.log
               kill $APP_PID || true
               exit 1
             fi
