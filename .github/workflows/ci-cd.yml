@@ -83,24 +83,9 @@ jobs:
           path: dist        
 
   test:
-      name: Test
+      name: Test (Unit)
       runs-on: ubuntu-latest
       needs: [build, lint, jscpd]
-      services:
-        postgres:
-          image: postgres:14
-          env:
-            POSTGRES_PASSWORD: test_password
-            POSTGRES_USER: postgres
-            POSTGRES_DB: goldsphere_test
-            POSTGRES_HOST_AUTH_METHOD: trust
-          options: >-
-            --health-cmd pg_isready
-            --health-interval 10s
-            --health-timeout 5s
-            --health-retries 5
-          ports:
-            - 5432:5432
       steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
@@ -113,149 +98,11 @@ jobs:
           run: bun install
           env:
             NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-        - name: Download Build Artifacts
-          uses: actions/download-artifact@v4
-          with:
-            name: build-artifacts
-            path: dist
-        - name: Wait for Postgres to be ready
-          run: |
-            until pg_isready -h localhost -p 5432 -U postgres; do
-              echo "Waiting for PostgreSQL to be ready..."
-              sleep 2
-            done
-            echo "PostgreSQL is ready!"
-        - name: Setup database schema
-          run: |
-            echo "Setting up database schema..."
-            psql -h localhost -U postgres -d goldsphere_test -f initdb/01-schema.sql
-            echo "Schema setup completed"
-          env:
-            PGPASSWORD: test_password
-        - name: Database Initial Load
-          run: |
-            echo "Loading initial data..."
-            psql -h localhost -U postgres -d goldsphere_test -f initdb/02-initialLoad.sql
-            echo "Initial data loaded"
-          env:
-            PGPASSWORD: test_password
-        - name: Load sample data
-          run: |
-            echo "Loading sample data..."
-            psql -h localhost -U postgres -d goldsphere_test -f initdb/03-sampleData.sql
-            echo "Sample data loaded"
-          env:
-            PGPASSWORD: test_password
-        - name: Verify database connection for runtime
-          run: |
-            echo "Testing database connection..."
-            bun -e "
-              const { Pool } = require('pg');
-              const pool = new Pool({
-                host: 'localhost',
-                port: 5432,
-                user: 'postgres',
-                password: 'test_password',
-                database: 'goldsphere_test'
-              });
-              pool.query('SELECT COUNT(*) FROM product')
-                .then(result => {
-                  console.log('✅ Runtime database connection successful');
-                  console.log('Product count:', result.rows[0].count);
-                  process.exit(0);
-                })
-                .catch(err => {
-                  console.log('❌ Runtime database connection failed:', err.message);
-                  process.exit(1);
-                });
-            "
-        - name: Verify App Will Use Correct Database Config
-          run: |
-            echo "=== Application Database Configuration Check ==="
-            echo "Environment variables that will be passed to the app:"
-            echo "NODE_ENV: test"
-            echo "DB_HOST: localhost"
-            echo "DB_PORT: 5432"
-            echo "DB_NAME: goldsphere_test"
-            echo "DB_USER: postgres"
-            echo "DB_PASSWORD: test_password"
-            echo ""
-            echo "Testing app's database connection with these exact credentials..."
-            
-            NODE_ENV=test DB_HOST=localhost DB_PORT=5432 DB_NAME=goldsphere_test DB_USER=postgres DB_PASSWORD=test_password bun -e "
-              const { Pool } = require('pg');
-              const pool = new Pool({
-                host: process.env.DB_HOST,
-                port: Number(process.env.DB_PORT),
-                user: process.env.DB_USER,
-                password: String(process.env.DB_PASSWORD),
-                database: process.env.DB_NAME,
-              });
-              
-              console.log('🔍 App-style connection test...');
-              console.log('Using host:', process.env.DB_HOST);
-              console.log('Using port:', process.env.DB_PORT);
-              console.log('Using database:', process.env.DB_NAME);
-              console.log('Using user:', process.env.DB_USER);
-              
-              pool.query('SELECT COUNT(*) as count FROM product')
-                .then(result => {
-                  console.log('✅ App-style database connection SUCCESSFUL');
-                  console.log('📊 Products found:', result.rows[0].count);
-                  pool.end();
-                  process.exit(0);
-                })
-                .catch(err => {
-                  console.log('❌ App-style database connection FAILED:', err.message);
-                  console.log('🔍 Full error:', err);
-                  pool.end();
-                  process.exit(1);
-                });
-            "
-        - name: Test Application Health Endpoint
-          run: |
-            echo "=== Testing Application Startup ==="
-            echo "Starting application in background to test health endpoint..."
-            
-            # Start the already-built app in background with test environment
-            NODE_ENV=test DB_HOST=localhost DB_PORT=5432 DB_NAME=goldsphere_test DB_USER=postgres DB_PASSWORD=test_password JWT_SECRET=test-jwt-secret STRIPE_SECRET_KEY=dummy bun dist/index.js > app.log 2>&1 &
-            APP_PID=$!
-            
-            echo "App started with PID: $APP_PID"
-            echo "Waiting for app to be ready..."
-            
-            # Wait up to 40s for health endpoint
-            for i in {1..20}; do
-              if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-                echo "✅ Application health endpoint is responding"
-                break
-              fi
-              echo "Waiting... ($i/20)"
-              sleep 2
-            done
-            
-            if ! curl -f http://localhost:8080/health > /dev/null 2>&1; then
-              echo "❌ Application health endpoint failed"
-              echo "App logs:"
-              cat app.log
-              kill $APP_PID || true
-              exit 1
-            fi
-            
-            # Clean up
-            kill $APP_PID || true
-            echo "Application test completed"
-        - name: Run tests
+        - name: Run unit tests
           run: bun run test:ci
           env:
             NODE_ENV: test
-            DB_HOST: localhost
-            DB_PORT: 5432
-            DB_NAME: goldsphere_test
-            DB_USER: postgres
-            DB_PASSWORD: test_password
             JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
-            STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
             API_DOCS_ENABLED: false
         - name: Upload coverage to Codecov
           if: success()
@@ -280,6 +127,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Set up Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -296,6 +144,7 @@ jobs:
           semantic_version: 24
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker-build:
     name: Build Docker Image

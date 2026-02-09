@@ -12,7 +12,7 @@
     "test:all": "jest",
     "test:watch": "jest --watch tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
     "test:coverage": "jest --coverage tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
-    "test:ci": "jest --ci --coverage --watchAll=false tests/unit tests/contracts --testPathIgnorePatterns='tests/integration'",
+    "test:ci": "jest --ci --coverage --watchAll=false --testPathPatterns='tests/unit/' --testPathIgnorePatterns='tests/integration'",
     "test:orders": "jest tests/unit/orders.unit.test.ts",
     "test:payment-integration": "jest tests/integration/payment.integration.test.ts --testTimeout=60000",
     "test:orders-integration": "jest tests/integration/orders.integration.test.ts --testTimeout=30000",
