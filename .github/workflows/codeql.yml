@@ -11,6 +11,9 @@
 #
 name: "CodeQL Advanced"
 
+env:
+  BUN_VERSION: '1.3.4'
+
 on:
   push:
     branches: [ "main" ]
@@ -60,16 +63,19 @@ jobs:
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
     # or others). This is typically only required for manual builds.
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v1
       with:
-        node-version: '20.18.2'
+        bun-version: ${{ env.BUN_VERSION }}
+        cache: true
 
     - name: Install dependencies
-      run: npm install --legacy-peer-deps
+      run: bun install
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
     - name: Run ESLint
-      run: npm run lint
+      run: bun run lint
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

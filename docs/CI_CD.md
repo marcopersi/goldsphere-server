@@ -3,6 +3,7 @@
 ## Overview
 
 The CI pipeline runs linting, type checking, copy-paste detection (jscpd), build, tests, and then builds and publishes the Docker image.
+CI uses Bun for dependency installation and script execution (no npm usage in workflows).
 
 The Docker image is published to GitHub Container Registry (GHCR):
 
@@ -30,6 +31,7 @@ docker pull ghcr.io/<owner>/goldsphere-server:latest
 
 - If the publish job fails with auth errors, verify Actions workflow permissions and that the workflow has packages: write.
 - If pulls fail with 403, check the package visibility or authenticate with a token that has read:packages.
+- If `bun install` fails with a 401 for `@marcopersi/shared`, verify `NODE_AUTH_TOKEN` is present and can access GitHub Packages.
 
 ## Releases (Conventional Commits)
 
