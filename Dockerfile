@@ -17,8 +17,8 @@ COPY . .
 # Baue den TypeScript-Code
 RUN npm run build
 
-# Exponiere den Port
-EXPOSE 5000
+# Exponiere den Port (muss mit PORT env-variable / server.ts übereinstimmen)
+EXPOSE 11215
 
 # Startbefehl
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]

@@ -5,6 +5,7 @@
 - [Backlog](BACKLOG.md)
 - [CI/CD](CI_CD.md)
 - [Credentials](CREDENTIALS.md)
+- [Deployment (VM / Docker)](DEPLOYMENT.md)
 - [Email Setup](EMAIL_SETUP.md)
 - [Environment](ENVIRONMENT.md)
 - [Frontend User Profile Integration](FRONTEND_USER_PROFILE_INTEGRATION.md)

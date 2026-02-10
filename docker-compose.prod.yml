@@ -1,3 +1,9 @@
+# Production docker-compose for VM deployment
+# Uses pre-built image from GitHub Container Registry (GHCR)
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -21,41 +27,27 @@ services:
     networks:
       - pg-network
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin-goldsphere-service
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@goldsphere.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-    ports:
-      - "${PGADMIN_PORT:-8880}:80"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - pg-network
-
   goldsphere-server:
-    build:
-      context: .
-      args:
-        NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN}
+    image: ghcr.io/marcopersi/goldsphere-server:${APP_VERSION:-latest}
     container_name: goldsphere-server
     restart: unless-stopped
     environment:
-      - NODE_ENV=${NODE_ENV:-development}
+      - NODE_ENV=production
       - PORT=${PORT:-11215}
       - DB_HOST=postgres-goldsphere-db
       - DB_PORT=5432
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      - DB_POOL_MAX=${DB_POOL_MAX:-20}
+      - DB_POOL_MIN=${DB_POOL_MIN:-5}
       - JWT_SECRET=${JWT_SECRET}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@goldsphere.vault}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
     ports:
