@@ -9,7 +9,12 @@ dotenv.config();
 
 let marketDataScheduler: MarketDataScheduler | null = null;
 
-const PORT = process.env.PORT || 8080;
+if (!process.env.PORT) {
+  console.error("❌ FATAL: Missing required environment variable PORT. Please set it in your .env file or environment.");
+  process.exit(1);
+}
+
+const PORT = Number(process.env.PORT);
 const ENABLE_MARKET_DATA_SCHEDULER = process.env.ENABLE_MARKET_DATA_SCHEDULER === 'true';
 
 // Database connectivity check
@@ -59,7 +64,7 @@ async function startServer() {
     console.log("");
   }
 
-  app.listen(PORT, () => {
+  app.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`🚀 GoldSphere Server running on port ${PORT}`);
     if (dbConnected) {
       console.log("🗄️  Database: Connected and ready");

@@ -51,7 +51,7 @@ services:
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
     ports:
-      - "${PORT:-11215}:11215"
+      - "${PORT:-11215}:${PORT:-11215}"
     depends_on:
       postgres:
         condition: service_healthy
