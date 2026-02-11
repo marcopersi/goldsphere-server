@@ -52,6 +52,7 @@ interface ProductApiResponse {
   currency: string;
   producerId: string;
   producer: string;
+  countryId: string | null;
   country: string;
   year?: number;
   description?: string;
@@ -236,6 +237,7 @@ function transformToApiResponse(product: ProductManagementResponse): ProductApiR
     currency: product.currency,
     producerId: product.producerId,
     producer: product.producer,
+    countryId: product.countryId || null,
     country: (product.country || "").toLowerCase(),
     year: product.year ?? undefined,
     description: product.description ?? undefined,
