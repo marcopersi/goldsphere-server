@@ -80,7 +80,6 @@ tests/
 | PortfolioController | 7 (GET, my, {id}, summary, POST, PUT, DELETE) | 🔴 High — core business logic |
 | TransactionsController | 3 (GET, POST, GET/{id}) | 🔴 High — financial data |
 | PaymentController / PaymentsController | 9 (intents, confirm, refund, methods) | 🔴 High — payment critical |
-| LbmaController | 13 (prices, history, fixings, premium, compare) | 🟡 Medium — data provider |
 | CountriesController | 5 (CRUD) | 🟡 Medium — reference data |
 | CurrenciesController | 5 (CRUD) | 🟡 Medium — reference data |
 | MetalsController | 5 (CRUD) | 🟡 Medium — reference data |

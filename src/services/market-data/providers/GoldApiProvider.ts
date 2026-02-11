@@ -2,7 +2,7 @@
  * GoldAPI Provider
  * 
  * Real-time and historical gold, silver, platinum, palladium prices
- * Supports FOREX and LBMA data sources
+ * Supports FOREX data sources for precious metals
  * 
  * @see https://www.goldapi.io/
  */

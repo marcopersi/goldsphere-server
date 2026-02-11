@@ -135,13 +135,6 @@ export interface PriceType {
  * Supported Price Type Codes
  */
 export const PRICE_TYPE_CODES = [
-  'LBMA_AM',
-  'LBMA_PM', 
-  'LBMA_SILVER',
-  'LBMA_PLATINUM_AM',
-  'LBMA_PLATINUM_PM',
-  'LBMA_PALLADIUM_AM',
-  'LBMA_PALLADIUM_PM',
   'SPOT',
   'REALTIME',
   'BID',
@@ -150,119 +143,10 @@ export const PRICE_TYPE_CODES = [
 export type PriceTypeCode = typeof PRICE_TYPE_CODES[number];
 
 /**
- * LBMA Fixing Price
- * Official benchmark prices from London Bullion Market Association
- */
-export interface LbmaPrice {
-  readonly id: string;
-  readonly metalId: string;
-  readonly metalSymbol?: string;
-  readonly metalName?: string;
-  readonly priceTypeId: string;
-  readonly priceTypeCode?: PriceTypeCode;
-  readonly fixingDate: Date;
-  readonly fixingTime: string;
-  readonly priceUsd: number;
-  readonly priceGbp?: number;
-  readonly priceEur?: number;
-  readonly priceChf?: number;
-  readonly participants?: number;
-  readonly source: string;
-  readonly createdAt?: Date;
-}
-
-/**
- * Premium Configuration
- * Defines markup over benchmark prices
- */
-export interface PremiumConfig {
-  readonly id: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly metalId?: string;
-  readonly metalSymbol?: string;
-  readonly basePriceTypeId?: string;
-  readonly premiumPercent?: number;
-  readonly premiumFixedAmount?: number;
-  readonly currency: string;
-  readonly minQuantityOz?: number;
-  readonly maxQuantityOz?: number;
-  readonly validFrom: Date;
-  readonly validTo?: Date;
-  readonly isActive: boolean;
-}
-
-/**
- * Price with Premium Calculation Result
- */
-export interface PriceWithPremium {
-  readonly metalSymbol: string;
-  readonly basePrice: number;
-  readonly basePriceType: PriceTypeCode;
-  readonly premiumPercent?: number;
-  readonly premiumFixed?: number;
-  readonly finalPrice: number;
-  readonly currency: string;
-  readonly timestamp: Date;
-}
-
-/**
- * LBMA Query Parameters
- */
-export interface LbmaQuery {
-  readonly metalSymbol?: string;
-  readonly priceTypeCode?: PriceTypeCode;
-  readonly startDate?: Date;
-  readonly endDate?: Date;
-  readonly currency?: string;
-  readonly limit?: number;
-}
-
-/**
- * LBMA API Response from Metals-API
- */
-export interface LbmaApiResponse {
-  readonly success: boolean;
-  readonly timestamp?: number;
-  readonly base?: string;
-  readonly date?: string;
-  readonly rates?: Record<string, number>;
-  readonly unit?: string;
-  readonly error?: {
-    readonly code: number;
-    readonly info: string;
-  };
-}
-
-/**
  * Supported precious metals (chemical symbols)
  */
 export const SUPPORTED_METALS = ['AU', 'AG', 'PT', 'PD'] as const;
 export type SupportedMetal = typeof SUPPORTED_METALS[number];
-
-/**
- * LBMA Symbol Mapping
- * Maps our metal symbols to Metals-API LBMA symbols
- */
-export const LBMA_SYMBOL_MAP: Record<SupportedMetal, { am?: string; pm?: string; single?: string }> = {
-  AU: { am: 'LBXAUAM', pm: 'LBXAUPM' },
-  AG: { single: 'LBXAG' },
-  PT: { am: 'LBXPTAM', pm: 'LBXPTPM' },
-  PD: { am: 'LBXPDAM', pm: 'LBXPDPM' }
-};
-
-/**
- * LBMA Fixing Times (London Time)
- */
-export const LBMA_FIXING_TIMES = {
-  GOLD_AM: '10:30',
-  GOLD_PM: '15:00',
-  SILVER: '12:00',
-  PLATINUM_AM: '09:45',
-  PLATINUM_PM: '14:00',
-  PALLADIUM_AM: '09:45',
-  PALLADIUM_PM: '14:00'
-} as const;
 
 /**
  * Supported currencies
@@ -275,4 +159,3 @@ export type SupportedCurrency = typeof SUPPORTED_CURRENCIES[number];
  */
 export const CACHE_DURATION_MINUTES = 5;
 export const CACHE_CLEANUP_INTERVAL_HOURS = 1;
-export const LBMA_CACHE_DURATION_MINUTES = 60; // LBMA prices change once/twice daily

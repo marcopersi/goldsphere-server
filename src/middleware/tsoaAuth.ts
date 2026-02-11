@@ -32,11 +32,13 @@ async function verifyUserInDatabase(userId: string): Promise<boolean> {
 /**
  * Authentication function for tsoa @Security decorator
  * Called automatically by tsoa-generated routes
+ * 
+ * @param scopes - Required roles, e.g. ["admin"] from @Security("bearerAuth", ["admin"])
  */
 export async function expressAuthentication(
   request: Request,
   securityName: string,
-  _scopes?: string[]
+  scopes?: string[]
 ): Promise<AuthenticatedUser> {
   if (securityName === 'bearerAuth') {
     const authHeader = request.headers.authorization;
@@ -57,10 +59,22 @@ export async function expressAuthentication(
       if (!userExists) {
         throw new Error('User not found or has been deactivated');
       }
+
+      // Check role-based scopes if specified
+      if (scopes && scopes.length > 0) {
+        if (!scopes.includes(decoded.role)) {
+          const scopeError = new Error('Insufficient permissions') as Error & { status: number };
+          scopeError.status = 403;
+          throw scopeError;
+        }
+      }
       
       return decoded;
     } catch (error) {
       if (error instanceof Error && error.message === 'User not found or has been deactivated') {
+        throw error;
+      }
+      if (error instanceof Error && error.message === 'Insufficient permissions') {
         throw error;
       }
       throw new Error('Invalid or expired token');

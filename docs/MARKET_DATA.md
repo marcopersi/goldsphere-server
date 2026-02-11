@@ -4,39 +4,34 @@ Comprehensive market data integration for precious metals (Gold, Silver, Platinu
 
 ## Features
 
-- ✅ Real-time spot prices from external APIs
-- ✅ Historical price data with time-series analysis
-- ✅ Multiple provider support with automatic fallback
-- ✅ Intelligent caching layer (5-minute TTL)
-- ✅ Scheduled price updates (every 5 minutes during market hours)
-- ✅ RESTful API endpoints
-- ✅ Currency support (USD, EUR, GBP, CHF, etc.)
-- ✅ **LBMA Benchmark Prices** (AM/PM Gold, Silver, Platinum, Palladium)
-- ✅ **Premium Calculation** (Terms & Conditions / Aufpreis)
-- ✅ **Multiple Price Types** (LBMA_AM, LBMA_PM, SPOT, REALTIME, BID, ASK)
+- Real-time spot prices from external APIs
+- Historical price data with time-series analysis
+- Multiple provider support with automatic fallback
+- Intelligent caching layer (5-minute TTL)
+- Scheduled price updates (every 5 minutes during market hours)
+- RESTful API endpoints
+- Currency support (USD, EUR, GBP, CHF, etc.)
+- Multiple Price Types (SPOT, REALTIME, BID, ASK)
 
 ## Architecture
 
 ### Database Schema
 
 ```
-market_data_provider  → Configuration for API providers (Metals-API, GoldAPI)
+market_data_provider  → Configuration for API providers (GoldAPI, SIX Swiss Exchange)
 market_price          → Current spot prices for each metal
 price_history         → Historical price data for charts/analysis
 market_data_cache     → Cache layer for API responses
-price_type            → Price type definitions (LBMA_AM, LBMA_PM, SPOT, etc.)
-lbma_price            → LBMA benchmark prices (daily AM/PM fixings)
-price_premium_config  → Premium configurations for price calculations
+price_type            → Price type definitions (SPOT, REALTIME, BID, ASK)
 ```
 
 ### Components
 
 - **MarketDataService**: Core service handling API calls, caching, database operations
-- **LbmaPriceService**: LBMA benchmark price management and premium calculations
 - **MarketDataScheduler**: Cron-based scheduler for automatic updates
-- **MetalsApiLbmaProvider**: Metals-API provider with LBMA endpoint support
 - **GoldApiProvider**: GoldAPI provider for spot prices and historical data
-- **API Routes**: RESTful endpoints at `/api/market-data/*` and `/api/lbma/*`
+- **SIXSwissExchangeProvider**: SIX Swiss Exchange provider for European market data
+- **API Routes**: RESTful endpoints at `/api/market-data/*`
 
 ## Setup
 
@@ -46,7 +41,6 @@ Add the following to your `.env` file:
 
 ```bash
 # Market Data Providers (at least one required)
-METALS_API_KEY=your_metals_api_key_here
 GOLD_API_KEY=your_gold_api_key_here
 
 # Enable automatic price updates (optional)
@@ -55,7 +49,6 @@ ENABLE_MARKET_DATA_SCHEDULER=true
 
 **Getting API Keys:**
 
-- **Metals-API**: https://metals-api.com/ (Free tier: 50 requests/month)
 - **GoldAPI**: https://www.goldapi.io/ (Free tier: 50 requests/month)
 
 ### 2. Database Migration
@@ -73,7 +66,7 @@ Or manually run the migrations:
 # Base market data schema
 docker exec -i postgres-goldsphere-db psql -U goldsphere -d goldsphere < initdb/05-market-data.sql
 
-# LBMA price types and premium configs (NEW)
+# Price types extension
 docker exec -i postgres-goldsphere-db psql -U goldsphere -d goldsphere < initdb/07-market-data-price-types.sql
 ```
 
@@ -237,234 +230,6 @@ DELETE /api/market-data/cache
 
 ---
 
-## LBMA Benchmark Prices
-
-The system supports LBMA (London Bullion Market Association) benchmark prices, the globally recognized gold and silver price benchmarks.
-
-### Understanding LBMA Prices
-
-**LBMA Fixing Times (London Time):**
-
-| Metal     | AM Fixing | PM Fixing |
-|-----------|-----------|-----------|
-| Gold      | 10:30     | 15:00     |
-| Silver    | -         | 12:00     |
-| Platinum  | 09:45     | 14:00     |
-| Palladium | 09:45     | 14:00     |
-
-**Price Types:**
-
-| Code        | Description              | Update Frequency |
-|-------------|--------------------------|------------------|
-| LBMA_AM     | LBMA Gold AM Fixing      | Daily            |
-| LBMA_PM     | LBMA Gold PM Fixing      | Daily            |
-| LBMA_SILVER | LBMA Silver Fixing       | Daily            |
-| SPOT        | Current Spot Price       | 5 minutes        |
-| REALTIME    | Real-time Price          | Continuous       |
-| BID         | Bid Price                | 5 minutes        |
-| ASK         | Ask Price                | 5 minutes        |
-
-### LBMA API Endpoints
-
-#### Get Price Types
-
-```http
-GET /api/lbma/price-types
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    { "id": "uuid", "code": "LBMA_AM", "name": "LBMA Gold AM", "isBenchmark": true },
-    { "id": "uuid", "code": "LBMA_PM", "name": "LBMA Gold PM", "isBenchmark": true },
-    { "id": "uuid", "code": "SPOT", "name": "Spot Price", "isBenchmark": false }
-  ]
-}
-```
-
-#### Get Latest LBMA Price
-
-```http
-GET /api/lbma/price/:metalSymbol?priceType=LBMA_PM&currency=USD
-```
-
-**Example:**
-```bash
-curl "http://localhost:8080/api/lbma/price/AU?priceType=LBMA_PM"
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "metalSymbol": "AU",
-    "metalName": "Gold",
-    "priceTypeCode": "LBMA_PM",
-    "fixingDate": "2026-01-10",
-    "fixingTime": "15:00",
-    "priceUsd": 2650.50,
-    "priceGbp": 2100.25,
-    "priceEur": 2450.75,
-    "priceChf": 2320.00,
-    "source": "METALS_API"
-  }
-}
-```
-
-#### Get LBMA History
-
-```http
-GET /api/lbma/history/:metalSymbol?startDate=2026-01-01&endDate=2026-01-10&priceType=LBMA_PM&limit=30
-```
-
-**Example:**
-```bash
-curl "http://localhost:8080/api/lbma/history/AU?limit=10"
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "count": 10,
-  "data": [
-    { "fixingDate": "2026-01-10", "priceUsd": 2650.50, "priceTypeCode": "LBMA_PM" },
-    { "fixingDate": "2026-01-09", "priceUsd": 2645.75, "priceTypeCode": "LBMA_PM" }
-  ]
-}
-```
-
-#### Get Today's Fixings
-
-```http
-GET /api/lbma/fixings/today
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    { "metalSymbol": "AU", "priceTypeCode": "LBMA_AM", "priceUsd": 2648.00, "fixingTime": "10:30" },
-    { "metalSymbol": "AU", "priceTypeCode": "LBMA_PM", "priceUsd": 2650.50, "fixingTime": "15:00" },
-    { "metalSymbol": "AG", "priceTypeCode": "LBMA_SILVER", "priceUsd": 30.25, "fixingTime": "12:00" }
-  ]
-}
-```
-
-#### Fetch LBMA Prices from API (Admin)
-
-```http
-POST /api/lbma/fetch/:metalSymbol?date=2026-01-10
-```
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8080/api/lbma/fetch/AU"
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "success": true,
-    "count": 2,
-    "errors": []
-  }
-}
-```
-
----
-
-## Premium Calculation (Terms & Conditions)
-
-The system supports adding premiums/margins to base prices for business calculations.
-
-### Calculate Price with Premium
-
-```http
-GET /api/lbma/premium/calculate/:metalSymbol?quantity=10&currency=USD&priceType=LBMA_PM
-```
-
-**Example:**
-```bash
-curl "http://localhost:8080/api/lbma/premium/calculate/AU?quantity=10&currency=USD"
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "metalSymbol": "AU",
-    "basePrice": 2650.50,
-    "basePriceType": "LBMA_PM",
-    "premiumPercent": 0.025,
-    "finalPrice": 2716.76,
-    "currency": "USD",
-    "timestamp": "2026-01-10T15:30:00Z"
-  }
-}
-```
-
-### Get Premium Configurations
-
-```http
-GET /api/lbma/premium/configs?metalSymbol=AU
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Gold Standard Premium",
-      "metalSymbol": "AU",
-      "premiumPercent": 0.025,
-      "currency": "USD",
-      "validFrom": "2026-01-01",
-      "isActive": true
-    }
-  ]
-}
-```
-
-### Compare LBMA to Spot
-
-```http
-GET /api/lbma/compare/:metalSymbol?currency=USD
-```
-
-**Example:**
-```bash
-curl "http://localhost:8080/api/lbma/compare/AU"
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "metalSymbol": "AU",
-    "lbmaPrice": 2650.50,
-    "lbmaPriceType": "LBMA_PM",
-    "spotPrice": 2660.00,
-    "difference": 9.50,
-    "differencePercent": 0.36,
-    "currency": "USD",
-    "timestamp": "2026-01-10T15:30:00Z"
-  }
-}
-```
-
----
-
 ## Metal Symbols
 
 **Note:** The system uses chemical element symbols (not ISO 4217 currency codes).
@@ -515,7 +280,7 @@ await marketDataScheduler.runUpdateNow();
 
 The system tries providers in priority order:
 
-1. **Metals-API** (Priority 1)
+1. **SIX Swiss Exchange** (Priority 1)
 2. **GoldAPI** (Priority 2)
 
 If the primary provider fails:
@@ -618,7 +383,6 @@ ORDER BY expires_at;
 
 1. Check if API keys are configured:
    ```bash
-   echo $METALS_API_KEY
    echo $GOLD_API_KEY
    ```
 

@@ -12,19 +12,13 @@
 
 import { Pool } from 'pg';
 import type { IMarketDataService } from './IMarketDataService';
-import type { ILbmaPriceService } from './ILbmaPriceService';
 import type { IMarketDataRepository } from './repository/IMarketDataRepository';
-import type { ILbmaPriceRepository } from './repository/ILbmaPriceRepository';
 import type { IMarketDataProvider } from './providers/IMarketDataProvider';
-import type { ILbmaProvider } from './providers/MetalsApiLbmaProvider';
 import type { IReferenceService } from '../reference/IReferenceService';
 import { MarketDataServiceImpl } from './impl/MarketDataServiceImpl';
-import { LbmaPriceServiceImpl } from './impl/LbmaPriceServiceImpl';
 import { MarketDataRepositoryImpl } from './repository/MarketDataRepositoryImpl';
-import { LbmaPriceRepositoryImpl } from './repository/LbmaPriceRepositoryImpl';
 import { MarketDataRepositoryMock } from './mock/MarketDataRepositoryMock';
 import { SIXSwissExchangeProvider } from './providers/SIXSwissExchangeProvider';
-import { MetalsApiLbmaProvider } from './providers/MetalsApiLbmaProvider';
 import { GoldApiProvider } from './providers/GoldApiProvider';
 import { MarketDataScheduler } from './marketDataScheduler';
 import { ReferenceServiceFactory } from '../reference/ReferenceServiceFactory';
@@ -41,20 +35,6 @@ export class MarketDataServiceFactory {
     console.log(`[MarketDataFactory] Creating service with ${providers.length} provider(s)`);
 
     return new MarketDataServiceImpl(repository, providers, referenceService);
-  }
-
-  /**
-   * Create LBMA Price Service instance
-   */
-  static createLbmaService(pool: Pool): ILbmaPriceService {
-    const lbmaRepository: ILbmaPriceRepository = new LbmaPriceRepositoryImpl(pool);
-    const marketDataRepository: IMarketDataRepository = new MarketDataRepositoryImpl(pool);
-    const referenceService: IReferenceService = ReferenceServiceFactory.createService(pool);
-    const lbmaProvider: ILbmaProvider = new MetalsApiLbmaProvider();
-
-    console.log(`[MarketDataFactory] Creating LBMA service`);
-
-    return new LbmaPriceServiceImpl(lbmaRepository, referenceService, lbmaProvider, marketDataRepository);
   }
 
   /**
@@ -77,7 +57,6 @@ export class MarketDataServiceFactory {
   private static createProviders(): IMarketDataProvider[] {
     const providers: IMarketDataProvider[] = [
       new SIXSwissExchangeProvider(),
-      new MetalsApiLbmaProvider(),
       new GoldApiProvider(),
     ];
 

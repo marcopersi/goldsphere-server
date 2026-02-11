@@ -7,26 +7,20 @@
 
 // Service Interfaces
 export { IMarketDataService } from './IMarketDataService';
-export { ILbmaPriceService } from './ILbmaPriceService';
 
 // Service Implementations
 export { MarketDataServiceImpl } from './impl/MarketDataServiceImpl';
-export { LbmaPriceServiceImpl } from './impl/LbmaPriceServiceImpl';
 
 // Repository Interfaces
 export { IMarketDataRepository } from './repository/IMarketDataRepository';
-export { ILbmaPriceRepository } from './repository/ILbmaPriceRepository';
 
 // Repository Implementations  
 export { MarketDataRepositoryImpl } from './repository/MarketDataRepositoryImpl';
-export { LbmaPriceRepositoryImpl } from './repository/LbmaPriceRepositoryImpl';
 export { MarketDataRepositoryMock } from './mock/MarketDataRepositoryMock';
 
 // Provider Interfaces and Implementations
 export { IMarketDataProvider } from './providers/IMarketDataProvider';
 export { SIXSwissExchangeProvider } from './providers/SIXSwissExchangeProvider';
-export { MetalsApiLbmaProvider } from './providers/MetalsApiLbmaProvider';
-export type { ILbmaProvider } from './providers/MetalsApiLbmaProvider';
 export { GoldApiProvider } from './providers/GoldApiProvider';
 
 // Factory for Service Creation

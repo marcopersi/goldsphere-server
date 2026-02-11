@@ -27,7 +27,6 @@ import * as tsoaSwaggerSpec from "./generated/swagger.json";
 // adminRoutes now handled by tsoa AdminController
 // registrationRoutes now handled by tsoa RegistrationController
 // marketDataRoutes now handled by tsoa MarketDataController
-// lbmaRoutes now handled by tsoa LbmaController
 // Auth routes now handled by tsoa AuthController
 // Authentication now handled by tsoa via @Security decorators and src/middleware/auth.ts
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
@@ -299,7 +298,6 @@ RegisterRoutes(app);
 // productRoutes now handled by tsoa ProductController
 // producersRoutes now handled by tsoa ProducersController
 // marketDataRoutes now handled by tsoa MarketDataController
-// lbmaRoutes now handled by tsoa LbmaController
 // Legacy reference routes migrated to tsoa
 // enumsDemoRoutes removed (not needed in production)
 // registrationRoutes now handled by tsoa RegistrationController

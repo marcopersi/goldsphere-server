@@ -1,71 +1,11 @@
 /**
- * LBMA Provider Unit Tests
+ * Market Data Provider Unit Tests
  * 
- * Tests for MetalsApiLbmaProvider and GoldApiProvider
+ * Tests for GoldApiProvider
  * Focus on unit tests that don't require actual API calls
  */
 
-import { MetalsApiLbmaProvider } from '../../src/services/market-data/providers/MetalsApiLbmaProvider';
 import { GoldApiProvider } from '../../src/services/market-data/providers/GoldApiProvider';
-
-describe('MetalsApiLbmaProvider', () => {
-  let provider: MetalsApiLbmaProvider;
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    jest.resetAllMocks();
-    process.env = { ...originalEnv, METALS_API_KEY: 'test-api-key' };
-    provider = new MetalsApiLbmaProvider();
-  });
-
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-
-  describe('getName', () => {
-    it('should return provider name', () => {
-      expect(provider.getName()).toBe('Metals-API-LBMA');
-    });
-  });
-
-  describe('getPriority', () => {
-    it('should return priority level', () => {
-      expect(provider.getPriority()).toBe(1);
-    });
-  });
-
-  describe('isAvailable', () => {
-    it('should return true when API key is set', () => {
-      expect(provider.isAvailable()).toBe(true);
-    });
-
-    it('should return false when API key is not set', () => {
-      process.env.METALS_API_KEY = '';
-      const noKeyProvider = new MetalsApiLbmaProvider();
-      expect(noKeyProvider.isAvailable()).toBe(false);
-    });
-
-    it('should return false when API key is undefined', () => {
-      delete process.env.METALS_API_KEY;
-      const noKeyProvider = new MetalsApiLbmaProvider();
-      expect(noKeyProvider.isAvailable()).toBe(false);
-    });
-  });
-
-  describe('provider interface', () => {
-    it('should have fetchPrices method', () => {
-      expect(typeof provider.fetchPrices).toBe('function');
-    });
-
-    it('should have fetchLbmaPrices method', () => {
-      expect(typeof provider.fetchLbmaPrices).toBe('function');
-    });
-
-    it('should have fetchLbmaHistorical method', () => {
-      expect(typeof provider.fetchLbmaHistorical).toBe('function');
-    });
-  });
-});
 
 describe('GoldApiProvider', () => {
   let provider: GoldApiProvider;
