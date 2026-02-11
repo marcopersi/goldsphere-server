@@ -7,8 +7,10 @@
 import { CustodyServiceImpl } from '../../src/services/custody/impl/CustodyServiceImpl';
 import { ICustodyRepository } from '../../src/services/custody/repository/ICustodyRepository';
 import { CustodyServiceEntity, CustodianWithServices } from '../../src/services/custody/types/CustodyTypes';
+import { AuditTrailUser } from '../../src/utils/auditTrail';
 
 describe('CustodyServiceImpl Unit Tests', () => {
+  const testUser: AuditTrailUser = { id: 'test-user-id', email: 'test@example.com', role: 'admin' };
   let service: CustodyServiceImpl;
   let mockRepository: jest.Mocked<ICustodyRepository>;
 
@@ -239,7 +241,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
       mockRepository.serviceNameExists.mockResolvedValue(false);
       mockRepository.create.mockResolvedValue(mockCreatedEntity);
 
-      const result = await service.createCustodyService(validCreateData);
+      const result = await service.createCustodyService(validCreateData, testUser);
 
       expect(result.success).toBe(true);
       expect(result.data?.custodyServiceName).toBe('New Service');
@@ -250,7 +252,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
       const result = await service.createCustodyService({
         ...validCreateData,
         custodyServiceName: '',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Custody service name is required');
@@ -260,7 +262,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
       const result = await service.createCustodyService({
         ...validCreateData,
         fee: -10,
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Fee must be a positive number');
@@ -270,7 +272,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
       const result = await service.createCustodyService({
         ...validCreateData,
         fee: 0,
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Fee must be a positive number');
@@ -279,7 +281,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
     it('should reject when custodian does not exist', async () => {
       mockRepository.custodianExists.mockResolvedValue(false);
 
-      const result = await service.createCustodyService(validCreateData);
+      const result = await service.createCustodyService(validCreateData, testUser);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Custodian not found');
@@ -289,7 +291,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
       mockRepository.custodianExists.mockResolvedValue(true);
       mockRepository.getCurrencyIdByCode.mockResolvedValue(null);
 
-      const result = await service.createCustodyService(validCreateData);
+      const result = await service.createCustodyService(validCreateData, testUser);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Currency 'USD' not found");
@@ -300,7 +302,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
         ...validCreateData,
         minWeight: 1000,
         maxWeight: 100,
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Minimum weight cannot be greater than maximum weight');
@@ -332,7 +334,7 @@ describe('CustodyServiceImpl Unit Tests', () => {
         fee: 10,
         paymentFrequency: 'quarterly',
         currency: 'CHF',
-      });
+      }, testUser);
 
       expect(result.success).toBe(true);
     });

@@ -1645,6 +1645,10 @@
 					"producer": {
 						"type": "string"
 					},
+					"countryId": {
+						"type": "string",
+						"nullable": true
+					},
 					"country": {
 						"type": "string"
 					},
@@ -1714,6 +1718,7 @@
 					"currency",
 					"producerId",
 					"producer",
+					"countryId",
 					"country",
 					"certifiedProvenance",
 					"imageUrl",
@@ -6680,7 +6685,11 @@
 				"tags": [
 					"Users"
 				],
-				"security": [],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
 				"parameters": [],
 				"requestBody": {
 					"description": "User creation data",
@@ -6862,7 +6871,11 @@
 				"tags": [
 					"Users"
 				],
-				"security": [],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
 				"parameters": [
 					{
 						"description": "User UUID",

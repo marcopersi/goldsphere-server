@@ -81,12 +81,12 @@ export interface ILbmaPriceRepository {
   /**
    * Save premium configuration
    */
-  savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser?: AuditTrailUser): Promise<string>;
+  savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser: AuditTrailUser): Promise<string>;
 
   /**
    * Update premium configuration
    */
-  updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser?: AuditTrailUser): Promise<void>;
+  updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Calculate price with premium

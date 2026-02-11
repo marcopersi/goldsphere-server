@@ -63,7 +63,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
 
-  async create(data: CreateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async create(data: CreateProductRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     const id = uuidv4();
     const now = new Date();
     const auditUser = getAuditUser(authenticatedUser);
@@ -263,7 +263,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     };
   }
   
-  async update(id: string, data: UpdateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async update(id: string, data: UpdateProductRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     try {
       // Get lookup IDs if references changed
       let lookupIds: ProductLookupIds | null = null;
@@ -406,7 +406,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
   
-  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(id: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     try {
       const result = await this.pool.query(
         'DELETE FROM product WHERE id = $1',
@@ -421,7 +421,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
   
-  async saveImage(productId: string, image: ProductImageUpload, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async saveImage(productId: string, image: ProductImageUpload, authenticatedUser: AuditTrailUser): Promise<void> {
     try {
       const auditUser = getAuditUser(authenticatedUser);
       const result = await this.pool.query(
@@ -594,7 +594,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
   
-  async createById(data: CreateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async createById(data: CreateProductByIdRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     const id = uuidv4();
     const auditUser = getAuditUser(authenticatedUser);
     
@@ -653,7 +653,7 @@ export class ProductRepositoryImpl implements IProductRepository {
     }
   }
   
-  async updateById(id: string, data: UpdateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async updateById(id: string, data: UpdateProductByIdRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     try {
       const updateFields: string[] = [];
       const updateValues: any[] = [];

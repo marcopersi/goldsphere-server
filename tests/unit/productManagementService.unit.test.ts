@@ -6,8 +6,10 @@
 import { ProductManagementService } from '../../src/services/product/impl/ProductManagementService';
 import { ProductRepositoryMock } from '../../src/services/product/mock/ProductRepositoryMock';
 import type { IProductManagementService } from '../../src/services/product/IProductManagementService';
+import { AuditTrailUser } from '../../src/utils/auditTrail';
 
 describe('ProductManagementService Unit Tests', () => {
+  const testUser: AuditTrailUser = { id: 'test-user-id', email: 'test@example.com', role: 'admin' };
   let service: IProductManagementService;
 
   beforeAll(() => {
@@ -140,7 +142,7 @@ describe('ProductManagementService Unit Tests', () => {
 
       const result = await service.updateProduct(existingProductId, {
         price: newPrice
-      });
+      }, testUser);
 
       expect(result.id).toBe(existingProductId);
       expect(result.price).toBe(newPrice);
@@ -153,7 +155,7 @@ describe('ProductManagementService Unit Tests', () => {
         inStock: true
       };
 
-      const result = await service.updateProduct(existingProductId, updates);
+      const result = await service.updateProduct(existingProductId, updates, testUser);
 
       expect(result.price).toBe(updates.price);
       expect(result.stockQuantity).toBe(updates.stockQuantity);
@@ -162,67 +164,67 @@ describe('ProductManagementService Unit Tests', () => {
 
     it('should reject invalid product ID format', async () => {
       await expect(
-        service.updateProduct('invalid-id', { price: 100 })
+        service.updateProduct('invalid-id', { price: 100 }, testUser)
       ).rejects.toThrow('Invalid product ID format');
     });
 
     it('should reject empty product ID', async () => {
       await expect(
-        service.updateProduct('', { price: 100 })
+        service.updateProduct('', { price: 100 }, testUser)
       ).rejects.toThrow('Valid product ID is required');
     });
 
     it('should reject negative weight', async () => {
       await expect(
-        service.updateProduct(existingProductId, { weight: -10 })
+        service.updateProduct(existingProductId, { weight: -10 }, testUser)
       ).rejects.toThrow('Weight must be greater than 0');
     });
 
     it('should reject zero weight', async () => {
       await expect(
-        service.updateProduct(existingProductId, { weight: 0 })
+        service.updateProduct(existingProductId, { weight: 0 }, testUser)
       ).rejects.toThrow('Weight must be greater than 0');
     });
 
     it('should reject purity less than 0', async () => {
       await expect(
-        service.updateProduct(existingProductId, { purity: -0.1 })
+        service.updateProduct(existingProductId, { purity: -0.1 }, testUser)
       ).rejects.toThrow('Purity must be between 0 and 1');
     });
 
     it('should reject purity greater than 1', async () => {
       await expect(
-        service.updateProduct(existingProductId, { purity: 1.1 })
+        service.updateProduct(existingProductId, { purity: 1.1 }, testUser)
       ).rejects.toThrow('Purity must be between 0 and 1');
     });
 
     it('should reject negative price', async () => {
       await expect(
-        service.updateProduct(existingProductId, { price: -100 })
+        service.updateProduct(existingProductId, { price: -100 }, testUser)
       ).rejects.toThrow('Price must be greater than 0');
     });
 
     it('should reject invalid currency', async () => {
       await expect(
-        service.updateProduct(existingProductId, { currency: 'INVALID' })
+        service.updateProduct(existingProductId, { currency: 'INVALID' }, testUser)
       ).rejects.toThrow('Currency must be one of');
     });
 
     it('should reject invalid weight unit', async () => {
       await expect(
-        service.updateProduct(existingProductId, { weightUnit: 'invalid' })
+        service.updateProduct(existingProductId, { weightUnit: 'invalid' }, testUser)
       ).rejects.toThrow('Weight unit must be one of');
     });
 
     it('should reject negative stock quantity', async () => {
       await expect(
-        service.updateProduct(existingProductId, { stockQuantity: -5 })
+        service.updateProduct(existingProductId, { stockQuantity: -5 }, testUser)
       ).rejects.toThrow('Stock quantity cannot be negative');
     });
 
     it('should reject zero minimum order quantity', async () => {
       await expect(
-        service.updateProduct(existingProductId, { minimumOrderQuantity: 0 })
+        service.updateProduct(existingProductId, { minimumOrderQuantity: 0 }, testUser)
       ).rejects.toThrow('Minimum order quantity must be greater than 0');
     });
   });
@@ -233,7 +235,7 @@ describe('ProductManagementService Unit Tests', () => {
       const productIdToDelete = '2a543760-8b8c-443b-8929-fc98a9be00f1'; // Product 2 from mock
 
       // Should not throw
-      await service.deleteProduct(productIdToDelete);
+      await service.deleteProduct(productIdToDelete, testUser);
 
       // Verify product is deleted
       const result = await service.getProductById(productIdToDelete);
@@ -242,13 +244,13 @@ describe('ProductManagementService Unit Tests', () => {
 
     it('should reject invalid product ID format', async () => {
       await expect(
-        service.deleteProduct('invalid-id')
+        service.deleteProduct('invalid-id', testUser)
       ).rejects.toThrow('Invalid product ID format');
     });
 
     it('should reject empty product ID', async () => {
       await expect(
-        service.deleteProduct('')
+        service.deleteProduct('', testUser)
       ).rejects.toThrow('Valid product ID is required');
     });
 
@@ -256,7 +258,7 @@ describe('ProductManagementService Unit Tests', () => {
       const nonExistentId = '99999999-9999-4999-9999-999999999999'; // Valid UUID format but non-existent
       
       await expect(
-        service.deleteProduct(nonExistentId)
+        service.deleteProduct(nonExistentId, testUser)
       ).rejects.toThrow('Product not found');
     });
   });
@@ -269,31 +271,31 @@ describe('ProductManagementService Unit Tests', () => {
       const base64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       // Should not throw
-      await service.uploadImage(existingProductId, base64Image, 'image/png', 'test.png');
+      await service.uploadImage(existingProductId, base64Image, 'image/png', 'test.png', testUser);
     });
 
     it('should upload image with data URI prefix', async () => {
       const base64WithPrefix = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       // Should not throw
-      await service.uploadImage(existingProductId, base64WithPrefix, 'image/png', 'test.png');
+      await service.uploadImage(existingProductId, base64WithPrefix, 'image/png', 'test.png', testUser);
     });
 
     it('should reject invalid product ID format', async () => {
       await expect(
-        service.uploadImage('invalid-id', 'base64data', 'image/png', 'test.png')
+        service.uploadImage('invalid-id', 'base64data', 'image/png', 'test.png', testUser)
       ).rejects.toThrow('Invalid product ID format');
     });
 
     it('should reject empty image data', async () => {
       await expect(
-        service.uploadImage(existingProductId, '', 'image/png', 'test.png')
+        service.uploadImage(existingProductId, '', 'image/png', 'test.png', testUser)
       ).rejects.toThrow('Image data is required');
     });
 
     it('should reject invalid content type', async () => {
       await expect(
-        service.uploadImage(existingProductId, 'base64data', 'application/pdf', 'test.pdf')
+        service.uploadImage(existingProductId, 'base64data', 'application/pdf', 'test.pdf', testUser)
       ).rejects.toThrow('Invalid content type');
     });
 
@@ -301,21 +303,21 @@ describe('ProductManagementService Unit Tests', () => {
       const base64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       // Should not throw
-      await service.uploadImage(existingProductId, base64Image, 'image/jpeg', 'test.jpg');
+      await service.uploadImage(existingProductId, base64Image, 'image/jpeg', 'test.jpg', testUser);
     });
 
     it('should accept JPG content type', async () => {
       const base64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       // Should not throw
-      await service.uploadImage(existingProductId, base64Image, 'image/jpg', 'test.jpg');
+      await service.uploadImage(existingProductId, base64Image, 'image/jpg', 'test.jpg', testUser);
     });
 
     it('should accept WebP content type', async () => {
       const base64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       // Should not throw
-      await service.uploadImage(existingProductId, base64Image, 'image/webp', 'test.webp');
+      await service.uploadImage(existingProductId, base64Image, 'image/webp', 'test.webp', testUser);
     });
 
     it('should reject image exceeding 5MB', async () => {
@@ -323,7 +325,7 @@ describe('ProductManagementService Unit Tests', () => {
       const largeBase64 = 'A'.repeat(7 * 1024 * 1024); // ~7MB Base64 = ~5.25MB decoded
 
       await expect(
-        service.uploadImage(existingProductId, largeBase64, 'image/png', 'large.png')
+        service.uploadImage(existingProductId, largeBase64, 'image/png', 'large.png', testUser)
       ).rejects.toThrow('Image size exceeds maximum allowed size of 5MB');
     });
   });

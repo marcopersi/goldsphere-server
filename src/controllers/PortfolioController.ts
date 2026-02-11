@@ -22,6 +22,7 @@ import {
   Request
 } from "tsoa";
 import { getPool } from "../dbConfig";
+import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
 import { PortfolioServiceFactory } from "../services/portfolio";
 import {
   PortfolioErrorCode,
@@ -229,11 +230,7 @@ export class PortfolioController extends Controller {
     @Request() request: express.Request
   ): Promise<PortfolioArrayResponse> {
     try {
-      const authenticatedUser = (request as any).user;
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        throw new Error("User not authenticated");
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       const userId = authenticatedUser.id;
       const portfolioService = getPortfolioService();

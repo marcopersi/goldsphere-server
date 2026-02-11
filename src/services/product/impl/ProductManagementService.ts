@@ -12,7 +12,7 @@ import { AuditTrailUser } from '../../../utils/auditTrail';
 export class ProductManagementService implements IProductManagementService {
   constructor(private readonly repository: IProductRepository) {}
   
-  async createProduct(data: CreateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async createProduct(data: CreateProductRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     this.validateProductData(data);
     return await this.repository.create(data, authenticatedUser);
   }
@@ -61,7 +61,7 @@ export class ProductManagementService implements IProductManagementService {
     return await this.repository.findAll(options);
   }
   
-  async updateProduct(id: string, data: UpdateProductRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async updateProduct(id: string, data: UpdateProductRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     // Validate ID
     if (!id || typeof id !== 'string' || id.trim().length === 0) {
       throw new Error('Valid product ID is required');
@@ -78,7 +78,7 @@ export class ProductManagementService implements IProductManagementService {
     return await this.repository.update(id, data, authenticatedUser);
   }
   
-  async deleteProduct(id: string, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async deleteProduct(id: string, authenticatedUser: AuditTrailUser): Promise<void> {
     // Validate ID
     if (!id || typeof id !== 'string' || id.trim().length === 0) {
       throw new Error('Valid product ID is required');
@@ -103,7 +103,7 @@ export class ProductManagementService implements IProductManagementService {
     imageBase64: string,
     contentType: string,
     filename: string,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<void> {
     // Validate product ID
     if (!productId || typeof productId !== 'string' || productId.trim().length === 0) {
@@ -296,7 +296,7 @@ export class ProductManagementService implements IProductManagementService {
     }
   }
   
-  async createProductById(data: CreateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async createProductById(data: CreateProductByIdRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     // Validate required fields
     if (!data.name || data.name.trim().length === 0) {
       throw new Error('Product name is required');
@@ -347,7 +347,7 @@ export class ProductManagementService implements IProductManagementService {
     return await this.repository.createById(data, authenticatedUser);
   }
   
-  async updateProductById(id: string, data: UpdateProductByIdRequest, authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async updateProductById(id: string, data: UpdateProductByIdRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     // Validate ID
     if (!id || typeof id !== 'string' || id.trim().length === 0) {
       throw new Error('Valid product ID is required');

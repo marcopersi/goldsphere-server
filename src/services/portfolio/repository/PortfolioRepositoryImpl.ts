@@ -170,8 +170,8 @@ export class PortfolioRepositoryImpl implements IPortfolioRepository {
   async create(
     userId: string,
     name: string,
-    description?: string,
-    authenticatedUser?: AuditTrailUser
+    description: string | undefined,
+    authenticatedUser: AuditTrailUser
   ): Promise<PortfolioSummary> {
     const auditUser = getAuditUser(authenticatedUser);
     const result = await this.pool.query(
@@ -192,7 +192,7 @@ export class PortfolioRepositoryImpl implements IPortfolioRepository {
   async update(
     portfolioId: string,
     updates: Partial<PortfolioSummary>,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<PortfolioSummary | null> {
     const fields: string[] = [];
     const values: (string | boolean)[] = [];
@@ -214,7 +214,7 @@ export class PortfolioRepositoryImpl implements IPortfolioRepository {
     return this.getById(portfolioId);
   }
 
-  async delete(portfolioId: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(portfolioId: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     await this.pool.query('DELETE FROM portfolio WHERE id = $1', [portfolioId]);
   }
 

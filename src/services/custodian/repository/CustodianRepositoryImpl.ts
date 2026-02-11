@@ -88,7 +88,7 @@ export class CustodianRepositoryImpl implements ICustodianRepository {
     return result.rows[0] || null;
   }
 
-  async create(name: string, authenticatedUser?: AuditTrailUser): Promise<CustodianEntity> {
+  async create(name: string, authenticatedUser: AuditTrailUser): Promise<CustodianEntity> {
     const auditUser = getAuditUser(authenticatedUser);
     const query = `
       INSERT INTO custodian (custodianName, createdBy, updatedBy)
@@ -99,7 +99,7 @@ export class CustodianRepositoryImpl implements ICustodianRepository {
     return result.rows[0];
   }
 
-  async update(id: string, name: string, authenticatedUser?: AuditTrailUser): Promise<CustodianEntity> {
+  async update(id: string, name: string, authenticatedUser: AuditTrailUser): Promise<CustodianEntity> {
     const auditUser = getAuditUser(authenticatedUser);
     const query = `
       UPDATE custodian
@@ -111,7 +111,7 @@ export class CustodianRepositoryImpl implements ICustodianRepository {
     return result.rows[0];
   }
 
-  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(id: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     const query = `DELETE FROM custodian WHERE id = $1`;
     await this.pool.query(query, [id]);
   }

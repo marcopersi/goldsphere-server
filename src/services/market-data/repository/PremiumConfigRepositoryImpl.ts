@@ -14,8 +14,8 @@ import { AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
 export interface IPremiumConfigRepository {
   getActivePremiumConfigs(metalSymbol?: string): Promise<PremiumConfig[]>;
   getPremiumConfig(metalSymbol: string, quantityOz: number): Promise<PremiumConfig | null>;
-  savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser?: AuditTrailUser): Promise<string>;
-  updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser?: AuditTrailUser): Promise<void>;
+  savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser: AuditTrailUser): Promise<string>;
+  updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser: AuditTrailUser): Promise<void>;
   calculatePriceWithPremium(
     metalSymbol: string,
     basePriceTypeCode: PriceTypeCode,
@@ -52,7 +52,7 @@ export class PremiumConfigRepositoryImpl implements IPremiumConfigRepository {
     return mapToPremiumConfig(result.rows[0]);
   }
 
-  async savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser?: AuditTrailUser): Promise<string> {
+  async savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser: AuditTrailUser): Promise<string> {
     // metalId should be resolved by Service layer before calling Repository
     const metalId = config.metalId || null;
     const auditUser = getAuditUser(authenticatedUser);
@@ -80,7 +80,7 @@ export class PremiumConfigRepositoryImpl implements IPremiumConfigRepository {
     return result.rows[0].id;
   }
 
-  async updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser: AuditTrailUser): Promise<void> {
     const updates: string[] = [];
     const params: (string | number | boolean | Date | null)[] = [];
     let paramIndex = 1;

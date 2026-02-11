@@ -106,7 +106,7 @@ export interface IUserService {
    * @param input User creation data including plain password
    * @returns Created user entity (without password hash)
    */
-  createUser(input: CreateUserInput, authenticatedUser?: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
+  createUser(input: CreateUserInput, authenticatedUser: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
 
   /**
    * Get user by ID
@@ -145,7 +145,7 @@ export interface IUserService {
   updateUser(
     id: string,
     input: UpdateUserInput,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>>;
 
   /**
@@ -171,7 +171,7 @@ export interface IUserService {
     userId: string,
     blockedBy: string,
     reason: string,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>>;
 
   /**
@@ -180,7 +180,7 @@ export interface IUserService {
    * @param userId User UUID to unblock
    * @returns Updated user entity
    */
-  unblockUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
+  unblockUser(userId: string, authenticatedUser: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
 
   /**
    * Soft delete a user account (admin only)
@@ -188,7 +188,7 @@ export interface IUserService {
    * @param userId User UUID to soft delete
    * @returns Updated user entity
    */
-  softDeleteUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
+  softDeleteUser(userId: string, authenticatedUser: AuditTrailUser): Promise<UserOperationResult<UserEntity>>;
 
   /**
    * Find all blocked users

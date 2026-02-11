@@ -6,12 +6,13 @@
  */
 
 import { Order, CreateOrderRequest, CreateOrderResult, GetOrdersOptions, GetOrdersResult } from './types/OrderTypes';
+import { AuditTrailUser } from '../../utils/auditTrail';
 
 export interface IOrderService {
   /**
    * Create a new order with full enrichment and validation
    */
-  createOrder(request: CreateOrderRequest): Promise<CreateOrderResult>;
+  createOrder(request: CreateOrderRequest, authenticatedUser: AuditTrailUser): Promise<CreateOrderResult>;
 
   /**
    * Get order by ID with complete data mapping
@@ -21,7 +22,7 @@ export interface IOrderService {
   /**
    * Update order status with business logic validation
    */
-  updateOrderStatus(orderId: string, newStatus: string): Promise<void>;
+  updateOrderStatus(orderId: string, newStatus: string, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Get orders by user with filtering and pagination

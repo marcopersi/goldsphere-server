@@ -98,7 +98,7 @@ export class CustodianServiceImpl implements ICustodianService {
 
   async createCustodian(
     data: CreateCustodianDTO,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodianResult> {
     try {
       // Validate input
@@ -137,7 +137,7 @@ export class CustodianServiceImpl implements ICustodianService {
   async updateCustodian(
     id: string,
     data: UpdateCustodianDTO,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodianResult> {
     try {
       // Validate UUID format
@@ -190,7 +190,7 @@ export class CustodianServiceImpl implements ICustodianService {
     }
   }
 
-  async deleteCustodian(id: string, authenticatedUser?: AuditTrailUser): Promise<CustodianResult<void>> {
+  async deleteCustodian(id: string, authenticatedUser: AuditTrailUser): Promise<CustodianResult<void>> {
     try {
       // Validate UUID format
       if (!this.isValidUUID(id)) {

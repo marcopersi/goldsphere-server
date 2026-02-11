@@ -12,7 +12,7 @@ export interface IOrderRepository {
   /**
    * Create a new order in the database
    */
-  create(order: Order, authenticatedUser?: AuditTrailUser): Promise<void>;
+  create(order: Order, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Find order by ID with all related data
@@ -27,12 +27,12 @@ export interface IOrderRepository {
   /**
    * Update order status
    */
-  updateStatus(orderId: string, newStatus: string, authenticatedUser?: AuditTrailUser): Promise<void>;
+  updateStatus(orderId: string, newStatus: string, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Update order with multiple fields
    */
-  update(orderId: string, updates: Partial<Order>, authenticatedUser?: AuditTrailUser): Promise<void>;
+  update(orderId: string, updates: Partial<Order>, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Count orders by user ID with filters

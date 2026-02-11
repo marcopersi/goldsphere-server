@@ -572,6 +572,7 @@ const models: TsoaRoute.Models = {
             "currency": {"dataType":"string","required":true},
             "producerId": {"dataType":"string","required":true},
             "producer": {"dataType":"string","required":true},
+            "countryId": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},
             "country": {"dataType":"string","required":true},
             "year": {"dataType":"double"},
             "description": {"dataType":"string"},
@@ -2211,6 +2212,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
                 request: {"in":"request","name":"request","required":true,"dataType":"object"},
         };
         app.post('/api/users',
+            authenticateMiddleware([{"bearerAuth":[]}]),
             ...(fetchMiddlewares<RequestHandler>(UserController)),
             ...(fetchMiddlewares<RequestHandler>(UserController.prototype.createUser)),
 
@@ -2243,6 +2245,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
                 request: {"in":"request","name":"request","required":true,"dataType":"object"},
         };
         app.put('/api/users/:id',
+            authenticateMiddleware([{"bearerAuth":[]}]),
             ...(fetchMiddlewares<RequestHandler>(UserController)),
             ...(fetchMiddlewares<RequestHandler>(UserController.prototype.updateUser)),
 

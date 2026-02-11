@@ -32,17 +32,17 @@ export interface ICustodianRepository {
   /**
    * Create a new custodian
    */
-  create(name: string, authenticatedUser?: AuditTrailUser): Promise<CustodianEntity>;
+  create(name: string, authenticatedUser: AuditTrailUser): Promise<CustodianEntity>;
 
   /**
    * Update a custodian
    */
-  update(id: string, name: string, authenticatedUser?: AuditTrailUser): Promise<CustodianEntity>;
+  update(id: string, name: string, authenticatedUser: AuditTrailUser): Promise<CustodianEntity>;
 
   /**
    * Delete a custodian
    */
-  delete(id: string, authenticatedUser?: AuditTrailUser): Promise<void>;
+  delete(id: string, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Check if custodian can be deleted (no custody services)

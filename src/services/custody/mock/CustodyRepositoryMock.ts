@@ -149,7 +149,7 @@ export class CustodyRepositoryMock implements ICustodyRepository {
     currencyId: string;
     minWeight?: number | null;
     maxWeight?: number | null;
-  }, _authenticatedUser?: AuditTrailUser): Promise<CustodyServiceEntity> {
+  }, _authenticatedUser: AuditTrailUser): Promise<CustodyServiceEntity> {
     const newService: CustodyServiceEntity = {
       id: `650e8400-e29b-41d4-a716-${Date.now().toString().padStart(12, '0')}`,
       custodyservicename: data.custodyServiceName,
@@ -175,7 +175,7 @@ export class CustodyRepositoryMock implements ICustodyRepository {
       fee?: number;
       paymentFrequency?: 'monthly' | 'quarterly' | 'annual' | 'onetime';
     },
-    _authenticatedUser?: AuditTrailUser
+    _authenticatedUser: AuditTrailUser
   ): Promise<CustodyServiceEntity> {
     const service = await this.findById(id);
     if (!service) {
@@ -196,7 +196,7 @@ export class CustodyRepositoryMock implements ICustodyRepository {
     return service;
   }
 
-  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(id: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     const index = this.custodyServices.findIndex((cs) => cs.id === id);
     if (index !== -1) {
       this.custodyServices.splice(index, 1);

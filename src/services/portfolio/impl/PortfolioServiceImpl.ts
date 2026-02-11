@@ -72,7 +72,7 @@ export class PortfolioServiceImpl implements IPortfolioService {
 
   async createPortfolio(
     request: CreatePortfolioRequest,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<PortfolioResult<PortfolioSummary>> {
     // Validate request
     const validation = validateCreateRequest(request);
@@ -117,7 +117,7 @@ export class PortfolioServiceImpl implements IPortfolioService {
   async updatePortfolio(
     portfolioId: string,
     request: UpdatePortfolioRequest,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<PortfolioResult<PortfolioSummary>> {
     // Validate request
     const validation = validateUpdateRequest(request);
@@ -169,7 +169,7 @@ export class PortfolioServiceImpl implements IPortfolioService {
     }
   }
 
-  async deletePortfolio(portfolioId: string, authenticatedUser?: AuditTrailUser): Promise<PortfolioResult<void>> {
+  async deletePortfolio(portfolioId: string, authenticatedUser: AuditTrailUser): Promise<PortfolioResult<void>> {
     try {
       // Check if portfolio exists
       const existing = await this.portfolioRepository.getById(portfolioId);

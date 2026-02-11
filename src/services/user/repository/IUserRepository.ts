@@ -50,7 +50,7 @@ export interface IUserRepository {
   /**
    * Create a new user
    */
-  createUser(userData: CreateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity>;
+  createUser(userData: CreateUserData, authenticatedUser: AuditTrailUser): Promise<UserEntity>;
   
   /**
    * Find user by ID
@@ -70,7 +70,7 @@ export interface IUserRepository {
   /**
    * Update user by ID
    */
-  updateUser(id: string, data: UpdateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null>;
+  updateUser(id: string, data: UpdateUserData, authenticatedUser: AuditTrailUser): Promise<UserEntity | null>;
   
   /**
    * Delete user by ID
@@ -94,20 +94,20 @@ export interface IUserRepository {
     userId: string,
     blockedBy: string,
     reason: string,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserEntity | null>;
   
   /**
    * Unblock a user account
    * Sets account_status back to 'active', clears blocked_at, blocked_by, block_reason
    */
-  unblockUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null>;
+  unblockUser(userId: string, authenticatedUser: AuditTrailUser): Promise<UserEntity | null>;
   
   /**
    * Soft delete a user account
    * Sets account_status to 'deleted'
    */
-  softDeleteUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null>;
+  softDeleteUser(userId: string, authenticatedUser: AuditTrailUser): Promise<UserEntity | null>;
   
   /**
    * Find all blocked users

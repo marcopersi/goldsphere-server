@@ -23,9 +23,9 @@ export interface IPortfolioService {
   getPortfolioWithPositions(portfolioId: string): Promise<PortfolioResult<PortfolioWithPositions>>;
   
   // CRUD operations
-  createPortfolio(request: CreatePortfolioRequest, authenticatedUser?: AuditTrailUser): Promise<PortfolioResult<PortfolioSummary>>;
-  updatePortfolio(portfolioId: string, request: UpdatePortfolioRequest, authenticatedUser?: AuditTrailUser): Promise<PortfolioResult<PortfolioSummary>>;
-  deletePortfolio(portfolioId: string, authenticatedUser?: AuditTrailUser): Promise<PortfolioResult<void>>;
+  createPortfolio(request: CreatePortfolioRequest, authenticatedUser: AuditTrailUser): Promise<PortfolioResult<PortfolioSummary>>;
+  updatePortfolio(portfolioId: string, request: UpdatePortfolioRequest, authenticatedUser: AuditTrailUser): Promise<PortfolioResult<PortfolioSummary>>;
+  deletePortfolio(portfolioId: string, authenticatedUser: AuditTrailUser): Promise<PortfolioResult<void>>;
   
   // Validation
   validateOwnership(portfolioId: string, userId: string): Promise<boolean>;

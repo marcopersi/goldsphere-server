@@ -76,7 +76,7 @@ export class OrderRepositoryMock implements IOrderRepository {
     this.orders.set(testOrder2.id, testOrder2);
   }
 
-  async create(order: Order, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async create(order: Order, _authenticatedUser: AuditTrailUser): Promise<void> {
     this.orders.set(order.id, { ...order });
   }
 
@@ -124,7 +124,7 @@ export class OrderRepositoryMock implements IOrderRepository {
     };
   }
 
-  async updateStatus(orderId: string, newStatus: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async updateStatus(orderId: string, newStatus: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     const order = this.orders.get(orderId);
     if (!order) {
       throw new Error(`Order not found: ${orderId}`);
@@ -135,7 +135,7 @@ export class OrderRepositoryMock implements IOrderRepository {
     this.orders.set(orderId, order);
   }
 
-  async update(orderId: string, updates: Partial<Order>, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async update(orderId: string, updates: Partial<Order>, _authenticatedUser: AuditTrailUser): Promise<void> {
     const order = this.orders.get(orderId);
     if (!order) {
       throw new Error(`Order not found: ${orderId}`);

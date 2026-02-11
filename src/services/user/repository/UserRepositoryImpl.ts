@@ -48,7 +48,7 @@ export class UserRepositoryImpl implements IUserRepository {
   // User CRUD Operations
   // =========================================================================
 
-  async createUser(userData: CreateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity> {
+  async createUser(userData: CreateUserData, authenticatedUser: AuditTrailUser): Promise<UserEntity> {
     const role = userData.role ?? DEFAULT_USER_ROLE;
     const auditUser = authenticatedUser ? getAuditUser(authenticatedUser) : null;
 
@@ -158,7 +158,7 @@ export class UserRepositoryImpl implements IUserRepository {
     };
   }
 
-  async updateUser(id: string, data: UpdateUserData, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null> {
+  async updateUser(id: string, data: UpdateUserData, authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const updates: string[] = [];
     const values: (string | boolean | Date | null)[] = [];
     let paramIndex = 1;
@@ -235,7 +235,7 @@ export class UserRepositoryImpl implements IUserRepository {
     userId: string,
     blockedBy: string,
     reason: string,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserEntity | null> {
     const auditUser = getAuditUser(authenticatedUser);
     const result = await this.pool.query<UserDbRow>(
@@ -254,7 +254,7 @@ export class UserRepositoryImpl implements IUserRepository {
     return result.rows.length > 0 ? mapUserEntity(result.rows[0]) : null;
   }
 
-  async unblockUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null> {
+  async unblockUser(userId: string, authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const auditUser = getAuditUser(authenticatedUser);
     const result = await this.pool.query<UserDbRow>(
       `UPDATE users 
@@ -272,7 +272,7 @@ export class UserRepositoryImpl implements IUserRepository {
     return result.rows.length > 0 ? mapUserEntity(result.rows[0]) : null;
   }
 
-  async softDeleteUser(userId: string, authenticatedUser?: AuditTrailUser): Promise<UserEntity | null> {
+  async softDeleteUser(userId: string, authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const auditUser = getAuditUser(authenticatedUser);
     const result = await this.pool.query<UserDbRow>(
       `UPDATE users 

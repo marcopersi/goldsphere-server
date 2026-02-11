@@ -22,6 +22,7 @@ import {
 } from "tsoa";
 import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
+import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
 import { CustodianServiceFactory, CustodianDTO } from "../services/custodian";
 
 // ============================================================================
@@ -194,7 +195,7 @@ export class CustodiansController extends Controller {
     @Body() requestBody: CustodianCreateRequest,
     @Request() request: ExpressRequest
   ): Promise<CustodianResponse> {
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await this.custodianService.createCustodian({ name: requestBody.name }, authenticatedUser);
 
     if (!result.success || !result.data) {
@@ -261,7 +262,7 @@ export class CustodiansController extends Controller {
     @Body() requestBody: CustodianUpdateRequest,
     @Request() request: ExpressRequest
   ): Promise<CustodianResponse> {
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await this.custodianService.updateCustodian(id, { name: requestBody.name }, authenticatedUser);
 
     if (!result.success || !result.data) {
@@ -296,7 +297,7 @@ export class CustodiansController extends Controller {
     @Path() id: string,
     @Request() request: ExpressRequest
   ): Promise<CustodianDeleteResponse> {
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await this.custodianService.deleteCustodian(id, authenticatedUser);
 
     if (!result.success) {

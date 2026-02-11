@@ -17,14 +17,44 @@ export interface AuditTrailUser {
   role: string;
 }
 
-export const SYSTEM_USER: AuditTrailUser = {
-  id: '00000000-0000-0000-0000-000000000000',
-  email: 'system@internal',
-  role: 'user'
-} as const;
+/**
+ * Extract and validate the authenticated user from an Express request.
+ * Fail-fast: throws if no valid user is present.
+ * Use at the entry point of every mutating controller endpoint.
+ * 
+ * tsoa's @Security("bearerAuth") already verifies JWT + DB existence,
+ * so this is a type-narrowing guard, not a duplicate DB check.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function requireAuthenticatedUser(request: any): AuditTrailUser {
+  const user = request?.user;
+  if (!user?.id || !user?.email || !user?.role) {
+    throw new AuthenticationError('Authenticated user required. No silent fallback allowed.');
+  }
+  return user;
+}
 
-export function getAuditUser(user?: AuditTrailUser): AuditTrailUser {
-  return user ?? SYSTEM_USER;
+/**
+ * Validate that an audit trail user is present and valid.
+ * Fail-fast: throws if user is missing or incomplete — no SYSTEM_USER fallback.
+ */
+export function getAuditUser(user: AuditTrailUser): AuditTrailUser {
+  if (!user?.id || !user?.email) {
+    throw new AuthenticationError('Audit trail user is required. Authenticate before performing mutations.');
+  }
+  return user;
+}
+
+/**
+ * Custom error class for authentication failures in the audit trail layer.
+ * Controllers should catch this and return 401.
+ */
+export class AuthenticationError extends Error {
+  public readonly statusCode = 401;
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
 }
 
 export interface CreateAuditFields {

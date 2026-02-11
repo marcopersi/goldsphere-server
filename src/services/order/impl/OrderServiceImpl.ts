@@ -36,9 +36,7 @@ export class OrderServiceImpl implements IOrderService {
   /**
    * Create a new order with full enrichment
    */
-  async createOrder(request: CreateOrderRequest): Promise<CreateOrderResult>;
-  async createOrder(request: CreateOrderRequest, authenticatedUser?: AuditTrailUser): Promise<CreateOrderResult>;
-  async createOrder(request: CreateOrderRequest, authenticatedUser?: AuditTrailUser): Promise<CreateOrderResult> {
+  async createOrder(request: CreateOrderRequest, authenticatedUser: AuditTrailUser): Promise<CreateOrderResult> {
     // Validate request
     validateCreateOrderRequest(request);
 
@@ -99,9 +97,7 @@ export class OrderServiceImpl implements IOrderService {
   /**
    * Update order status with validation
    */
-  async updateOrderStatus(orderId: string, newStatus: string): Promise<void>;
-  async updateOrderStatus(orderId: string, newStatus: string, authenticatedUser?: AuditTrailUser): Promise<void>;
-  async updateOrderStatus(orderId: string, newStatus: string, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async updateOrderStatus(orderId: string, newStatus: string, authenticatedUser: AuditTrailUser): Promise<void> {
     // Validate status
     if (!isValidOrderStatus(newStatus)) {
       throw new Error(`Invalid order status: ${newStatus}`);

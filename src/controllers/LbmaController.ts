@@ -23,6 +23,7 @@ import {
 } from "tsoa";
 import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
+import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
 import {
   MarketDataServiceFactory,
   LbmaQuery,
@@ -669,7 +670,7 @@ export class LbmaController extends Controller {
     @Request() request: ExpressRequest
   ): Promise<CreateConfigResponse> {
     try {
-      const authenticatedUser = (request as any).user;
+      const authenticatedUser = requireAuthenticatedUser(request);
       if (!requestBody.name || !requestBody.validFrom) {
         this.setStatus(400);
         throw { success: false, error: "name and validFrom are required" };
@@ -725,7 +726,7 @@ export class LbmaController extends Controller {
     @Request() request: ExpressRequest
   ): Promise<UpdateConfigResponse> {
     try {
-      const authenticatedUser = (request as any).user;
+      const authenticatedUser = requireAuthenticatedUser(request);
       // Convert date strings to Date objects
       const updates: Partial<PremiumConfig> = {
         ...requestBody,

@@ -178,11 +178,11 @@ export class LbmaPriceRepositoryImpl implements ILbmaPriceRepository {
     return this.premiumConfigRepo.getPremiumConfig(metalSymbol, quantityOz);
   }
 
-  async savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser?: AuditTrailUser): Promise<string> {
+  async savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser: AuditTrailUser): Promise<string> {
     return this.premiumConfigRepo.savePremiumConfig(config, authenticatedUser);
   }
 
-  async updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser: AuditTrailUser): Promise<void> {
     return this.premiumConfigRepo.updatePremiumConfig(id, config, authenticatedUser);
   }
 

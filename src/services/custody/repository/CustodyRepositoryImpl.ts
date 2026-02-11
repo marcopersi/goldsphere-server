@@ -205,7 +205,7 @@ export class CustodyRepositoryImpl implements ICustodyRepository {
     currencyId: string;
     minWeight?: number | null;
     maxWeight?: number | null;
-  }, authenticatedUser?: AuditTrailUser): Promise<CustodyServiceEntity> {
+  }, authenticatedUser: AuditTrailUser): Promise<CustodyServiceEntity> {
     const auditUser = getAuditUser(authenticatedUser);
     const result = await this.pool.query(queries.INSERT_CUSTODY_SERVICE, [
       data.custodyServiceName, data.custodianId, data.fee, data.paymentFrequency,
@@ -223,7 +223,7 @@ export class CustodyRepositoryImpl implements ICustodyRepository {
     currencyId?: string;
     minWeight?: number | null;
     maxWeight?: number | null;
-  }, authenticatedUser?: AuditTrailUser): Promise<CustodyServiceEntity> {
+  }, authenticatedUser: AuditTrailUser): Promise<CustodyServiceEntity> {
     const updates: string[] = [];
     const values: (string | number | null)[] = [];
     let idx = 1;
@@ -246,7 +246,7 @@ export class CustodyRepositoryImpl implements ICustodyRepository {
     return (await this.findById(id))!;
   }
 
-  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(id: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     await this.pool.query(queries.DELETE_CUSTODY_SERVICE, [id]);
   }
 

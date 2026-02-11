@@ -37,17 +37,17 @@ export interface IPortfolioRepository {
   /**
    * Create a new portfolio
    */
-  create(userId: string, name: string, description?: string, authenticatedUser?: AuditTrailUser): Promise<PortfolioSummary>;
+  create(userId: string, name: string, description: string | undefined, authenticatedUser: AuditTrailUser): Promise<PortfolioSummary>;
 
   /**
    * Update portfolio
    */
-  update(portfolioId: string, updates: Partial<PortfolioSummary>, authenticatedUser?: AuditTrailUser): Promise<PortfolioSummary | null>;
+  update(portfolioId: string, updates: Partial<PortfolioSummary>, authenticatedUser: AuditTrailUser): Promise<PortfolioSummary | null>;
 
   /**
    * Delete portfolio
    */
-  delete(portfolioId: string, authenticatedUser?: AuditTrailUser): Promise<void>;
+  delete(portfolioId: string, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Check if user exists

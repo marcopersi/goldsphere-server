@@ -13,6 +13,7 @@ jest.mock('bcrypt', () => ({
 }));
 
 import { UserServiceImpl } from '../../src/services/user/service/UserServiceImpl';
+import { AuditTrailUser } from '../../src/utils/auditTrail';
 import { 
   IUserRepository,
   UserEntity,
@@ -82,7 +83,7 @@ class UserRepositoryMock implements IUserRepository {
     this.profiles.set(profile.userId, profile);
   }
 
-  async createUser(userData: CreateUserData): Promise<UserEntity> {
+  async createUser(userData: CreateUserData, _authenticatedUser: AuditTrailUser): Promise<UserEntity> {
     const id = `user-${Date.now()}`;
     const user: UserEntity = {
       id,
@@ -151,7 +152,7 @@ class UserRepositoryMock implements IUserRepository {
     };
   }
 
-  async updateUser(id: string, data: UpdateUserData): Promise<UserEntity | null> {
+  async updateUser(id: string, data: UpdateUserData, _authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const user = this.users.get(id);
     if (!user) return null;
 
@@ -178,7 +179,7 @@ class UserRepositoryMock implements IUserRepository {
     return false;
   }
 
-  async blockUser(userId: string, blockedBy: string, reason: string): Promise<UserEntity | null> {
+  async blockUser(userId: string, blockedBy: string, reason: string, _authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const user = this.users.get(userId);
     if (!user) return null;
 
@@ -194,7 +195,7 @@ class UserRepositoryMock implements IUserRepository {
     return blocked;
   }
 
-  async unblockUser(userId: string): Promise<UserEntity | null> {
+  async unblockUser(userId: string, _authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const user = this.users.get(userId);
     if (!user) return null;
 
@@ -210,7 +211,7 @@ class UserRepositoryMock implements IUserRepository {
     return unblocked;
   }
 
-  async softDeleteUser(userId: string): Promise<UserEntity | null> {
+  async softDeleteUser(userId: string, _authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const user = this.users.get(userId);
     if (!user) return null;
 
@@ -277,6 +278,7 @@ class UserRepositoryMock implements IUserRepository {
 }
 
 describe('UserServiceImpl Unit Tests', () => {
+  const testUser: AuditTrailUser = { id: 'test-user-id', email: 'test@example.com', role: 'admin' };
   let service: UserServiceImpl;
   let mockRepo: UserRepositoryMock;
 
@@ -290,7 +292,7 @@ describe('UserServiceImpl Unit Tests', () => {
       const result = await service.createUser({
         email: 'newuser@example.com',
         password: 'SecurePass123',
-      });
+      }, testUser);
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
@@ -302,7 +304,7 @@ describe('UserServiceImpl Unit Tests', () => {
       const result = await service.createUser({
         email: 'hashtest@example.com',
         password: 'SecurePass123',
-      });
+      }, testUser);
 
       expect(result.success).toBe(true);
       // Password hash should not equal plain password
@@ -314,7 +316,7 @@ describe('UserServiceImpl Unit Tests', () => {
       const result = await service.createUser({
         email: 'existing@example.com',
         password: 'SecurePass123',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.EMAIL_ALREADY_EXISTS);
@@ -324,7 +326,7 @@ describe('UserServiceImpl Unit Tests', () => {
       const result = await service.createUser({
         email: 'not-an-email',
         password: 'SecurePass123',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.INVALID_EMAIL_FORMAT);
@@ -334,7 +336,7 @@ describe('UserServiceImpl Unit Tests', () => {
       const result = await service.createUser({
         email: 'test@example.com',
         password: 'Short1',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.INVALID_PASSWORD);
@@ -344,7 +346,7 @@ describe('UserServiceImpl Unit Tests', () => {
       const result = await service.createUser({
         email: 'test@example.com',
         password: '12345678',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.INVALID_PASSWORD);
@@ -354,7 +356,7 @@ describe('UserServiceImpl Unit Tests', () => {
       const result = await service.createUser({
         email: 'test@example.com',
         password: 'NoNumbers',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.INVALID_PASSWORD);
@@ -365,7 +367,7 @@ describe('UserServiceImpl Unit Tests', () => {
         email: 'admin@example.com',
         password: 'SecurePass123',
         role: UserRole.ADMIN,
-      });
+      }, testUser);
 
       expect(result.success).toBe(true);
       expect(result.data!.role).toBe(UserRole.ADMIN);
@@ -446,7 +448,7 @@ describe('UserServiceImpl Unit Tests', () => {
     it('should update user email', async () => {
       const result = await service.updateUser('existing-user-id', {
         email: 'updated@example.com',
-      });
+      }, testUser);
 
       expect(result.success).toBe(true);
       expect(result.data!.email).toBe('updated@example.com');
@@ -457,12 +459,12 @@ describe('UserServiceImpl Unit Tests', () => {
       await service.createUser({
         email: 'another@example.com',
         password: 'SecurePass123',
-      });
+      }, testUser);
 
       // Try to update existing user to use same email
       const result = await service.updateUser('existing-user-id', {
         email: 'another@example.com',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.EMAIL_ALREADY_EXISTS);
@@ -471,7 +473,7 @@ describe('UserServiceImpl Unit Tests', () => {
     it('should return error for non-existent user', async () => {
       const result = await service.updateUser('non-existent-id', {
         email: 'new@example.com',
-      });
+      }, testUser);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.USER_NOT_FOUND);
@@ -499,7 +501,7 @@ describe('UserServiceImpl Unit Tests', () => {
       await service.createUser({
         email: 'login@example.com',
         password: 'SecurePass123',
-      });
+      }, testUser);
 
       const result = await service.validateCredentials('login@example.com', 'SecurePass123');
 
@@ -511,7 +513,7 @@ describe('UserServiceImpl Unit Tests', () => {
       await service.createUser({
         email: 'wrongpass@example.com',
         password: 'SecurePass123',
-      });
+      }, testUser);
 
       const result = await service.validateCredentials('wrongpass@example.com', 'WrongPassword1');
 

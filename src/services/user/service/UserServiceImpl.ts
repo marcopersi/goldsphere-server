@@ -41,7 +41,7 @@ export class UserServiceImpl implements IUserService {
 
   async createUser(
     input: CreateUserInput,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>> {
     try {
       // Validate email format
@@ -210,7 +210,7 @@ export class UserServiceImpl implements IUserService {
   async updateUser(
     id: string,
     input: UpdateUserInput,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>> {
     try {
       // Check user exists
@@ -381,7 +381,7 @@ export class UserServiceImpl implements IUserService {
     userId: string,
     blockedBy: string,
     reason: string,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>> {
     try {
       // Check if user exists
@@ -450,7 +450,7 @@ export class UserServiceImpl implements IUserService {
 
   async unblockUser(
     userId: string,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>> {
     try {
       // Check if user exists
@@ -496,7 +496,7 @@ export class UserServiceImpl implements IUserService {
 
   async softDeleteUser(
     userId: string,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>> {
     try {
       // Check if user exists
@@ -596,7 +596,9 @@ export class UserServiceImpl implements IUserService {
 
   async updateLastLogin(userId: string): Promise<void> {
     try {
-      await this.userRepository.updateUser(userId, { lastLogin: new Date() });
+      // Self-audit: the user logging in is the audit user for their own last_login update
+      const selfAuditUser: AuditTrailUser = { id: userId, email: 'self-login', role: 'user' };
+      await this.userRepository.updateUser(userId, { lastLogin: new Date() }, selfAuditUser);
     } catch (error) {
       console.error('Error updating last login:', error);
       // Non-critical, don't throw

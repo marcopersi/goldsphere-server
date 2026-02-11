@@ -44,7 +44,7 @@ export interface ICustodyService {
    */
   createCustodyService(
     data: CreateCustodyServiceDTO,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodyServiceResult>;
 
   /**
@@ -53,13 +53,13 @@ export interface ICustodyService {
   updateCustodyService(
     id: string,
     data: UpdateCustodyServiceDTO,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodyServiceResult>;
 
   /**
    * Delete a custody service
    */
-  deleteCustodyService(id: string, authenticatedUser?: AuditTrailUser): Promise<CustodyServiceResult<void>>;
+  deleteCustodyService(id: string, authenticatedUser: AuditTrailUser): Promise<CustodyServiceResult<void>>;
 
   /**
    * Validate if custody service can be deleted

@@ -141,8 +141,8 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
   async create(
     userId: string,
     name: string,
-    description?: string,
-    _authenticatedUser?: AuditTrailUser
+    description: string | undefined,
+    _authenticatedUser: AuditTrailUser
   ): Promise<PortfolioSummary> {
     const id = `portfolio-${Date.now()}`;
     const now = new Date();
@@ -170,7 +170,7 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
   async update(
     portfolioId: string,
     updates: Partial<PortfolioSummary>,
-    _authenticatedUser?: AuditTrailUser
+    _authenticatedUser: AuditTrailUser
   ): Promise<PortfolioSummary | null> {
     const portfolio = this.portfolios.get(portfolioId);
     if (!portfolio) {
@@ -182,7 +182,7 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
     return updated;
   }
 
-  async delete(portfolioId: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(portfolioId: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     this.portfolios.delete(portfolioId);
   }
 

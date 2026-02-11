@@ -23,6 +23,7 @@ import {
 } from "tsoa";
 import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
+import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
 import { 
   CustodyServiceFactory, 
   CustodyServiceDTO,
@@ -300,7 +301,7 @@ export class CustodyServiceController extends Controller {
       maxWeight: requestBody.maxWeight
     };
 
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await this.custodyService.createCustodyService(createDTO, authenticatedUser);
 
     if (!result.success || !result.data) {
@@ -347,7 +348,7 @@ export class CustodyServiceController extends Controller {
       maxWeight: requestBody.maxWeight
     };
 
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await this.custodyService.updateCustodyService(id, updateDTO, authenticatedUser);
 
     if (!result.success || !result.data) {
@@ -384,7 +385,7 @@ export class CustodyServiceController extends Controller {
     @Path() id: string,
     @Request() request: ExpressRequest
   ): Promise<CustodyServiceDeleteResponse> {
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await this.custodyService.deleteCustodyService(id, authenticatedUser);
 
     if (!result.success) {

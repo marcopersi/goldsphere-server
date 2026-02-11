@@ -51,7 +51,7 @@ export interface ICustodyRepository {
     currencyId: string;
     minWeight?: number | null;
     maxWeight?: number | null;
-  }, authenticatedUser?: AuditTrailUser): Promise<CustodyServiceEntity>;
+  }, authenticatedUser: AuditTrailUser): Promise<CustodyServiceEntity>;
 
   /**
    * Update a custody service
@@ -67,13 +67,13 @@ export interface ICustodyRepository {
       minWeight?: number | null;
       maxWeight?: number | null;
     },
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodyServiceEntity>;
 
   /**
    * Delete a custody service
    */
-  delete(id: string, authenticatedUser?: AuditTrailUser): Promise<void>;
+  delete(id: string, authenticatedUser: AuditTrailUser): Promise<void>;
 
   /**
    * Check if custody service can be deleted (no active positions)

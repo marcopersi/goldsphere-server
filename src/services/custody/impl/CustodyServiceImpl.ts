@@ -99,7 +99,7 @@ export class CustodyServiceImpl implements ICustodyService {
 
   async createCustodyService(
     data: CreateCustodyServiceDTO,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodyServiceResult> {
     try {
       const validation = validateCreateData(data);
@@ -124,7 +124,7 @@ export class CustodyServiceImpl implements ICustodyService {
   async updateCustodyService(
     id: string,
     data: UpdateCustodyServiceDTO,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodyServiceResult> {
     try {
       if (!isValidUUID(id)) return { success: false, error: 'Invalid custody service ID format' };
@@ -157,7 +157,7 @@ export class CustodyServiceImpl implements ICustodyService {
     }
   }
 
-  async deleteCustodyService(id: string, authenticatedUser?: AuditTrailUser): Promise<CustodyServiceResult<void>> {
+  async deleteCustodyService(id: string, authenticatedUser: AuditTrailUser): Promise<CustodyServiceResult<void>> {
     try {
       if (!isValidUUID(id)) return { success: false, error: 'Invalid custody service ID format' };
 

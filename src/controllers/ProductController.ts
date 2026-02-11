@@ -25,6 +25,7 @@ import {
 import type { TsoaResponse } from "tsoa";
 import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
+import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
 import { ProductServiceFactory } from "../services/product";
 import { Metal, ProductTypeEnum } from "@marcopersi/shared";
 import {
@@ -471,7 +472,7 @@ export class ProductController extends Controller {
     @Request() request: ExpressRequest
   ): Promise<ProductSingleResponse | ProductErrorResponse> {
     try {
-      const authenticatedUser = (request as any).user;
+      const authenticatedUser = requireAuthenticatedUser(request);
       const createRequest: CreateProductByIdRequest = {
         name: requestBody.productName,
         productTypeId: requestBody.productTypeId,
@@ -556,7 +557,7 @@ export class ProductController extends Controller {
     @Request() request: ExpressRequest
   ): Promise<ProductSingleResponse | ProductErrorResponse> {
     try {
-      const authenticatedUser = (request as any).user;
+      const authenticatedUser = requireAuthenticatedUser(request);
       // Validate update data
       if (requestBody.price !== undefined && requestBody.price < 0) {
         this.setStatus(400);
@@ -660,7 +661,7 @@ export class ProductController extends Controller {
     @Request() request: ExpressRequest
   ): Promise<ProductDeleteResponse | ProductErrorResponse> {
     try {
-      const authenticatedUser = (request as any).user;
+      const authenticatedUser = requireAuthenticatedUser(request);
       // Get product name before deletion for response message
       const product = await getProductManagementService().getProductById(id);
 
@@ -821,7 +822,7 @@ export class ProductController extends Controller {
     @Request() request: ExpressRequest
   ): Promise<ProductDeleteResponse | ProductErrorResponse> {
     try {
-      const authenticatedUser = (request as any).user;
+      const authenticatedUser = requireAuthenticatedUser(request);
       const { imageBase64, contentType, filename } = requestBody;
 
       if (!imageBase64 || !contentType || !filename) {

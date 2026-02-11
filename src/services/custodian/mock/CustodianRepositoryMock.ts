@@ -98,7 +98,7 @@ export class CustodianRepositoryMock implements ICustodianRepository {
     );
   }
 
-  async create(name: string, _authenticatedUser?: AuditTrailUser): Promise<CustodianEntity> {
+  async create(name: string, _authenticatedUser: AuditTrailUser): Promise<CustodianEntity> {
     const newCustodian: CustodianEntity = {
       id: `550e8400-e29b-41d4-a716-${Date.now().toString().padStart(12, '0')}`,
       custodianname: name,
@@ -109,7 +109,7 @@ export class CustodianRepositoryMock implements ICustodianRepository {
     return newCustodian;
   }
 
-  async update(id: string, name: string, _authenticatedUser?: AuditTrailUser): Promise<CustodianEntity> {
+  async update(id: string, name: string, _authenticatedUser: AuditTrailUser): Promise<CustodianEntity> {
     const custodian = await this.findById(id);
     if (!custodian) {
       throw new Error('Custodian not found');
@@ -120,7 +120,7 @@ export class CustodianRepositoryMock implements ICustodianRepository {
     return custodian;
   }
 
-  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(id: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     const index = this.custodians.findIndex((c) => c.id === id);
     if (index !== -1) {
       this.custodians.splice(index, 1);

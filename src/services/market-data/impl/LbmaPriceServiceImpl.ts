@@ -227,7 +227,7 @@ export class LbmaPriceServiceImpl implements ILbmaPriceService {
     }
   }
 
-  async savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser?: AuditTrailUser): Promise<string> {
+  async savePremiumConfig(config: Omit<PremiumConfig, 'id'>, authenticatedUser: AuditTrailUser): Promise<string> {
     try {
       // Resolve metalId from symbol if not provided (Clean Architecture)
       let resolvedConfig = config;
@@ -245,7 +245,7 @@ export class LbmaPriceServiceImpl implements ILbmaPriceService {
     }
   }
 
-  async updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async updatePremiumConfig(id: string, config: Partial<PremiumConfig>, authenticatedUser: AuditTrailUser): Promise<void> {
     try {
       await this.lbmaRepository.updatePremiumConfig(id, config, authenticatedUser);
     } catch (error) {

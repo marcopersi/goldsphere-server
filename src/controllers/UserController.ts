@@ -23,6 +23,7 @@ import {
 } from 'tsoa';
 import type { Request as ExpressRequest } from 'express';
 import { getPool } from '../dbConfig';
+import { requireAuthenticatedUser, AuthenticationError } from '../utils/auditTrail';
 import { UuidSchema } from '@marcopersi/shared';
 import { 
   UserServiceFactory, 
@@ -468,6 +469,7 @@ export class UserController extends Controller {
    * @param body User creation data
    */
   @Post()
+  @Security('bearerAuth')
   @SuccessResponse(201, 'User created')
   @Response<UserErrorResponse>(400, 'Invalid input')
   @Response<UserErrorResponse>(409, 'Email already exists')
@@ -485,7 +487,7 @@ export class UserController extends Controller {
       };
     }
 
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
 
     const userService = getUserService();
     const result = await userService.createUser({
@@ -527,6 +529,7 @@ export class UserController extends Controller {
    * @param body Update data
    */
   @Put('{id}')
+  @Security('bearerAuth')
   @SuccessResponse(200, 'User updated')
   @Response<UserErrorResponse>(400, 'Invalid input')
   @Response<UserErrorResponse>(404, 'User not found')
@@ -555,7 +558,7 @@ export class UserController extends Controller {
       };
     }
 
-    const authenticatedUser = (request as any).user;
+    const authenticatedUser = requireAuthenticatedUser(request);
 
     const userService = getUserService();
     const result = await userService.updateUser(id, {
@@ -621,12 +624,8 @@ export class UserController extends Controller {
       throw new Error('Block reason is required');
     }
 
-    const authenticatedUser = (request as any).user;
-    const blockedBy = authenticatedUser?.id;
-    if (!blockedBy) {
-      this.setStatus(401);
-      throw new Error('Authentication required');
-    }
+    const authenticatedUser = requireAuthenticatedUser(request);
+    const blockedBy = authenticatedUser.id;
 
     const userService = getUserService();
     const result = await userService.blockUser(id, blockedBy, body.reason, authenticatedUser);
@@ -672,11 +671,7 @@ export class UserController extends Controller {
       throw new Error('Invalid user ID format');
     }
 
-    const authenticatedUser = (request as any).user;
-    if (!authenticatedUser) {
-      this.setStatus(401);
-      throw new Error('Authentication required');
-    }
+    const authenticatedUser = requireAuthenticatedUser(request);
 
     const userService = getUserService();
     const result = await userService.unblockUser(id, authenticatedUser);
@@ -719,11 +714,7 @@ export class UserController extends Controller {
       throw new Error('Invalid user ID format');
     }
 
-    const authenticatedUser = (request as any).user;
-    if (!authenticatedUser) {
-      this.setStatus(401);
-      throw new Error('Authentication required');
-    }
+    const authenticatedUser = requireAuthenticatedUser(request);
 
     const userService = getUserService();
     const result = await userService.softDeleteUser(id, authenticatedUser);

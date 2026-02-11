@@ -85,25 +85,38 @@ interface IProductRepository {
 
 ### Audit Trail
 
-All write operations must record audit metadata when the table supports it. Use `getAuditUser()` to guarantee a consistent audit user and avoid unaudited fallbacks.
+All write operations must record audit metadata when the table supports it. Use `getAuditUser()` and `requireAuthenticatedUser()` to enforce strict user validation — **no silent fallbacks allowed**.
 
 **Key rules:**
-- Pass `authenticatedUser` from controller -> service -> repository.
+- Pass `authenticatedUser` from controller -> service -> repository — the parameter is **required** (not optional).
+- Controllers must use `requireAuthenticatedUser(request)` to extract and validate the user. This throws `AuthenticationError` if no valid user is present.
 - Repositories must always set `createdBy` and `updatedBy` (or `updatedBy` for updates) when columns exist.
-- If no authenticated user is available, use `getAuditUser()` which falls back to `SYSTEM_USER`.
+- **No SYSTEM_USER fallback.** Every write operation must have a real authenticated user. If authentication fails, fail fast with 401.
 - Some tables (e.g., market price/history/cache) do not have audit columns; do not add audit writes there.
 
 ```typescript
 // utils/auditTrail.ts
-export const SYSTEM_USER: AuditTrailUser = {
-  id: '00000000-0000-0000-0000-000000000000',
-  email: 'system@internal',
-  role: 'user'
-} as const;
 
-export function getAuditUser(user?: AuditTrailUser): AuditTrailUser {
-  return user ?? SYSTEM_USER;
+// Fail-fast guard for controllers — extracts user from request
+export function requireAuthenticatedUser(request: any): AuditTrailUser {
+  const user = request?.user;
+  if (!user?.id || !user?.email || !user?.role) {
+    throw new AuthenticationError('Authenticated user required.');
+  }
+  return user;
 }
+
+// Validation guard for repositories — ensures user is valid
+export function getAuditUser(user: AuditTrailUser): AuditTrailUser {
+  if (!user?.id || !user?.email) {
+    throw new AuthenticationError('Audit trail user is required.');
+  }
+  return user;
+}
+
+// Controller example
+const authenticatedUser = requireAuthenticatedUser(request);
+const result = await service.createProduct(data, authenticatedUser);
 
 // Repository example
 const auditUser = getAuditUser(authenticatedUser);

@@ -159,7 +159,7 @@ export class ProductRepositoryMock implements IProductRepository {
     return this.lookupData.get(key) || null;
   }
 
-  async create(data: CreateProductRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async create(data: CreateProductRequest, _authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     const lookupIds = await this.findLookupIds(data.productType, data.metal, data.producer, data.country);
 
     if (!lookupIds) {
@@ -309,7 +309,7 @@ export class ProductRepositoryMock implements IProductRepository {
     };
   }
 
-  async update(id: string, data: UpdateProductRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async update(id: string, data: UpdateProductRequest, _authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     const product = this.products.get(id);
     if (!product) {
       throw new Error(`Product not found: ${id}`);
@@ -342,7 +342,7 @@ export class ProductRepositoryMock implements IProductRepository {
     return updated;
   }
 
-  async delete(id: string, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async delete(id: string, _authenticatedUser: AuditTrailUser): Promise<void> {
     if (!this.products.has(id)) {
       throw new Error(`Product not found: ${id}`);
     }
@@ -350,7 +350,7 @@ export class ProductRepositoryMock implements IProductRepository {
     this.imageData.delete(id);
   }
 
-  async saveImage(productId: string, image: ProductImageUpload, _authenticatedUser?: AuditTrailUser): Promise<void> {
+  async saveImage(productId: string, image: ProductImageUpload, _authenticatedUser: AuditTrailUser): Promise<void> {
     if (!this.products.has(productId)) {
       throw new Error(`Product not found: ${productId}`);
     }
@@ -424,7 +424,7 @@ export class ProductRepositoryMock implements IProductRepository {
     return { valid: true, errors: [] };
   }
   
-  async createById(data: CreateProductByIdRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async createById(data: CreateProductByIdRequest, _authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     const id = `prod-${Date.now()}`;
     const now = new Date();
     
@@ -469,7 +469,7 @@ export class ProductRepositoryMock implements IProductRepository {
     return product;
   }
   
-  async updateById(id: string, data: UpdateProductByIdRequest, _authenticatedUser?: AuditTrailUser): Promise<ProductManagementResponse> {
+  async updateById(id: string, data: UpdateProductByIdRequest, _authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
     const product = this.products.get(id);
     if (!product) {
       throw new Error(`Product not found: ${id}`);

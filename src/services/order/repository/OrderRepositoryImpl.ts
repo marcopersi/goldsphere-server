@@ -13,7 +13,7 @@ import { createOrderWithAudit, createOrderItemWithAudit, updateOrderWithAudit, A
 export class OrderRepositoryImpl implements IOrderRepository {
   constructor(private readonly pool: Pool) {}
 
-  async create(order: Order, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async create(order: Order, authenticatedUser: AuditTrailUser): Promise<void> {
     try {
       const auditUser = getAuditUser(authenticatedUser);
 
@@ -183,7 +183,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
     return { orders, pagination };
   }
 
-  async updateStatus(orderId: string, newStatus: string, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async updateStatus(orderId: string, newStatus: string, authenticatedUser: AuditTrailUser): Promise<void> {
     try {
       const auditUser = getAuditUser(authenticatedUser);
       const updatedOrder = await updateOrderWithAudit(orderId, {
@@ -198,7 +198,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
     }
   }
 
-  async update(orderId: string, updates: Partial<Order>, authenticatedUser?: AuditTrailUser): Promise<void> {
+  async update(orderId: string, updates: Partial<Order>, authenticatedUser: AuditTrailUser): Promise<void> {
     try {
       const updateData: { type?: string; orderstatus?: string } = {};
       if (updates.type) {

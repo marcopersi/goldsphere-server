@@ -27,7 +27,7 @@ export interface ICustodianService {
   /**
    * Create a new custodian
    */
-  createCustodian(data: CreateCustodianDTO, authenticatedUser?: AuditTrailUser): Promise<CustodianResult>;
+  createCustodian(data: CreateCustodianDTO, authenticatedUser: AuditTrailUser): Promise<CustodianResult>;
 
   /**
    * Update a custodian
@@ -35,13 +35,13 @@ export interface ICustodianService {
   updateCustodian(
     id: string,
     data: UpdateCustodianDTO,
-    authenticatedUser?: AuditTrailUser
+    authenticatedUser: AuditTrailUser
   ): Promise<CustodianResult>;
 
   /**
    * Delete a custodian
    */
-  deleteCustodian(id: string, authenticatedUser?: AuditTrailUser): Promise<CustodianResult<void>>;
+  deleteCustodian(id: string, authenticatedUser: AuditTrailUser): Promise<CustodianResult<void>>;
 
   /**
    * Validate if custodian can be deleted

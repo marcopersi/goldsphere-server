@@ -28,6 +28,7 @@ import { OrderServiceFactory } from "../services/order";
 import { ProductServiceFactory } from "../services/product";
 import { CalculationServiceFactory } from "../services/calculation";
 import { createLogger } from "../utils/logger";
+import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
 
 const logger = createLogger("OrdersController");
 
@@ -174,15 +175,7 @@ export class OrdersController extends Controller {
     @Query() userId?: string
   ): Promise<OrdersListResponse | OrdersErrorResponse> {
     try {
-      const authenticatedUser = request.user;
-
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
-        };
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       // Access control: Regular users can only access their own orders
       if (authenticatedUser.role !== 'admin' && userId && userId !== authenticatedUser.id) {
@@ -212,6 +205,10 @@ export class OrdersController extends Controller {
         user: effectiveUserId ? { id: effectiveUserId } : undefined
       };
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error("Error fetching orders", error);
       this.setStatus(500);
       return {
@@ -240,15 +237,7 @@ export class OrdersController extends Controller {
     @Query() userId?: string
   ): Promise<OrdersAdminResponse | OrdersErrorResponse> {
     try {
-      const authenticatedUser = request.user;
-
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
-        };
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       // Check if user is admin
       if (authenticatedUser.role !== 'admin') {
@@ -334,6 +323,10 @@ export class OrdersController extends Controller {
         }
       };
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error("Error fetching orders for admin", error);
       this.setStatus(500);
       return {
@@ -360,16 +353,7 @@ export class OrdersController extends Controller {
     @Query() type?: string
   ): Promise<OrdersListResponse | OrdersErrorResponse> {
     try {
-      // Extract user info from JWT token
-      const authenticatedUser = request.user;
-
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
-        };
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       // Use orderService to get user's orders
       const ordersResult = await orderService.getOrdersByUserId(authenticatedUser.id, {
@@ -390,6 +374,10 @@ export class OrdersController extends Controller {
         }
       };
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error("Error fetching user's orders", error);
       this.setStatus(500);
       return {
@@ -414,15 +402,7 @@ export class OrdersController extends Controller {
     @Body() body: OrdersCreateInput
   ): Promise<OrdersCreateResponse | OrdersErrorResponse> {
     try {
-      const userId = request.user?.id;
-
-      if (!userId) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
-        };
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       // Validate items array
       if (!body.items || body.items.length === 0) {
@@ -436,14 +416,14 @@ export class OrdersController extends Controller {
 
       // Use OrderService to create order with proper validation and enrichment
       const createOrderRequest = {
-        userId: userId,
+        userId: authenticatedUser.id,
         type: body.type,
         items: body.items,
         custodyServiceId: body.custodyServiceId,
         notes: body.notes
       };
 
-      const result = await orderService.createOrder(createOrderRequest);
+      const result = await orderService.createOrder(createOrderRequest, authenticatedUser);
 
       this.setStatus(201);
       return {
@@ -452,6 +432,10 @@ export class OrdersController extends Controller {
         message: "Order created successfully. Backend enriched the order with product details and calculations."
       };
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error("Error creating order", error);
 
       const errorMessage = (error as Error).message;
@@ -538,7 +522,7 @@ export class OrdersController extends Controller {
     @Path() id: string
   ): Promise<any> {
     try {
-      const authenticatedUser = request.user;
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       // Validate UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -547,15 +531,6 @@ export class OrdersController extends Controller {
         return {
           success: false,
           error: "Invalid order ID format"
-        };
-      }
-
-      // Check authentication
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
         };
       }
 
@@ -698,6 +673,10 @@ export class OrdersController extends Controller {
         message: "Detailed order retrieved successfully"
       };
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error("Error fetching detailed order", error);
       this.setStatus(500);
       return {
@@ -735,14 +714,7 @@ export class OrdersController extends Controller {
         };
       }
 
-      const authenticatedUser = request.user;
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
-        };
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       if (authenticatedUser.role !== 'admin') {
         this.setStatus(403);
@@ -751,6 +723,8 @@ export class OrdersController extends Controller {
           error: "Access denied. Admin role required to process orders."
         };
       }
+
+      // No redundant DB check needed — tsoa @Security("bearerAuth") already verifies user exists in DB
 
       // Get current order
       const currentOrder = await orderService.getOrderById(id);
@@ -915,7 +889,7 @@ export class OrdersController extends Controller {
       }
 
       // Update order status
-      await orderService.updateOrderStatus(id, newStatus);
+      await orderService.updateOrderStatus(id, newStatus, authenticatedUser);
 
       // Get updated order
       const updatedOrder = await orderService.getOrderById(id);
@@ -932,6 +906,10 @@ export class OrdersController extends Controller {
         message: `Order status updated to ${newStatus}`
       };
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error("Error processing order", error);
       this.setStatus(500);
       return {
@@ -1066,14 +1044,7 @@ export class OrdersController extends Controller {
         };
       }
 
-      const authenticatedUser = request.user;
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
-        };
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
 
       if (authenticatedUser.role !== 'admin') {
         this.setStatus(403);
@@ -1129,6 +1100,10 @@ export class OrdersController extends Controller {
         throw dbError;
       }
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error("Error deleting order", error);
       this.setStatus(500);
       return {
@@ -1165,14 +1140,9 @@ export class OrdersController extends Controller {
         };
       }
 
-      const authenticatedUser = request.user;
-      if (!authenticatedUser) {
-        this.setStatus(401);
-        return {
-          success: false,
-          error: "User not authenticated"
-        };
-      }
+      const authenticatedUser = requireAuthenticatedUser(request);
+
+      // No redundant DB check needed — tsoa @Security("bearerAuth") already verifies user exists in DB
 
       // Get order to check ownership and status
       const order = await orderService.getOrderById(id);
@@ -1212,7 +1182,7 @@ export class OrdersController extends Controller {
       }
 
       // Update status to cancelled
-      await orderService.updateOrderStatus(id, 'cancelled');
+      await orderService.updateOrderStatus(id, 'cancelled', authenticatedUser);
 
       // Get updated order
       const cancelledOrder = await orderService.getOrderById(id);
@@ -1233,6 +1203,10 @@ export class OrdersController extends Controller {
         }
       };
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        this.setStatus(401);
+        return { success: false, error: error.message };
+      }
       logger.error(`Error cancelling order ${id}`, error);
 
       const errorMessage = (error as Error).message;
