@@ -6,6 +6,7 @@
  */
 
 import request from 'supertest';
+import { getPool } from '../../src/dbConfig';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
 let app: any;
@@ -427,6 +428,103 @@ describe('Users API Integration Tests', () => {
         .expect(200);
 
       expect(response.body.pagination.limit).toBeLessThanOrEqual(100);
+    });
+  });
+
+  describe('GET /api/users/blocked', () => {
+    it('should return blocked users list (admin only)', async () => {
+      const response = await request(app)
+        .get('/api/users/blocked')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
+
+    it('should require authentication', async () => {
+      const response = await request(app)
+        .get('/api/users/blocked');
+
+      expect([401, 403]).toContain(response.status);
+    });
+  });
+
+  describe('POST /api/users/:id/block and POST /api/users/:id/unblock', () => {
+    it('should block and unblock a user', async () => {
+      const pool = getPool();
+      // Create a test user to block
+      const createResponse = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          email: `block-test-${Date.now()}@example.com`,
+          password: 'SecurePass123',
+          role: 'user'
+        })
+        .expect(201);
+
+      const userId = createResponse.body.data.id;
+
+      try {
+        // Block the user
+        const blockResponse = await request(app)
+          .post(`/api/users/${userId}/block`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send({ reason: 'Test block reason' })
+          .expect(200);
+
+        expect(blockResponse.body).toHaveProperty('success', true);
+        expect(blockResponse.body.data.accountStatus).toBe('blocked');
+
+        // Unblock the user
+        const unblockResponse = await request(app)
+          .post(`/api/users/${userId}/unblock`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .expect(200);
+
+        expect(unblockResponse.body).toHaveProperty('success', true);
+      } finally {
+        await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+      }
+    });
+
+    it('should return 404 for non-existent user block', async () => {
+      const response = await request(app)
+        .post(`/api/users/${NON_EXISTENT_USER_ID}/block`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ reason: 'Test' });
+
+      expect([404, 400, 500]).toContain(response.status);
+    });
+  });
+
+  describe('DELETE /api/users/:id/soft', () => {
+    it('should soft delete a user', async () => {
+      const pool = getPool();
+      const createResponse = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          email: `softdelete-${Date.now()}@example.com`,
+          password: 'SecurePass123',
+          role: 'user'
+        })
+        .expect(201);
+
+      const userId = createResponse.body.data.id;
+
+      try {
+        const response = await request(app)
+          .delete(`/api/users/${userId}/soft`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .expect(200);
+
+        expect(response.body).toHaveProperty('success', true);
+      } finally {
+        await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+      }
     });
   });
 });

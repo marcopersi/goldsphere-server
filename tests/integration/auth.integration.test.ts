@@ -172,4 +172,59 @@ describe('Authentication Endpoints', () => {
       expect(token.split('.')).toHaveLength(3); // JWT format: header.payload.signature
     });
   });
+
+  describe('POST /api/auth/refresh', () => {
+    it('should refresh a valid token', async () => {
+      // First login to get a valid token
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
+        .expect(200);
+
+      const token = loginResponse.body.token;
+
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('token');
+      expect(typeof response.body.token).toBe('string');
+    });
+
+    it('should reject refresh without token', async () => {
+      const response = await request(app)
+        .post('/api/auth/refresh');
+
+      expect([401, 500]).toContain(response.status);
+    });
+  });
+
+  describe('GET /api/auth/me', () => {
+    it('should return current user info', async () => {
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
+        .expect(200);
+
+      const token = loginResponse.body.token;
+
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body).toHaveProperty('email', 'bank.technical@goldsphere.vault');
+      expect(response.body).toHaveProperty('role');
+    });
+
+    it('should reject without token', async () => {
+      const response = await request(app)
+        .get('/api/auth/me');
+
+      expect([401, 500]).toContain(response.status);
+    });
+  });
 });

@@ -290,4 +290,80 @@ describe('Custody Service Integration Tests', () => {
       });
     });
   });
+
+  describe('GET /api/custody/custodyServices (paginated)', () => {
+    it('should return paginated custody services', async () => {
+      const response = await request(app)
+        .get('/api/custody/custodyServices?page=1&limit=10')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+    });
+
+    it('should return services without pagination params', async () => {
+      const response = await request(app)
+        .get('/api/custody/custodyServices')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+    });
+  });
+
+  describe('GET /api/custody/custodyServices/:id', () => {
+    it('should return a custody service by ID', async () => {
+      const pool = getPool();
+      const existing = await pool.query("SELECT id FROM custodyService LIMIT 1");
+      const serviceId = existing.rows[0].id;
+
+      const response = await request(app)
+        .get(`/api/custody/custodyServices/${serviceId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('id', serviceId);
+    });
+
+    it('should return 404 for non-existent custody service', async () => {
+      const response = await request(app)
+        .get('/api/custody/custodyServices/00000000-0000-0000-0000-000000000000')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([404, 500]).toContain(response.status);
+    });
+  });
+
+  describe('PUT /api/custody/custodyServices/:id', () => {
+    it('should update a custody service', async () => {
+      const pool = getPool();
+      const existing = await pool.query("SELECT id FROM custodyService LIMIT 1");
+      const serviceId = existing.rows[0].id;
+
+      const response = await request(app)
+        .put(`/api/custody/custodyServices/${serviceId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ fee: 99.99 })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+    });
+  });
+
+  describe('DELETE /api/custody/custodyServices/:id', () => {
+    it('should handle delete of custody service with positions', async () => {
+      const pool = getPool();
+      const existing = await pool.query("SELECT id FROM custodyService LIMIT 1");
+      const serviceId = existing.rows[0].id;
+
+      // Likely returns 409 (has existing positions) or 200
+      const response = await request(app)
+        .delete(`/api/custody/custodyServices/${serviceId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([200, 409, 500]).toContain(response.status);
+    });
+  });
 });

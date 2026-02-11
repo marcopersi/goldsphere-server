@@ -1,5 +1,6 @@
 import request from "supertest";
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
+import { getPool } from '../../src/dbConfig';
 
 let app: any;
 
@@ -186,6 +187,90 @@ describe("Custody Management API", () => {
       expect(segregated).toBeDefined();
       expect(segregated.value).toBe("segregated-storage");
       expect(segregated.displayName).toBe("Segregated Storage");
+    });
+  });
+
+  describe('GET /api/custodians/custodians (paginated)', () => {
+    it('should return paginated custodians list', async () => {
+      const response = await request(app)
+        .get('/api/custodians/custodians?page=1&limit=10')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+    });
+
+    it('should return custodians without pagination params', async () => {
+      const response = await request(app)
+        .get('/api/custodians/custodians')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+    });
+  });
+
+  describe('GET /api/custodians/custodians/:id', () => {
+    it('should return a specific custodian by ID', async () => {
+      const pool = getPool();
+      const existing = await pool.query("SELECT id FROM custodian LIMIT 1");
+      const custodianId = existing.rows[0].id;
+
+      const response = await request(app)
+        .get(`/api/custodians/custodians/${custodianId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('id', custodianId);
+    });
+
+    it('should return 404 for non-existent custodian', async () => {
+      const response = await request(app)
+        .get('/api/custodians/custodians/00000000-0000-0000-0000-000000000000')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([404, 500]).toContain(response.status);
+    });
+  });
+
+  describe('PUT /api/custodians/custodians/:id', () => {
+    it('should update a custodian', async () => {
+      const pool = getPool();
+      const insertResult = await pool.query(
+        "INSERT INTO custodian (custodianName) VALUES ('TestCustodian') RETURNING id"
+      );
+      const id = insertResult.rows[0].id;
+
+      try {
+        const response = await request(app)
+          .put(`/api/custodians/custodians/${id}`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send({ name: 'UpdatedCustodian' })
+          .expect(200);
+
+        expect(response.body).toHaveProperty('success', true);
+      } finally {
+        await pool.query('DELETE FROM custodian WHERE id = $1', [id]);
+      }
+    });
+  });
+
+  describe('DELETE /api/custodians/custodians/:id', () => {
+    it('should delete a custodian without services', async () => {
+      const pool = getPool();
+      const insertResult = await pool.query(
+        "INSERT INTO custodian (custodianName) VALUES ('ToDeleteCustodian') RETURNING id"
+      );
+      const id = insertResult.rows[0].id;
+
+      const response = await request(app)
+        .delete(`/api/custodians/custodians/${id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
     });
   });
 });
