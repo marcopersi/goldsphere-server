@@ -69,6 +69,7 @@ cp .env.prod .env
 - `DB_*` - Database connection settings
 - `JWT_SECRET` - JWT signing secret (min 32 chars)
 - `STRIPE_SECRET_KEY` - Stripe API secret key
+- `CONNECTOR_CREDENTIAL_KEY` - 32-byte base64 key for encrypting connector credentials
 
 ### Stripe Configuration
 - **Development/Test**: Use test keys (sk_test_...)

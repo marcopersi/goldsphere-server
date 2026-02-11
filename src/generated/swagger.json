@@ -6471,6 +6471,321 @@
 				],
 				"type": "object",
 				"additionalProperties": false
+			},
+			"ConnectorType": {
+				"type": "string",
+				"enum": [
+					"woocommerce"
+				],
+				"nullable": false,
+				"description": "Connector Types\n\nShared DTOs for admin connectivity endpoints."
+			},
+			"ConnectorStatus": {
+				"type": "string",
+				"enum": [
+					"active",
+					"disabled",
+					"error"
+				]
+			},
+			"SyncRunStatus": {
+				"type": "string",
+				"enum": [
+					"running",
+					"success",
+					"failed"
+				]
+			},
+			"ConnectorRunSummary": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"status": {
+						"$ref": "#/components/schemas/SyncRunStatus"
+					},
+					"startedAt": {
+						"type": "string"
+					},
+					"finishedAt": {
+						"type": "string"
+					},
+					"stats": {
+						"$ref": "#/components/schemas/Record_string.unknown_"
+					}
+				},
+				"required": [
+					"id",
+					"status",
+					"startedAt"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorSummary": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"type": {
+						"$ref": "#/components/schemas/ConnectorType"
+					},
+					"baseUrl": {
+						"type": "string"
+					},
+					"status": {
+						"$ref": "#/components/schemas/ConnectorStatus"
+					},
+					"lastTestAt": {
+						"type": "string"
+					},
+					"syncProducts": {
+						"type": "boolean"
+					},
+					"syncOrders": {
+						"type": "boolean"
+					},
+					"lastRun": {
+						"$ref": "#/components/schemas/ConnectorRunSummary"
+					}
+				},
+				"required": [
+					"id",
+					"type",
+					"baseUrl",
+					"status",
+					"syncProducts",
+					"syncOrders"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorListResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"connectors": {
+						"items": {
+							"$ref": "#/components/schemas/ConnectorSummary"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"success",
+					"connectors"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorsErrorResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							false
+						],
+						"nullable": false
+					},
+					"error": {
+						"type": "string"
+					},
+					"details": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"success",
+					"error"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorCreateResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"connector": {
+						"$ref": "#/components/schemas/ConnectorSummary"
+					}
+				},
+				"required": [
+					"success",
+					"connector"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorCreateRequest": {
+				"properties": {
+					"type": {
+						"$ref": "#/components/schemas/ConnectorType"
+					},
+					"baseUrl": {
+						"type": "string"
+					},
+					"consumerKey": {
+						"type": "string"
+					},
+					"consumerSecret": {
+						"type": "string"
+					},
+					"syncProducts": {
+						"type": "boolean"
+					},
+					"syncOrders": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"type",
+					"baseUrl",
+					"consumerKey",
+					"consumerSecret",
+					"syncProducts",
+					"syncOrders"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorUpdateResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"connector": {
+						"$ref": "#/components/schemas/ConnectorSummary"
+					}
+				},
+				"required": [
+					"success",
+					"connector"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorUpdateRequest": {
+				"properties": {
+					"baseUrl": {
+						"type": "string"
+					},
+					"consumerKey": {
+						"type": "string"
+					},
+					"consumerSecret": {
+						"type": "string"
+					},
+					"syncProducts": {
+						"type": "boolean"
+					},
+					"syncOrders": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"baseUrl",
+					"syncProducts",
+					"syncOrders"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorTestResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"success",
+					"message"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorSyncResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"runId": {
+						"type": "string"
+					},
+					"status": {
+						"$ref": "#/components/schemas/SyncRunStatus"
+					}
+				},
+				"required": [
+					"success",
+					"runId",
+					"status"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorSyncRequest": {
+				"properties": {
+					"syncProducts": {
+						"type": "boolean"
+					},
+					"syncOrders": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"syncProducts",
+					"syncOrders"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ConnectorRunsResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"runs": {
+						"items": {
+							"$ref": "#/components/schemas/ConnectorRunSummary"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"success",
+					"runs"
+				],
+				"type": "object",
+				"additionalProperties": false
 			}
 		},
 		"securitySchemes": {
@@ -14795,6 +15110,368 @@
 						}
 					}
 				}
+			}
+		},
+		"/admin/connectors": {
+			"get": {
+				"operationId": "ListConnectors",
+				"responses": {
+					"200": {
+						"description": "Connectors retrieved",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorListResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Admin Connectors"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"admin"
+						]
+					}
+				],
+				"parameters": []
+			},
+			"post": {
+				"operationId": "CreateConnector",
+				"responses": {
+					"201": {
+						"description": "Connector created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorCreateResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Admin Connectors"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"admin"
+						]
+					}
+				],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ConnectorCreateRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/connectors/{id}": {
+			"put": {
+				"operationId": "UpdateConnector",
+				"responses": {
+					"200": {
+						"description": "Connector updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorUpdateResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Connector not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Admin Connectors"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"admin"
+						]
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ConnectorUpdateRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/connectors/{id}/test": {
+			"post": {
+				"operationId": "TestConnector",
+				"responses": {
+					"200": {
+						"description": "Connection test executed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorTestResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Connector not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Admin Connectors"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"admin"
+						]
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/admin/connectors/{id}/sync": {
+			"post": {
+				"operationId": "SyncConnector",
+				"responses": {
+					"200": {
+						"description": "Sync started",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorSyncResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Connector not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Admin Connectors"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"admin"
+						]
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ConnectorSyncRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/admin/connectors/{id}/runs": {
+			"get": {
+				"operationId": "ListSyncRuns",
+				"responses": {
+					"200": {
+						"description": "Sync runs retrieved",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorRunsResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Connector not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectorsErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"Admin Connectors"
+				],
+				"security": [
+					{
+						"bearerAuth": [
+							"admin"
+						]
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
 			}
 		}
 	},

@@ -5,6 +5,7 @@
 - [Backlog](BACKLOG.md)
 - [CI/CD](CI_CD.md)
 - [Credentials](CREDENTIALS.md)
+- [External Connectors](CONNECTORS.md)
 - [Deployment (VM / Docker)](DEPLOYMENT.md)
 - [Email Setup](EMAIL_SETUP.md)
 - [Environment](ENVIRONMENT.md)

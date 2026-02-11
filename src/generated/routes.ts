@@ -45,6 +45,8 @@ import { CountriesController } from './../controllers/CountriesController';
 import { AuthController } from './../controllers/AuthController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AdminController } from './../controllers/AdminController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { AdminConnectorsController } from './../controllers/AdminConnectorsController';
 import { expressAuthentication } from './../middleware/tsoaAuth';
 // @ts-ignore - no great way to install types from subpackage
 import type { Request as ExRequest, Response as ExResponse, RequestHandler, Router } from 'express';
@@ -2051,6 +2053,147 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "message": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorType": {
+        "dataType": "refAlias",
+        "type": {"dataType":"enum","enums":["woocommerce"],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorStatus": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["active"]},{"dataType":"enum","enums":["disabled"]},{"dataType":"enum","enums":["error"]}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "SyncRunStatus": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["running"]},{"dataType":"enum","enums":["success"]},{"dataType":"enum","enums":["failed"]}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorRunSummary": {
+        "dataType": "refObject",
+        "properties": {
+            "id": {"dataType":"string","required":true},
+            "status": {"ref":"SyncRunStatus","required":true},
+            "startedAt": {"dataType":"string","required":true},
+            "finishedAt": {"dataType":"string"},
+            "stats": {"ref":"Record_string.unknown_"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorSummary": {
+        "dataType": "refObject",
+        "properties": {
+            "id": {"dataType":"string","required":true},
+            "type": {"ref":"ConnectorType","required":true},
+            "baseUrl": {"dataType":"string","required":true},
+            "status": {"ref":"ConnectorStatus","required":true},
+            "lastTestAt": {"dataType":"string"},
+            "syncProducts": {"dataType":"boolean","required":true},
+            "syncOrders": {"dataType":"boolean","required":true},
+            "lastRun": {"ref":"ConnectorRunSummary"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorListResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "connectors": {"dataType":"array","array":{"dataType":"refObject","ref":"ConnectorSummary"},"required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorsErrorResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[false],"required":true},
+            "error": {"dataType":"string","required":true},
+            "details": {"dataType":"string"},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorCreateResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "connector": {"ref":"ConnectorSummary","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorCreateRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "type": {"ref":"ConnectorType","required":true},
+            "baseUrl": {"dataType":"string","required":true},
+            "consumerKey": {"dataType":"string","required":true},
+            "consumerSecret": {"dataType":"string","required":true},
+            "syncProducts": {"dataType":"boolean","required":true},
+            "syncOrders": {"dataType":"boolean","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorUpdateResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "connector": {"ref":"ConnectorSummary","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorUpdateRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "baseUrl": {"dataType":"string","required":true},
+            "consumerKey": {"dataType":"string"},
+            "consumerSecret": {"dataType":"string"},
+            "syncProducts": {"dataType":"boolean","required":true},
+            "syncOrders": {"dataType":"boolean","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorTestResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "message": {"dataType":"string","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorSyncResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "runId": {"dataType":"string","required":true},
+            "status": {"ref":"SyncRunStatus","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorSyncRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "syncProducts": {"dataType":"boolean","required":true},
+            "syncOrders": {"dataType":"boolean","required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ConnectorRunsResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "runs": {"dataType":"array","array":{"dataType":"refObject","ref":"ConnectorRunSummary"},"required":true},
         },
         "additionalProperties": false,
     },
@@ -5771,6 +5914,195 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
 
               await templateService.apiHandler({
                 methodName: 'importProductsCsv',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAdminConnectorsController_listConnectors: Record<string, TsoaRoute.ParameterSchema> = {
+        };
+        app.get('/api/admin/connectors',
+            authenticateMiddleware([{"bearerAuth":["admin"]}]),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController)),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController.prototype.listConnectors)),
+
+            async function AdminConnectorsController_listConnectors(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAdminConnectorsController_listConnectors, request, response });
+
+                const controller = new AdminConnectorsController();
+
+              await templateService.apiHandler({
+                methodName: 'listConnectors',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAdminConnectorsController_createConnector: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"request","name":"request","required":true,"dataType":"object"},
+                body: {"in":"body","name":"body","required":true,"ref":"ConnectorCreateRequest"},
+        };
+        app.post('/api/admin/connectors',
+            authenticateMiddleware([{"bearerAuth":["admin"]}]),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController)),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController.prototype.createConnector)),
+
+            async function AdminConnectorsController_createConnector(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAdminConnectorsController_createConnector, request, response });
+
+                const controller = new AdminConnectorsController();
+
+              await templateService.apiHandler({
+                methodName: 'createConnector',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 201,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAdminConnectorsController_updateConnector: Record<string, TsoaRoute.ParameterSchema> = {
+                id: {"in":"path","name":"id","required":true,"dataType":"string"},
+                request: {"in":"request","name":"request","required":true,"dataType":"object"},
+                body: {"in":"body","name":"body","required":true,"ref":"ConnectorUpdateRequest"},
+        };
+        app.put('/api/admin/connectors/:id',
+            authenticateMiddleware([{"bearerAuth":["admin"]}]),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController)),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController.prototype.updateConnector)),
+
+            async function AdminConnectorsController_updateConnector(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAdminConnectorsController_updateConnector, request, response });
+
+                const controller = new AdminConnectorsController();
+
+              await templateService.apiHandler({
+                methodName: 'updateConnector',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAdminConnectorsController_testConnector: Record<string, TsoaRoute.ParameterSchema> = {
+                id: {"in":"path","name":"id","required":true,"dataType":"string"},
+        };
+        app.post('/api/admin/connectors/:id/test',
+            authenticateMiddleware([{"bearerAuth":["admin"]}]),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController)),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController.prototype.testConnector)),
+
+            async function AdminConnectorsController_testConnector(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAdminConnectorsController_testConnector, request, response });
+
+                const controller = new AdminConnectorsController();
+
+              await templateService.apiHandler({
+                methodName: 'testConnector',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAdminConnectorsController_syncConnector: Record<string, TsoaRoute.ParameterSchema> = {
+                id: {"in":"path","name":"id","required":true,"dataType":"string"},
+                body: {"in":"body","name":"body","required":true,"ref":"ConnectorSyncRequest"},
+        };
+        app.post('/api/admin/connectors/:id/sync',
+            authenticateMiddleware([{"bearerAuth":["admin"]}]),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController)),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController.prototype.syncConnector)),
+
+            async function AdminConnectorsController_syncConnector(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAdminConnectorsController_syncConnector, request, response });
+
+                const controller = new AdminConnectorsController();
+
+              await templateService.apiHandler({
+                methodName: 'syncConnector',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAdminConnectorsController_listSyncRuns: Record<string, TsoaRoute.ParameterSchema> = {
+                id: {"in":"path","name":"id","required":true,"dataType":"string"},
+        };
+        app.get('/api/admin/connectors/:id/runs',
+            authenticateMiddleware([{"bearerAuth":["admin"]}]),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController)),
+            ...(fetchMiddlewares<RequestHandler>(AdminConnectorsController.prototype.listSyncRuns)),
+
+            async function AdminConnectorsController_listSyncRuns(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAdminConnectorsController_listSyncRuns, request, response });
+
+                const controller = new AdminConnectorsController();
+
+              await templateService.apiHandler({
+                methodName: 'listSyncRuns',
                 controller,
                 response,
                 next,

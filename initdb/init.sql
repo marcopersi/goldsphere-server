@@ -29,6 +29,9 @@ SET row_security = off;
 \echo 'Loading market data schema...'
 \i /docker-entrypoint-initdb.d/05-market-data.sql
 
+\echo 'Loading external connectors schema...'
+\i /docker-entrypoint-initdb.d/09-external-connectors.sql
+
 \echo 'GoldSphere database initialization complete!'
 
 -- Create some useful indexes for performance
