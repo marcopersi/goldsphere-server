@@ -27,6 +27,30 @@ services:
     networks:
       - pg-network
 
+  db-init:
+    image: postgres:16-alpine
+    container_name: postgres-goldsphere-init
+    restart: "no"
+    environment:
+      PGHOST: postgres-goldsphere-db
+      PGPORT: 5432
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME}
+    command: >
+      sh -c "
+        psql -v ON_ERROR_STOP=1 -c \"SELECT to_regclass('public.users') AS users_table\" | \
+        grep -q users || \
+        psql -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/init.sql
+      "
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pg-network
+
   goldsphere-server:
     image: ghcr.io/marcopersi/goldsphere-server:${APP_VERSION:-latest}
     container_name: goldsphere-server
@@ -55,6 +79,50 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - pg-network
+
+  image-seed:
+    image: curlimages/curl:8.6.0
+    container_name: goldsphere-image-seed
+    restart: "no"
+    environment:
+      ENABLE_IMAGE_SEED: ${ENABLE_IMAGE_SEED:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      API_BASE_URL: http://goldsphere-server:${PORT:-11215}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ "$$ENABLE_IMAGE_SEED" != "true" ]; then
+          echo "[image-seed] Disabled (set ENABLE_IMAGE_SEED=true to enable)";
+          exit 0;
+        fi
+        echo "[image-seed] Waiting for API server..."
+        until curl -sf "$$API_BASE_URL/health" >/dev/null 2>&1; do sleep 2; done
+        echo "[image-seed] API is up. Logging in..."
+        LOGIN=$(curl -sS -X POST "$$API_BASE_URL/api/auth/login" \
+          -H "accept: application/json" \
+          -H "Content-Type: application/json" \
+          -d "{\"email\":\"$$ADMIN_EMAIL\",\"password\":\"$$ADMIN_PASSWORD\"}")
+        TOKEN=$(echo "$$LOGIN" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+        if [ -z "$$TOKEN" ]; then
+          echo "[image-seed] ERROR: Login failed"
+          echo "$$LOGIN"
+          exit 1
+        fi
+        echo "[image-seed] Authenticated. Loading images..."
+        RESPONSE=$(curl -sS -X POST "$$API_BASE_URL/api/admin/products/load-images" \
+          -H "Authorization: Bearer $$TOKEN")
+        echo "[image-seed] === Status Summary ==="
+        echo "$$RESPONSE"
+        MSG=$(echo "$$RESPONSE" | sed -n 's/.*"message":"\([^"]*\)".*/\1/p')
+        echo "[image-seed] Result: $$MSG"
+    depends_on:
+      goldsphere-server:
+        condition: service_started
     networks:
       - pg-network
 

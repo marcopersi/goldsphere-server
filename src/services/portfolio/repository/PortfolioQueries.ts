@@ -61,6 +61,7 @@ export const PRODUCT_SELECT_QUERY = `
     product.price,
     product.currency,
     producer.producerName AS producer,
+    product.countryId,
     country.countryName AS country,
     product.year AS productyear,
     product.description,

@@ -137,7 +137,7 @@ export class AdminController extends Controller {
   @Response<AdminErrorResponse>(404, "Images directory not found")
   @Response<AdminErrorResponse>(500, "Server error")
   public async loadImagesFromFilesystem(): Promise<LoadImagesResponse> {
-    const imagesDir = path.join(process.cwd(), "ddl", "images");
+    const imagesDir = process.env.PRODUCT_IMAGES_DIR || path.join(process.cwd(), "initdb", "images");
 
     if (!fs.existsSync(imagesDir)) {
       this.setStatus(404);
@@ -150,49 +150,35 @@ export class AdminController extends Controller {
     let uploadedCount = 0;
     const results: LoadImagesResult[] = [];
 
-    // Manual mapping for known images
-    // Note: Consider dynamic mapping based on product metadata for future improvement
-    const imageMapping: { [key: string]: string } = {
-      "1-oz-American-Eagle.jpeg": "Silver Eagle Coin",
-      "1-oz-Goldbarren-argor-heraeus.jpeg": "Gold Minted Bar 1oz Degussa",
-      "1-oz-Maple-Leaf.jpeg": "Gold Maple Leaf Coin",
-      "1-oz-platinum-bar-royal-canadian-mint.png": "Platinum Cast Bar 50g Valcambi",
-      "1-oz-silver-coin-us-mint.jpeg": "Silver Philharmonic Coin",
-      "gold coin quarter ounce perth mint.jpg": "Gold Philharmonic Coin",
-      "valcambi-10-ounce-bar.jpg": "Gold Cast Bar 100g Valcambi",
-      "valcambi-100-gram-silver-bar.jpeg": "Silver Cast Bar 1kg Valcambi"
-    };
+    const productRows = await getPool().query(
+      "SELECT id, productname, imagefilename FROM product WHERE imagefilename IS NOT NULL AND imagefilename <> ''"
+    );
+
+    const productByFilename = new Map<string, { id: string; name: string }>();
+    for (const row of productRows.rows) {
+      productByFilename.set(String(row.imagefilename).toLowerCase(), { id: row.id, name: row.productname });
+    }
 
     for (const file of imageFiles) {
-      const filePath = path.join(imagesDir, file);
-      const targetProductName = imageMapping[file];
-
-      if (targetProductName) {
-        try {
-          const productResult = await getPool().query(
-            "SELECT id FROM product WHERE LOWER(productname) = LOWER($1)",
-            [targetProductName]
-          );
-
-          if (productResult.rows.length > 0) {
-            const productId = productResult.rows[0].id;
-            const imageBuffer = fs.readFileSync(filePath);
-            const mimeType = `image/${path.extname(file).slice(1)}`;
-
-            await getPool().query(
-              "UPDATE product SET imageData = $1, imageContentType = $2, imageFilename = $3 WHERE id = $4",
-              [imageBuffer, mimeType, file, productId]
-            );
-            uploadedCount++;
-            results.push({ filename: file, productName: targetProductName, status: "uploaded" });
-          } else {
-            results.push({ filename: file, productName: targetProductName, status: "product_not_found" });
-          }
-        } catch {
-          results.push({ filename: file, productName: targetProductName, status: "error" });
-        }
-      } else {
+      const product = productByFilename.get(file.toLowerCase());
+      if (!product) {
         results.push({ filename: file, productName: "unknown", status: "no_mapping" });
+        continue;
+      }
+
+      try {
+        const filePath = path.join(imagesDir, file);
+        const imageBuffer = fs.readFileSync(filePath);
+        const mimeType = `image/${path.extname(file).slice(1)}`;
+
+        await getPool().query(
+          "UPDATE product SET imageData = $1, imageContentType = $2, imageFilename = $3 WHERE id = $4",
+          [imageBuffer, mimeType, file, product.id]
+        );
+        uploadedCount++;
+        results.push({ filename: file, productName: product.name, status: "uploaded" });
+      } catch {
+        results.push({ filename: file, productName: product.name, status: "error" });
       }
     }
 

@@ -89,6 +89,9 @@ Copy the output into `.env` as `JWT_SECRET=...`.
 | `DB_POOL_MAX` | `20` | Max DB connections |
 | `SMTP_HOST` | – | Email server |
 | `STRIPE_SECRET_KEY` | – | Stripe API key |
+| `ENABLE_IMAGE_SEED` | `false` | Set `true` to auto-load product images on startup |
+| `ADMIN_EMAIL` | – | Admin login for image seeding |
+| `ADMIN_PASSWORD` | – | Admin password for image seeding |
 
 ### Example `.env` for production
 
@@ -110,6 +113,10 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
+
+ADMIN_EMAIL=admin@goldsphere.vault
+ADMIN_PASSWORD=admin123
+ENABLE_IMAGE_SEED=true
 ```
 
 ## Step 4: Start the stack
@@ -120,7 +127,20 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
 
 This starts:
 1. **postgres** – PostgreSQL 16 database (with healthcheck)
-2. **goldsphere-server** – API server (waits for DB to be healthy)
+2. **db-init** – One-shot initializer that runs `initdb/init.sql` only if the schema is missing
+3. **goldsphere-server** – API server (waits for DB to be healthy and db-init to finish)
+4. **image-seed** – One-shot initializer that loads product images via the admin API (only when `ENABLE_IMAGE_SEED=true`)
+
+### One-time DB initialization (safe re-run)
+
+If the database is empty or missing tables, you can trigger the initializer manually:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env run --rm db-init
+```
+
+This checks for the `users` table and runs `initdb/init.sql` only when it is missing.
+Do not run this on a non-empty database unless you intend to rebuild the schema.
 
 ### Verify startup
 
@@ -211,10 +231,37 @@ docker exec postgres-goldsphere-db pg_dump -U goldsphere goldsphere > backup_$(d
 ```
 
 ### Database restore
+### PgAdmin (optional)
+
+If you enable PgAdmin in `docker-compose.prod.yml`, access it at:
+
+```
+http://<vm-ip>:8880
+```
+
+Default credentials are controlled by:
+
+- `PGADMIN_EMAIL` (default: admin@goldsphere.local)
+- `PGADMIN_PASSWORD` (default: admin)
+
+Set these in `.env` for production.
 
 ```bash
 cat backup_20260210.sql | docker exec -i postgres-goldsphere-db psql -U goldsphere goldsphere
 ```
+
+### Load product images into the database
+
+If product image files are available under `initdb/images`, you can load them
+into `product.imageData` using the admin endpoint:
+
+```bash
+curl -X POST "http://localhost:${PORT:-11215}/api/admin/products/load-images" \
+	-H "Authorization: Bearer <admin_jwt>"
+```
+
+The server reads images from `PRODUCT_IMAGES_DIR` when set, otherwise from
+`/app/initdb/images` (mounted from `./initdb/images`).
 
 ## Troubleshooting
 

@@ -500,6 +500,9 @@
 						"type": "number",
 						"format": "double"
 					},
+					"productId": {
+						"type": "string"
+					},
 					"productName": {
 						"type": "string"
 					}
@@ -2160,6 +2163,10 @@
 						"type": "string",
 						"nullable": true
 					},
+					"countryName": {
+						"type": "string",
+						"nullable": true
+					},
 					"websiteURL": {
 						"type": "string",
 						"nullable": true
@@ -2178,6 +2185,7 @@
 					"producerName",
 					"status",
 					"countryId",
+					"countryName",
 					"websiteURL",
 					"createdAt",
 					"updatedAt"
@@ -2356,7 +2364,29 @@
 					"type": {
 						"type": "string"
 					},
+					"productTypeId": {
+						"type": "string"
+					},
 					"metal": {
+						"properties": {
+							"symbol": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"symbol",
+							"name",
+							"id"
+						],
+						"type": "object"
+					},
+					"metalId": {
 						"type": "string"
 					},
 					"weight": {
@@ -2380,9 +2410,15 @@
 					"producer": {
 						"type": "string"
 					},
+					"producerId": {
+						"type": "string"
+					},
 					"country": {
 						"type": "string",
 						"nullable": true
+					},
+					"countryId": {
+						"type": "string"
 					},
 					"year": {
 						"type": "number",
@@ -2415,13 +2451,16 @@
 					"id",
 					"name",
 					"type",
+					"productTypeId",
 					"metal",
+					"metalId",
 					"weight",
 					"weightUnit",
 					"purity",
 					"price",
 					"currency",
 					"producer",
+					"producerId",
 					"country",
 					"description",
 					"imageUrl",

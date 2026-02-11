@@ -76,6 +76,7 @@ interface ProducerRow {
   producerName: string;
   status: string;
   countryId: string | null;
+  countryName: string | null;
   websiteURL: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -178,14 +179,16 @@ export class ProducersController extends Controller {
 
       const dataQuery = `
         SELECT 
-          id,
-          producerName,
-          status,
-          countryId,
-          websiteURL,
-          createdAt,
-          updatedAt
+          producer.id,
+          producer.producerName,
+          producer.status,
+          producer.countryId,
+          c.countryname,
+          producer.websiteURL,
+          producer.createdAt,
+          producer.updatedAt
         FROM producer 
+        LEFT JOIN country c ON producer.countryId = c.id
         ${whereClause}
         ${orderClause}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -199,6 +202,7 @@ export class ProducersController extends Controller {
         producerName: row.producername as string,
         status: row.status as string,
         countryId: (row.countryid as string) || null,
+        countryName: (row.countryname as string) || null,
         websiteURL: (row.websiteurl as string) || null,
         createdAt: row.createdat as Date,
         updatedAt: row.updatedat as Date
@@ -258,17 +262,22 @@ export class ProducersController extends Controller {
 
       const insertResult = await getPool().query(
         `
-        INSERT INTO producer (
-          producerName,
-          status,
-          countryId,
-          websiteURL
-        ) VALUES (
-          $1,
-          COALESCE($2, 'active'),
-          $3,
-          $4
-        ) RETURNING id, producerName, status, countryId, websiteURL, createdAt, updatedAt
+        WITH inserted AS (
+          INSERT INTO producer (
+            producerName,
+            status,
+            countryId,
+            websiteURL
+          ) VALUES (
+            $1,
+            COALESCE($2, 'active'),
+            $3,
+            $4
+          ) RETURNING id, producerName, status, countryId, websiteURL, createdAt, updatedAt
+        )
+        SELECT inserted.*, c.countryname
+        FROM inserted
+        LEFT JOIN country c ON inserted.countryId = c.id
       `,
         [
           validation.data.producerName,
@@ -288,6 +297,7 @@ export class ProducersController extends Controller {
           producerName: newProducer.producername,
           status: newProducer.status,
           countryId: newProducer.countryid,
+          countryName: newProducer.countryname || null,
           websiteURL: newProducer.websiteurl,
           createdAt: newProducer.createdat,
           updatedAt: newProducer.updatedat
@@ -322,15 +332,17 @@ export class ProducersController extends Controller {
       const result = await getPool().query(
         `
         SELECT 
-          id,
-          producerName,
-          status,
-          countryId,
-          websiteURL,
-          createdAt,
-          updatedAt
+          producer.id,
+          producer.producerName,
+          producer.status,
+          producer.countryId,
+          c.countryname,
+          producer.websiteURL,
+          producer.createdAt,
+          producer.updatedAt
         FROM producer 
-        WHERE id = $1
+        LEFT JOIN country c ON producer.countryId = c.id
+        WHERE producer.id = $1
       `,
         [id]
       );
@@ -352,6 +364,7 @@ export class ProducersController extends Controller {
           producerName: producer.producername,
           status: producer.status,
           countryId: producer.countryid,
+          countryName: producer.countryname || null,
           websiteURL: producer.websiteurl,
           createdAt: producer.createdat,
           updatedAt: producer.updatedat
@@ -450,10 +463,15 @@ export class ProducersController extends Controller {
       updateValues.push(id);
 
       const updateQuery = `
-        UPDATE producer 
-        SET ${updateFields.join(", ")}
-        WHERE id = $${paramIndex}
-        RETURNING id, producerName, status, countryId, websiteURL, createdAt, updatedAt
+        WITH updated AS (
+          UPDATE producer 
+          SET ${updateFields.join(", ")}
+          WHERE id = $${paramIndex}
+          RETURNING id, producerName, status, countryId, websiteURL, createdAt, updatedAt
+        )
+        SELECT updated.*, c.countryname
+        FROM updated
+        LEFT JOIN country c ON updated.countryId = c.id
       `;
 
       const result = await getPool().query(updateQuery, updateValues);
@@ -466,6 +484,7 @@ export class ProducersController extends Controller {
           producerName: updatedProducer.producername,
           status: updatedProducer.status,
           countryId: updatedProducer.countryid,
+          countryName: updatedProducer.countryname || null,
           websiteURL: updatedProducer.websiteurl,
           createdAt: updatedProducer.createdat,
           updatedAt: updatedProducer.updatedat

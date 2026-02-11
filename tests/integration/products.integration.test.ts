@@ -260,6 +260,84 @@ describe('Products API', () => {
         }
       }
     });
+
+    it('should return valid UUIDs for all foreign key references', async () => {
+      const pool = getPool();
+      let testProductId: string | null = null;
+
+      try {
+        // SETUP: Create product with known FK references
+        const createResult = await pool.query(`
+          INSERT INTO product (name, producttypeid, metalid, producerid, countryid, weight, weightunit, purity, price, currency, instock, stockquantity, certifiedprovenance)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          RETURNING id
+        `, [
+          `TEST_UUID_PRODUCT_${Date.now()}`,
+          testProductTypeId,
+          testMetalId,
+          testProducerId,
+          testCountryId,
+          31.1035,
+          'grams',
+          0.9167,
+          2000.00,
+          'CHF',
+          true,
+          10,
+          true
+        ]);
+        testProductId = createResult.rows[0].id;
+
+        // TEST: GET single product — verify UUIDs are present
+        const response = await request(app)
+          .get(`/api/products/${testProductId}`)
+          .expect(200);
+
+        const product = response.body.data;
+
+        // FK UUIDs must be real UUIDs, not empty strings
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        expect(product.productTypeId).toMatch(uuidRegex);
+        expect(product.productTypeId).toBe(testProductTypeId);
+
+        expect(product.metalId).toMatch(uuidRegex);
+        expect(product.metalId).toBe(testMetalId);
+
+        expect(product.producerId).toMatch(uuidRegex);
+        expect(product.producerId).toBe(testProducerId);
+
+        // certifiedProvenance must reflect actual DB value
+        expect(product.certifiedProvenance).toBe(true);
+      } finally {
+        if (testProductId) {
+          await pool.query('DELETE FROM product WHERE id = $1', [testProductId]);
+        }
+      }
+    });
+
+    it('should return valid UUIDs in paginated product list', async () => {
+      const response = await request(app)
+        .get('/api/products')
+        .expect(200);
+
+      const items = response.body.data.items;
+      expect(items.length).toBeGreaterThan(0);
+
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      for (const product of items) {
+        // Every product must have valid FK UUIDs
+        expect(product.productTypeId).toMatch(uuidRegex);
+        expect(product.metalId).toMatch(uuidRegex);
+        expect(product.producerId).toMatch(uuidRegex);
+
+        // Non-empty strings
+        expect(product.productTypeId).not.toBe('');
+        expect(product.metalId).not.toBe('');
+        expect(product.producerId).not.toBe('');
+      }
+    });
   });
 
   describe('POST /api/products', () => {
@@ -483,6 +561,12 @@ describe('Products API', () => {
         expect(response.body.data.price).toBe(updateData.price);
         expect(response.body.data.stockQuantity).toBe(updateData.stockQuantity);
         expect(response.body.data.inStock).toBe(updateData.inStock);
+
+        // Verify FK UUIDs are preserved after update
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        expect(response.body.data.productTypeId).toMatch(uuidRegex);
+        expect(response.body.data.metalId).toMatch(uuidRegex);
+        expect(response.body.data.producerId).toMatch(uuidRegex);
       } finally {
         // TEARDOWN: Delete test product
         if (testProductId) {

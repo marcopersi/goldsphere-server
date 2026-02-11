@@ -50,13 +50,28 @@ export class OrderRepositoryImpl implements IOrderRepository {
                 o.custodyserviceid,
                 oi.id as itemid, oi.productid, oi.quantity, oi.totalprice, oi.unitprice,
                 oi.productname,
-                p.currency,
+                p.currency, p.name as product_name,
+                p.price as product_current_price, p.currency as product_currency,
+                p.weight as product_weight, p.weightunit as product_weight_unit,
+                p.purity as product_purity, p.year as product_year,
+                pt.producttypename as product_type,
+                m.name as product_metal,
+                c.countryname as product_country,
+                pr.producername as product_producer,
                 cs.custodyservicename,
+                cs.fee as custody_service_fee,
+                cs.paymentfrequency as custody_service_payment_frequency,
+                curr.isocode3 as custody_service_currency,
                 cust.id as custodianid, cust.custodianname
          FROM orders o
          LEFT JOIN order_items oi ON o.id = oi.orderid  
          LEFT JOIN product p ON oi.productid = p.id
+         LEFT JOIN producttype pt ON p.producttypeid = pt.id
+         LEFT JOIN metal m ON p.metalid = m.id
+         LEFT JOIN country c ON p.countryid = c.id
+         LEFT JOIN producer pr ON p.producerid = pr.id
          LEFT JOIN custodyservice cs ON o.custodyserviceid = cs.id
+         LEFT JOIN currency curr ON cs.currencyid = curr.id
          LEFT JOIN custodian cust ON cs.custodianid = cust.id
          WHERE o.id = $1
          ORDER BY oi.createdat`,
@@ -260,15 +275,43 @@ export class OrderRepositoryImpl implements IOrderRepository {
       .map(row => ({
         id: row.itemid,
         productId: row.productid,
-        productName: row.productname,
+        productName: row.productname || row.product_name,
         quantity: Number.parseFloat(row.quantity || '0'),
         unitPrice: Number.parseFloat(row.unitprice || '0'),
-        totalPrice: Number.parseFloat(row.totalprice || '0')
+        totalPrice: Number.parseFloat(row.totalprice || '0'),
+        ...(row.product_name ? {
+          product: {
+            name: row.product_name,
+            currentPrice: Number.parseFloat(row.product_current_price || '0'),
+            currency: row.product_currency || 'CHF',
+            weight: Number.parseFloat(row.product_weight || '0'),
+            weightUnit: row.product_weight_unit || '',
+            purity: Number.parseFloat(row.product_purity || '0'),
+            year: row.product_year ? Number.parseInt(row.product_year) : null,
+            type: row.product_type || '',
+            metal: row.product_metal || '',
+            country: row.product_country || null,
+            producer: row.product_producer || ''
+          }
+        } : {})
       }));
 
     const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
     const taxes = 0;
     const totalAmount = subtotal + taxes;
+
+    // Map custody service if present
+    const custodyService = firstRow.custodyservicename ? {
+      id: firstRow.custodyserviceid,
+      name: firstRow.custodyservicename,
+      fee: Number.parseFloat(firstRow.custody_service_fee || '0'),
+      paymentFrequency: firstRow.custody_service_payment_frequency || '',
+      currency: firstRow.custody_service_currency || 'CHF',
+      custodian: {
+        id: firstRow.custodianid || '',
+        name: firstRow.custodianname || ''
+      }
+    } : null;
 
     return {
       id: firstRow.id,
@@ -281,6 +324,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
       subtotal,
       taxes,
       totalAmount,
+      custodyService,
       createdAt: new Date(firstRow.createdat),
       updatedAt: new Date(firstRow.updatedat)
     };

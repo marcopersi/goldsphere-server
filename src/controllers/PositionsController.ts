@@ -15,6 +15,7 @@ import {
 } from "tsoa";
 import { getPool } from "../dbConfig";
 import { PositionSchema } from "@marcopersi/shared";
+import { PRODUCT_SELECT_QUERY } from "../services/portfolio/repository/PortfolioQueries";
 import { createLogger } from "../utils/logger";
 
 const logger = createLogger("PositionsController");
@@ -39,14 +40,18 @@ interface PositionsProductInfo {
   id: string;
   name: string;
   type: string;
-  metal: string;
+  productTypeId: string;
+  metal: { id: string; name: string; symbol: string };
+  metalId: string;
   weight: number;
   weightUnit: string;
   purity: number;
   price: number;
   currency: string;
   producer: string;
+  producerId: string;
   country: string | null;
+  countryId?: string;
   year?: number;
   description: string;
   imageUrl: string | null;
@@ -93,35 +98,7 @@ interface PositionsListResponse {
 
 // Helper function to fetch full product data for a position
 const fetchProductForPosition = async (productId: string): Promise<PositionsProductInfo> => {
-  const productQuery = `
-    SELECT 
-      product.id, 
-      product.name AS productname, 
-      productType.productTypeName AS producttype, 
-      metal.name AS metalname, 
-      product.weight AS fineweight, 
-      product.weightUnit AS unitofmeasure, 
-      product.purity,
-      product.price,
-      product.currency,
-      producer.producerName AS producer,
-      country.countryName AS country,
-      product.year AS productyear,
-      product.description,
-      product.imageFilename AS imageurl,
-      product.inStock,
-      product.minimumOrderQuantity,
-      product.createdat,
-      product.updatedat
-    FROM product 
-    JOIN productType ON productType.id = product.productTypeId 
-    JOIN metal ON metal.id = product.metalId 
-    JOIN producer ON producer.id = product.producerId
-    LEFT JOIN country ON country.id = product.countryId
-    WHERE product.id = $1
-  `;
-
-  const result = await getPool().query(productQuery, [productId]);
+  const result = await getPool().query(PRODUCT_SELECT_QUERY, [productId]);
   if (result.rows.length === 0) {
     throw new Error(`Product not found: ${productId}`);
   }
@@ -131,17 +108,21 @@ const fetchProductForPosition = async (productId: string): Promise<PositionsProd
     id: row.id,
     name: row.productname,
     type: row.producttype,
-    metal: row.metalname,
+    productTypeId: row.producttypeid,
+    metal: { id: row.metal_id, name: row.metalname, symbol: row.metal_symbol },
+    metalId: row.metalid,
     weight: Number.parseFloat(row.fineweight) || 0,
     weightUnit: row.unitofmeasure,
     purity: Number.parseFloat(row.purity) || 0.999,
     price: Number.parseFloat(row.price) || 0,
     currency: row.currency,
     producer: row.producer,
+    producerId: row.producerid,
     country: row.country || null,
+    countryId: row.countryid || undefined,
     year: row.productyear || undefined,
     description: row.description || "",
-    imageUrl: row.imageurl ? `/api/products/${row.productid}/image` : null,
+    imageUrl: row.imageurl ? `/api/products/${row.id}/image` : null,
     inStock: row.instock ?? true,
     minimumOrderQuantity: row.minimumorderquantity || 1,
     createdAt: row.createdat || new Date(),

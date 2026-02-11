@@ -70,10 +70,7 @@ async function fetchProductForPosition(pool: Pool, productId: string) {
   }
 
   const row = result.rows[0];
-  let imageUrl = 'https://example.com/images/placeholder.jpg';
-  if (row.imageurl) {
-    imageUrl = row.imageurl.startsWith('http') ? row.imageurl : `https://example.com/images/${row.imageurl}`;
-  }
+  const imageUrl = row.imageurl ? `/api/products/${row.id}/image` : null;
 
   return {
     id: row.id,
@@ -90,6 +87,7 @@ async function fetchProductForPosition(pool: Pool, productId: string) {
     price: Number.parseFloat(row.price) || 0,
     currency: row.currency,
     country: row.country || undefined,
+    countryId: row.countryid || undefined,
     year: row.productyear || undefined,
     description: row.description || '',
     imageUrl,

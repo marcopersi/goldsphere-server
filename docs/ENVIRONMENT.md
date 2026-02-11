@@ -70,6 +70,14 @@ cp .env.prod .env
 - `JWT_SECRET` - JWT signing secret (min 32 chars)
 - `STRIPE_SECRET_KEY` - Stripe API secret key
 
+### Optional Variables
+- `PGADMIN_EMAIL` - PgAdmin login email (production only)
+- `PGADMIN_PASSWORD` - PgAdmin login password (production only)
+- `PRODUCT_IMAGES_DIR` - Filesystem path for product images (default: /app/initdb/images)
+- `ENABLE_IMAGE_SEED` - Set `true` to auto-load product images on startup (default: `false`)
+- `ADMIN_EMAIL` - Admin login email for automated image seeding
+- `ADMIN_PASSWORD` - Admin login password for automated image seeding
+
 ### Stripe Configuration
 - **Development/Test**: Use test keys (sk_test_...)
 - **Production**: Use live keys (sk_live_...)

@@ -90,6 +90,7 @@ interface TransactionsSummary {
 
 interface TransactionItem extends Transaction {
   total: number;
+  productId?: string;
   productName?: string;
 }
 
@@ -350,6 +351,7 @@ export class TransactionsController extends Controller {
         notes: row.notes,
         createdAt: row.createdat,
         total: Number.parseFloat(row.total) || 0,
+        productId: row.productid || undefined,
         productName: row.name || "Unknown Product"
       }));
 

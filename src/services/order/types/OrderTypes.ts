@@ -12,6 +12,20 @@ export { OrderType, OrderStatus, OrderSource } from '@marcopersi/shared';
 // Order Item
 // ============================================================================
 
+export interface OrderItemProduct {
+  name: string;
+  currentPrice: number;
+  currency: string;
+  weight: number;
+  weightUnit: string;
+  purity: number;
+  year: number | null;
+  type: string;
+  metal: string;
+  country: string | null;
+  producer: string;
+}
+
 export interface OrderItem {
   id: string;
   productId: string;
@@ -19,6 +33,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  product?: OrderItemProduct;
 }
 
 // ============================================================================
@@ -30,17 +45,30 @@ export interface OrderItem {
  * Database stores lowercase ('buy', 'pending')
  * API returns uppercase enum keys ('BUY', 'PENDING')
  */
+export interface OrderCustodyService {
+  id: string;
+  name: string;
+  fee: number;
+  paymentFrequency: string;
+  currency: string;
+  custodian: {
+    id: string;
+    name: string;
+  };
+}
+
 export interface Order {
   id: string;
   userId: string;
-  type: string;  // 'BUY' | 'SELL' (API format) or 'buy' | 'sell' (DB format)
-  status: string;  // 'PENDING' | 'CONFIRMED' | ... (API format) or lowercase (DB format)
+  type: string;
+  status: string;
   orderNumber: string;
   items: OrderItem[];
   currency: string;
   subtotal: number;
   taxes: number;
   totalAmount: number;
+  custodyService?: OrderCustodyService | null;
   createdAt: Date;
   updatedAt: Date;
 }

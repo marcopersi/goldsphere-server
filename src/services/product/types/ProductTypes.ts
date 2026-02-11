@@ -93,22 +93,31 @@ export interface ProductManagementResponse {
   id: string;
   name: string;
   productType: ProductTypeEnum;  // ✅ Enum instead of string
+  productTypeId: string;          // ✅ UUID for foreign key
   metal: Metal;                   // ✅ Enum instead of string
+  metalId: string;                // ✅ UUID for foreign key
   weight: number;
   weightUnit: string;
   purity: number;
   price: number;
   currency: string;
   producer: string;
+  producerId: string;             // ✅ UUID for foreign key
   country: string | null;
+  countryId: string | null;       // ✅ UUID for foreign key
   year: number | null;
   description: string | null;
+  certifiedProvenance: boolean;
   imageUrl: string | null;
   imageFilename: string | null;
   inStock: boolean;
   stockQuantity: number;
   minimumOrderQuantity: number;
   premiumPercentage: number | null;
+  diameter: number | null;
+  thickness: number | null;
+  mintage: number | null;
+  certification: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

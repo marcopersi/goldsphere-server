@@ -13,4 +13,5 @@
 - [Service Refactoring Status](SERVICE_REFACTORING_STATUS.md)
 - [Shared Package Usage](shared-package-usage.md)
 - [Stripe](stripe.md)
+- [Testing Strategy & Coverage](TESTING.md)
 - [User Management](USER_MANAGEMENT.md)
