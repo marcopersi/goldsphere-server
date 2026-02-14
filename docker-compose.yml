@@ -87,22 +87,36 @@ services:
         echo "[image-seed] Waiting for API server..."
         until curl -sf "$$API_BASE_URL/health" >/dev/null 2>&1; do sleep 2; done
         echo "[image-seed] API is up. Logging in..."
-        LOGIN=$(curl -sS -X POST "$$API_BASE_URL/api/auth/login" \
+        LOGIN_RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "$$API_BASE_URL/api/auth/login" \
           -H "accept: application/json" \
           -H "Content-Type: application/json" \
           -d "{\"email\":\"$$ADMIN_EMAIL\",\"password\":\"$$ADMIN_PASSWORD\"}")
-        TOKEN=$(echo "$$LOGIN" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+        LOGIN_BODY=$(echo "$$LOGIN_RESPONSE" | sed '$$d')
+        LOGIN_CODE=$(echo "$$LOGIN_RESPONSE" | tail -n1)
+        if [ "$$LOGIN_CODE" -lt 200 ] || [ "$$LOGIN_CODE" -ge 300 ]; then
+          echo "[image-seed] ERROR: Login request failed with HTTP $$LOGIN_CODE"
+          echo "$$LOGIN_BODY"
+          exit 1
+        fi
+        TOKEN=$(echo "$$LOGIN_BODY" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
         if [ -z "$$TOKEN" ]; then
           echo "[image-seed] ERROR: Login failed"
-          echo "$$LOGIN"
+          echo "$$LOGIN_BODY"
           exit 1
         fi
         echo "[image-seed] Authenticated. Loading images..."
-        RESPONSE=$(curl -sS -X POST "$$API_BASE_URL/api/admin/products/load-images" \
+        SEED_RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "$$API_BASE_URL/api/admin/products/load-images" \
           -H "Authorization: Bearer $$TOKEN")
+        SEED_BODY=$(echo "$$SEED_RESPONSE" | sed '$$d')
+        SEED_CODE=$(echo "$$SEED_RESPONSE" | tail -n1)
+        if [ "$$SEED_CODE" -lt 200 ] || [ "$$SEED_CODE" -ge 300 ]; then
+          echo "[image-seed] ERROR: Image loading failed with HTTP $$SEED_CODE"
+          echo "$$SEED_BODY"
+          exit 1
+        fi
         echo "[image-seed] === Status Summary ==="
-        echo "$$RESPONSE"
-        MSG=$(echo "$$RESPONSE" | sed -n 's/.*"message":"\([^"]*\)".*/\1/p')
+        echo "$$SEED_BODY"
+        MSG=$(echo "$$SEED_BODY" | sed -n 's/.*"message":"\([^"]*\)".*/\1/p')
         echo "[image-seed] Result: $$MSG"
     depends_on:
       goldsphere-server:

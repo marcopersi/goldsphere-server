@@ -89,6 +89,9 @@ Copy the output into `.env` as `JWT_SECRET=...`.
 | `DB_POOL_MAX` | `20` | Max DB connections |
 | `SMTP_HOST` | – | Email server |
 | `STRIPE_SECRET_KEY` | – | Stripe API key |
+| `PGADMIN_EMAIL` | `admin@goldsphere.local` | PgAdmin login email |
+| `PGADMIN_PASSWORD` | `admin` | PgAdmin login password |
+| `PGADMIN_PORT` | `8880` | PgAdmin exposed port |
 | `ENABLE_IMAGE_SEED` | `false` | Set `true` to auto-load product images on startup |
 | `ADMIN_EMAIL` | – | Admin login for image seeding |
 | `ADMIN_PASSWORD` | – | Admin password for image seeding |
@@ -129,7 +132,8 @@ This starts:
 1. **postgres** – PostgreSQL 16 database (with healthcheck)
 2. **db-init** – One-shot initializer that runs `initdb/init.sql` only if the schema is missing
 3. **goldsphere-server** – API server (waits for DB to be healthy and db-init to finish)
-4. **image-seed** – One-shot initializer that loads product images via the admin API (only when `ENABLE_IMAGE_SEED=true`)
+4. **pgadmin** – PgAdmin UI for database inspection
+5. **image-seed** – One-shot initializer that loads product images via the admin API (only when `ENABLE_IMAGE_SEED=true`)
 
 ### One-time DB initialization (safe re-run)
 
@@ -231,9 +235,9 @@ docker exec postgres-goldsphere-db pg_dump -U goldsphere goldsphere > backup_$(d
 ```
 
 ### Database restore
-### PgAdmin (optional)
+### PgAdmin
 
-If you enable PgAdmin in `docker-compose.prod.yml`, access it at:
+PgAdmin is part of `docker-compose.prod.yml` and is reachable at:
 
 ```
 http://<vm-ip>:8880
@@ -258,6 +262,12 @@ into `product.imageData` using the admin endpoint:
 ```bash
 curl -X POST "http://localhost:${PORT:-11215}/api/admin/products/load-images" \
 	-H "Authorization: Bearer <admin_jwt>"
+
+For automated startup seeding in production, ensure all of the following:
+
+- `ENABLE_IMAGE_SEED=true`
+- `ADMIN_EMAIL` and `ADMIN_PASSWORD` match an existing admin user
+- `initdb/images` exists on the host next to `docker-compose.prod.yml`
 ```
 
 The server reads images from `PRODUCT_IMAGES_DIR` when set, otherwise from

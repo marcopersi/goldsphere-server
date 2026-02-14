@@ -151,7 +151,7 @@ export class AdminController extends Controller {
     const results: LoadImagesResult[] = [];
 
     const productRows = await getPool().query(
-      "SELECT id, productname, imagefilename FROM product WHERE imagefilename IS NOT NULL AND imagefilename <> ''"
+      "SELECT id, name AS productname, imagefilename FROM product WHERE imagefilename IS NOT NULL AND imagefilename <> ''"
     );
 
     const productByFilename = new Map<string, { id: string; name: string }>();
