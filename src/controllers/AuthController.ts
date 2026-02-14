@@ -212,12 +212,15 @@ export class AuthController extends Controller {
   @Response<AuthErrorResponse>(401, 'Invalid or expired token')
   public async refresh(
     @Header('Authorization') authorization?: string
-  ): Promise<LoginSuccessResponse> {
+  ): Promise<LoginSuccessResponse | AuthErrorResponse> {
     const token = authorization?.replace('Bearer ', '');
 
     if (!token) {
       this.setStatus(401);
-      throw new Error('No token provided');
+      return {
+        success: false,
+        error: 'No token provided',
+      };
     }
 
     const result = await this.authService.refreshToken(token);
@@ -225,7 +228,10 @@ export class AuthController extends Controller {
     if (!result.success) {
       const statusCode = getStatusCode(result.error!.code);
       this.setStatus(statusCode);
-      throw new Error(result.error!.message);
+      return {
+        success: false,
+        error: result.error!.message,
+      };
     }
 
     return result.data!;
@@ -242,12 +248,15 @@ export class AuthController extends Controller {
   @Response<AuthErrorResponse>(401, 'Invalid or expired token')
   public async getCurrentUser(
     @Header('Authorization') authorization?: string
-  ): Promise<AuthUserResponse> {
+  ): Promise<AuthUserResponse | AuthErrorResponse> {
     const token = authorization?.replace('Bearer ', '');
 
     if (!token) {
       this.setStatus(401);
-      throw new Error('No token provided');
+      return {
+        success: false,
+        error: 'No token provided',
+      };
     }
 
     const result = await this.authService.getCurrentUser(token);
@@ -255,7 +264,10 @@ export class AuthController extends Controller {
     if (!result.success) {
       const statusCode = getStatusCode(result.error!.code);
       this.setStatus(statusCode);
-      throw new Error(result.error!.message);
+      return {
+        success: false,
+        error: result.error!.message,
+      };
     }
 
     return result.data!;

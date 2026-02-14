@@ -201,31 +201,46 @@ npm run build
 - Routes validate against the generated schema, not the TypeScript interface
 - Without regeneration, you'll get `400 Bad Request` with "excess property" errors
 
-#### Union Types Require Throw (Not Return)
+#### Union Types: Throw vs Return
 
-When using union types like `Promise<SuccessResponse | ErrorResponse>`, you must **throw** errors, not return them:
+For many tsoa endpoints, throwing errors is the safest default. However, returning a typed error object with `this.setStatus(...)` is also valid when the controller method explicitly includes the error response type in its return union.
 
 ```typescript
-// ✅ CORRECT
+// ✅ Valid pattern (throw)
 @Post()
 public async createItem(@Body() body: ItemInput): Promise<ItemResponse | ErrorResponse> {
   if (!body.name) {
     this.setStatus(400);
-    throw new Error("Name is required"); // THROW, not return
+    throw new Error("Name is required");
   }
   return { success: true, data: item };
 }
 
-// ❌ WRONG
+// ✅ Also valid pattern (return typed error)
 @Post()
 public async createItem(@Body() body: ItemInput): Promise<ItemResponse | ErrorResponse> {
   if (!body.name) {
     this.setStatus(400);
-    return { success: false, error: "Name is required" }; // Will cause tsoa route generation to fail
+    return { success: false, error: "Name is required" };
   }
   return { success: true, data: item };
 }
 ```
+
+### Authentication Error Status Behavior
+
+Authentication endpoints must return the correct HTTP status code for token errors.
+
+**Current behavior (`2026-02-14`):**
+
+- `GET /api/auth/me`
+  - Valid token -> `200` with `{ id, email, role }`
+  - Missing token -> `401` with `{ "success": false, "error": "No token provided" }`
+  - Invalid/expired token -> `401` with `{ "success": false, "error": "Invalid token" | "Token has expired" }`
+- `POST /api/auth/refresh`
+  - Invalid/expired token -> `401` with `{ "success": false, "error": "Invalid token" | "Token has expired" }`
+
+Implementation note: in `AuthController`, token error paths use `this.setStatus(...)` + typed JSON return objects instead of generic `throw new Error(...)` to avoid accidental `500` responses.
 
 #### Binary Responses
 

@@ -92,6 +92,40 @@ tests/
 
 ## Test Patterns
 
+## Auth Endpoint Smoke Checks
+
+Use these quick checks against a local server (default: `http://localhost:8888`) to verify authentication behavior.
+
+```bash
+# Login (get token)
+curl -s -X POST http://localhost:8888/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@goldsphere.vault","password":"admin123"}'
+
+# /api/auth/me without token -> 401
+curl -i http://localhost:8888/api/auth/me
+
+# /api/auth/me with invalid token -> 401
+curl -i http://localhost:8888/api/auth/me \
+  -H 'Authorization: Bearer invalid.token.here'
+```
+
+Expected error payload format:
+
+```json
+{
+  "success": false,
+  "error": "No token provided"
+}
+```
+
+```json
+{
+  "success": false,
+  "error": "Invalid token"
+}
+```
+
 ### Setup / Teardown (per-test isolation)
 
 ```typescript
