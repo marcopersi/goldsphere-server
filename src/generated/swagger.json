@@ -12939,7 +12939,14 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/LoginSuccessResponse"
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/LoginSuccessResponse"
+										},
+										{
+											"$ref": "#/components/schemas/AuthErrorResponse"
+										}
+									]
 								}
 							}
 						}
@@ -12983,7 +12990,14 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/AuthUserResponse"
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/AuthUserResponse"
+										},
+										{
+											"$ref": "#/components/schemas/AuthErrorResponse"
+										}
+									]
 								}
 							}
 						}
