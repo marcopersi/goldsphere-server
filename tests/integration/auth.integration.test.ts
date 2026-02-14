@@ -1,4 +1,5 @@
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import { generateToken } from '../../src/middleware/auth';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
@@ -197,7 +198,19 @@ describe('Authentication Endpoints', () => {
       const response = await request(app)
         .post('/api/auth/refresh');
 
-      expect([401, 500]).toContain(response.status);
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error', 'No token provided');
+    });
+
+    it('should reject refresh with invalid token', async () => {
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .set('Authorization', 'Bearer invalid.token.here')
+        .expect(401);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error', 'Invalid token');
     });
   });
 
@@ -222,9 +235,41 @@ describe('Authentication Endpoints', () => {
 
     it('should reject without token', async () => {
       const response = await request(app)
-        .get('/api/auth/me');
+        .get('/api/auth/me')
+        .expect(401);
 
-      expect([401, 500]).toContain(response.status);
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error', 'No token provided');
+    });
+
+    it('should reject with invalid token', async () => {
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', 'Bearer invalid.token.here')
+        .expect(401);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error', 'Invalid token');
+    });
+
+    it('should reject with expired token', async () => {
+      const expiredToken = jwt.sign(
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'expired@goldsphere.vault',
+          role: 'user',
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '-1h' }
+      );
+
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${expiredToken}`)
+        .expect(401);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error', 'Token has expired');
     });
   });
 });
