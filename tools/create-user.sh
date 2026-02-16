@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8888}"
+API_URL="${1:-http://localhost:8888}"
 
-curl -X POST "${BASE_URL}/api/users" \
+curl -X POST "${API_URL}/api/users" \
   -H "accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{

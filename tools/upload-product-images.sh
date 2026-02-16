@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:8888}"
+API_URL="${1:-http://localhost:8888}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SQL_FILE="${SQL_FILE:-$ROOT_DIR/initdb/03-sampleData.sql}"
 IMAGES_DIR="${IMAGES_DIR:-$ROOT_DIR/initdb/images}"
@@ -30,7 +30,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-login_response=$(curl -sS -X POST "${BASE_URL}/api/auth/login" \
+login_response=$(curl -sS -X POST "${API_URL}/api/auth/login" \
   -H "accept: application/json" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}")
@@ -45,7 +45,7 @@ if [[ -z "$token" ]]; then
 fi
 
 if [[ "$MODE" == "admin" ]]; then
-  response=$(curl -sS -X POST "${BASE_URL}/api/admin/products/load-images" \
+  response=$(curl -sS -X POST "${API_URL}/api/admin/products/load-images" \
     -H "Authorization: Bearer ${token}")
   echo "$response"
   exit 0
@@ -107,7 +107,7 @@ print(urllib.parse.quote("$product_name"))
 PY
 )
 
-  product_response=$(curl -sS "${BASE_URL}/api/products?search=${encoded_name}&limit=50")
+  product_response=$(curl -sS "${API_URL}/api/products?search=${encoded_name}&limit=50")
 
   product_id=$(printf "%s" "$product_response" | python3 - <<'PY'
 import json
@@ -176,7 +176,7 @@ print(json.dumps({
 PY
 )
 
-  upload_response=$(curl -sS -X POST "${BASE_URL}/api/products/${product_id}/image" \
+  upload_response=$(curl -sS -X POST "${API_URL}/api/products/${product_id}/image" \
     -H "accept: application/json" \
     -H "Authorization: Bearer ${token}" \
     -H "Content-Type: application/json" \
@@ -202,7 +202,7 @@ PY
   fi
 
   if [[ "$VERIFY_AFTER_UPLOAD" == "true" ]]; then
-    status=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/api/products/${product_id}/image")
+    status=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/products/${product_id}/image")
     if [[ "$status" != "200" ]]; then
       echo "Verify failed for $product_name ($filename). Status: $status"
     fi

@@ -12,7 +12,7 @@
 
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:8888';
+const API_URL = 'http://localhost:8888';
 const TEST_ORDER_ID = `order_test_${Date.now()}`;
 
 let authToken = '';
@@ -59,7 +59,7 @@ function log(message, type = 'info') {
 async function checkServerHealth() {
   try {
     log('Checking server health...');
-    await axios.get(`${BASE_URL}/health`);
+    await axios.get(`${API_URL}/health`);
     log('Server is running', 'success');
     return true;
   } catch (error) {
@@ -73,7 +73,7 @@ async function getAuthToken() {
   try {
     log('Getting authentication token...');
     
-    const response = await axios.post(`${BASE_URL}/api/auth/login`, {
+    const response = await axios.post(`${API_URL}/api/auth/login`, {
       email: 'admin@goldsphere.vault',
       password: 'admin123'
     });
@@ -107,7 +107,7 @@ async function createPaymentIntent() {
       }
     };
     
-    const response = await axios.post(`${BASE_URL}/api/payments/intent`, paymentData, {
+    const response = await axios.post(`${API_URL}/api/payments/intent`, paymentData, {
       headers: {
         'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json'
@@ -139,7 +139,7 @@ async function retrievePaymentIntent() {
   try {
     log('Retrieving payment intent details...');
     
-    const response = await axios.get(`${BASE_URL}/api/payments/intent/${paymentIntentId}`, {
+    const response = await axios.get(`${API_URL}/api/payments/intent/${paymentIntentId}`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
       }
@@ -167,7 +167,7 @@ async function testPaymentConfirmation() {
   try {
     log('Testing payment confirmation (expected to fail without payment method)...');
     
-    await axios.post(`${BASE_URL}/api/payments/intent/${paymentIntentId}/confirm`, {
+    await axios.post(`${API_URL}/api/payments/intent/${paymentIntentId}/confirm`, {
       paymentIntentId: paymentIntentId
     }, {
       headers: {
@@ -196,7 +196,7 @@ async function testPaymentMethods() {
     log('Testing payment methods endpoint...');
     
     // Test with a test customer ID
-    const response = await axios.get(`${BASE_URL}/api/payments/methods?customerId=cus_test_customer`, {
+    const response = await axios.get(`${API_URL}/api/payments/methods?customerId=cus_test_customer`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
       }
@@ -228,7 +228,7 @@ async function testAuthenticationValidation() {
     
     // Test without token
     try {
-      await axios.post(`${BASE_URL}/api/payments/intent`, {
+      await axios.post(`${API_URL}/api/payments/intent`, {
         amount: 1000,
         currency: 'CHF',
         orderId: 'test'
@@ -245,7 +245,7 @@ async function testAuthenticationValidation() {
     
     // Test with invalid token
     try {
-      await axios.post(`${BASE_URL}/api/payments/intent`, {
+      await axios.post(`${API_URL}/api/payments/intent`, {
         amount: 1000,
         currency: 'CHF',
         orderId: 'test'

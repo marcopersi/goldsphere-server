@@ -7,11 +7,11 @@
 
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:8888';
+const API_URL = 'http://localhost:8888';
 
 async function login() {
   try {
-    const response = await axios.post(`${BASE_URL}/api/auth/login`, {
+    const response = await axios.post(`${API_URL}/api/auth/login`, {
       email: 'bank.technical@goldsphere.vault',
       password: 'GoldspherePassword'
     });
@@ -26,7 +26,7 @@ async function login() {
 
 async function testEndpoint(url, token, expectedStructure) {
   try {
-    const response = await axios.get(`${BASE_URL}${url}`, {
+    const response = await axios.get(`${API_URL}${url}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     

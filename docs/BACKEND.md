@@ -241,6 +241,26 @@ app.use((err: any, req: any, res: any, next: any) => {
 
 Controllers use tsoa decorators for automatic route generation and OpenAPI documentation.
 
+#### User Controller Module Split
+
+`UserController` uses extracted support modules to keep controller responsibilities focused:
+
+- `src/controllers/user/UserController.types.ts` (request/response contracts)
+- `src/controllers/user/UserController.validation.ts` (zod + reference validation)
+- `src/controllers/user/UserController.helpers.ts` (service and status helpers)
+- `src/controllers/user/UserController.mappers.ts` (response mapping)
+
+This keeps route methods lean while preserving the same API contract.
+
+#### Dynamic Reference Validation in User Endpoints
+
+User write endpoints validate reference fields against live database state before service execution:
+
+- `POST /api/users` and `PUT /api/users/{id}` validate `role` and `title` against DB enum/check constraints
+- `PATCH /api/users/{id}/profile` validates `title`, `preferredCurrency`, and `address.countryId`
+
+Validation happens in `src/controllers/user/UserController.validation.ts` and returns the standard `VALIDATION_ERROR` with `details.fields[]`.
+
 #### Route Regeneration Required
 
 **CRITICAL**: After changing controller interfaces, you MUST regenerate tsoa routes:
@@ -298,6 +318,23 @@ Authentication endpoints must return the correct HTTP status code for token erro
   - Invalid/expired token -> `401` with `{ "success": false, "error": "Invalid token" | "Token has expired" }`
 
 Implementation note: in `AuthController`, token error paths use `this.setStatus(...)` + typed JSON return objects instead of generic `throw new Error(...)` to avoid accidental `500` responses.
+
+### tsoa Authentication Hardening (PR5)
+
+tsoa protected routes now validate JWT claims against current database state before authorization checks:
+
+- user must still exist in `users`
+- `account_status` must be `active`
+- token role must match current DB role (stale role tokens are rejected)
+- scope checks (`@Security('bearerAuth', ['admin'])`) evaluate the DB role, not stale token-only claims
+
+Implementation location: `src/middleware/tsoaAuth.ts`.
+
+Security outcome:
+
+- deleted/deactivated users cannot access protected tsoa endpoints with old tokens
+- role downgrades take effect immediately without waiting for token expiration
+- role-elevation via stale token replay is blocked
 
 #### Binary Responses
 
@@ -368,6 +405,44 @@ interface StandardErrorResponse {
   success: false;
   error: string;
   details?: any;
+}
+
+// Validation error contract (tsoa + controller-level validation)
+interface ValidationErrorResponse {
+  success: false;
+  error: 'Validation failed';
+  code: 'VALIDATION_ERROR';
+  details: {
+    fields: Array<{
+      path: string;
+      message: string;
+    }>;
+  };
+}
+```
+
+### Endpoint-specific Rate Limiting (PR4)
+
+Rate limiting is applied per endpoint category (not only globally):
+
+- `POST /api/auth/register`
+  - production preset: strict auth limiter
+  - test mode: relaxed cap to avoid false negatives in automated suites
+- `PATCH /api/users/:id/profile`
+  - per-user limiter via authenticated user key
+  - test mode uses relaxed cap
+
+429 response shape is standardized:
+
+```json
+{
+  "success": false,
+  "code": "RATE_LIMIT_EXCEEDED",
+  "error": "Too many requests, please try again later",
+  "details": {
+    "limit": 30,
+    "resetTime": "2026-02-16T12:34:56.000Z"
+  }
 }
 ```
 

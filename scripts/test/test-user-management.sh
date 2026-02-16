@@ -7,7 +7,7 @@
 
 set -e
 
-BASE_URL="http://localhost:8888"
+API_URL="http://localhost:8888"
 ADMIN_EMAIL="admin@goldsphere.com"
 ADMIN_PASSWORD="AdminPassword123!"
 
@@ -61,7 +61,7 @@ check_status() {
 
 echo -e "${YELLOW}Step 1: Admin Login${NC}"
 
-LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/auth/login" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}")
 
@@ -90,7 +90,7 @@ echo -e "${YELLOW}Step 2: Create Test User${NC}"
 
 TEST_USER_EMAIL="testuser-$(date +%s)@example.com"
 
-CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/registration/register" \
+CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/registration/register" \
   -H "Content-Type: application/json" \
   -d "{
     \"email\":\"$TEST_USER_EMAIL\",
@@ -126,7 +126,7 @@ echo ""
 
 echo -e "${YELLOW}Step 3: Block User${NC}"
 
-BLOCK_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/users/$TEST_USER_ID/block" \
+BLOCK_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/users/$TEST_USER_ID/block" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -d "{\"reason\":\"Testing block functionality\"}")
@@ -155,7 +155,7 @@ echo ""
 
 echo -e "${YELLOW}Step 4: Block Already Blocked User (Should Fail)${NC}"
 
-BLOCK_AGAIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/users/$TEST_USER_ID/block" \
+BLOCK_AGAIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/users/$TEST_USER_ID/block" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -d "{\"reason\":\"Trying to block again\"}")
@@ -172,7 +172,7 @@ echo ""
 
 echo -e "${YELLOW}Step 5: Get Blocked Users List${NC}"
 
-BLOCKED_LIST_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$BASE_URL/api/users/blocked" \
+BLOCKED_LIST_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/api/users/blocked" \
   -H "Authorization: Bearer $ADMIN_TOKEN")
 
 HTTP_STATUS=$(echo "$BLOCKED_LIST_RESPONSE" | tail -n1)
@@ -199,7 +199,7 @@ echo ""
 
 echo -e "${YELLOW}Step 6: Unblock User${NC}"
 
-UNBLOCK_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/users/$TEST_USER_ID/unblock" \
+UNBLOCK_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/users/$TEST_USER_ID/unblock" \
   -H "Authorization: Bearer $ADMIN_TOKEN")
 
 HTTP_STATUS=$(echo "$UNBLOCK_RESPONSE" | tail -n1)
@@ -226,7 +226,7 @@ echo ""
 
 echo -e "${YELLOW}Step 7: Unblock Active User (Should Fail)${NC}"
 
-UNBLOCK_AGAIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/users/$TEST_USER_ID/unblock" \
+UNBLOCK_AGAIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/users/$TEST_USER_ID/unblock" \
   -H "Authorization: Bearer $ADMIN_TOKEN")
 
 HTTP_STATUS=$(echo "$UNBLOCK_AGAIN_RESPONSE" | tail -n1)
@@ -241,7 +241,7 @@ echo ""
 
 echo -e "${YELLOW}Step 8: Soft Delete User${NC}"
 
-SOFT_DELETE_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$BASE_URL/api/users/$TEST_USER_ID/soft" \
+SOFT_DELETE_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/api/users/$TEST_USER_ID/soft" \
   -H "Authorization: Bearer $ADMIN_TOKEN")
 
 HTTP_STATUS=$(echo "$SOFT_DELETE_RESPONSE" | tail -n1)
@@ -268,7 +268,7 @@ echo ""
 
 echo -e "${YELLOW}Step 9: Block Without Admin Token (Should Fail)${NC}"
 
-NO_AUTH_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/users/$TEST_USER_ID/block" \
+NO_AUTH_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/users/$TEST_USER_ID/block" \
   -H "Content-Type: application/json" \
   -d "{\"reason\":\"No token\"}")
 
@@ -284,7 +284,7 @@ echo ""
 
 echo -e "${YELLOW}Step 10: Admin Tries to Block Self (Should Fail)${NC}"
 
-BLOCK_SELF_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/users/$ADMIN_USER_ID/block" \
+BLOCK_SELF_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/api/users/$ADMIN_USER_ID/block" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -d "{\"reason\":\"Testing self-block prevention\"}")

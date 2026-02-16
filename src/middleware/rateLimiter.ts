@@ -41,7 +41,7 @@ const defaultOptions: RateLimitOptions = {
  * Generate key from request (default: IP address)
  */
 function defaultKeyGenerator(req: Request): string {
-  return req.ip || req.connection?.remoteAddress || 'unknown';
+  return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
 /**
@@ -57,7 +57,8 @@ function cleanup(): void {
 }
 
 // Run cleanup every 5 minutes
-setInterval(cleanup, 5 * 60 * 1000);
+const cleanupInterval = setInterval(cleanup, 5 * 60 * 1000);
+cleanupInterval.unref();
 
 /**
  * Create rate limit middleware
@@ -96,13 +97,11 @@ export function createRateLimiter(options?: Partial<RateLimitOptions>) {
       
       res.status(429).json({
         success: false,
-        error: {
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: 'Too many requests, please try again later',
-          details: {
-            limit: opts.maxRequests,
-            resetTime: new Date(store[key].resetTime).toISOString(),
-          },
+        code: 'RATE_LIMIT_EXCEEDED',
+        error: 'Too many requests, please try again later',
+        details: {
+          limit: opts.maxRequests,
+          resetTime: new Date(store[key].resetTime).toISOString(),
         },
       });
       return;

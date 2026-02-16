@@ -3,7 +3,7 @@
 ## CRITICAL SECURITY ISSUES (URGENT - MUST FIX IMMEDIATELY)
 
 ### Authentication Security Holes
-- [ ] **[Critical] JWT Authentication Security Hole**: `authenticateToken` middleware does NOT verify users exist in database
+- [x] **[Critical] JWT Authentication Security Hole**: token validation now verifies user existence, active account status, and role consistency against database (including tsoa protected routes)
   - **Risk**: Deleted users can still access APIs with valid tokens
   - **Risk**: Role changes not reflected (old tokens with old roles still work)
   - **Risk**: Database inconsistency between token data and reality

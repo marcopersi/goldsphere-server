@@ -1,355 +1,192 @@
-# Frontend Integration: User Profile Fields
+# Frontend Integration: User Profile and User Management
 
-## Übersicht
+## Purpose
 
-Die User-Endpoints (`POST /api/users` und `PUT /api/users/:id`) unterstützen jetzt optionale Profilfelder für die `user_profiles` Tabelle.
+This document describes how Web and Mobile clients should integrate the latest user-related backend changes.
 
-## ✅ Was wurde implementiert
+## What Changed
 
-### Backend Changes
+### New/Updated behavior
 
-1. **CreateUserRequest** und **UpdateUserRequest** erweitert um:
-   - `title?: 'Herr' | 'Frau' | 'Divers'` - Anrede
-   - `firstName?: string` - Vorname
-   - `lastName?: string` - Nachname  
-   - `birthDate?: Date` - Geburtsdatum (ISO 8601 format)
+- `PATCH /api/users/{id}/profile` is available for partial profile and address updates.
+- `POST /api/users` and `PUT /api/users/{id}` now validate `role` and `title` dynamically.
+- `PATCH /api/users/{id}/profile` validates profile reference fields (for example `preferredCurrency` and `address.countryId`).
+- Validation errors are standardized to `code: "VALIDATION_ERROR"` with field-level details.
+- Protected routes now reject stale JWT role claims and inactive/deleted users.
 
-2. **Automatische Profilerstellung**: Wenn bei User-Erstellung alle 3 Pflichtfelder (`firstName`, `lastName`, `birthDate`) vorhanden sind, wird automatisch ein `user_profiles` Eintrag erstellt.
+### No profile shortcut endpoint
 
-3. **Profilaktualisierung**: Bei User-Update werden Profilfelder automatisch aktualisiert oder erstellt.
+There is still no `GET /api/profile` endpoint.
 
-## 🎯 Frontend Implementation
+Use this flow:
 
-### Profile Loading Endpoints (Important)
+1. `GET /api/auth/me` to resolve the authenticated user id.
+2. `GET /api/users/{id}/details` to get full profile data.
 
-There is no `GET /api/profile` endpoint in this backend.
+## API Contracts
 
-Use one of these endpoints instead:
+### 1) Get full user profile state
 
-- `GET /api/auth/me` → returns current authenticated user identity (`id`, `email`, `role`)
-- `GET /api/users/:id/details` → returns full profile payload (`user`, `profile`, `address`, `verificationStatus`)
+Endpoint: `GET /api/users/{id}/details`
 
-Typical flow:
+Response shape:
 
-1. Call `GET /api/auth/me` with bearer token
-2. Read `id` from response
-3. Call `GET /api/users/:id/details`
-
-If the frontend requests `GET /api/profile`, the backend will return `404 Not Found`.
-
-### 1. User-Erstellung (Admin Panel / Registration)
-
-**Endpoint**: `POST /api/users`
-
-**Request Body**:
-```typescript
-interface CreateUserRequest {
-  email: string;              // REQUIRED
-  password: string;           // REQUIRED (min 8 chars, letter + number)
-  role?: 'admin' | 'user' | 'advisor' | 'investor';
-  
-  // Optional profile fields
-  title?: 'Herr' | 'Frau' | 'Divers';
-  firstName?: string;
-  lastName?: string;
-  birthDate?: string;         // ISO 8601: "YYYY-MM-DD"
-}
-```
-
-**Beispiel**:
-```typescript
-const createUser = async (userData: CreateUserRequest) => {
-  const response = await fetch('/api/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: 'max.mustermann@example.com',
-      password: 'SecurePass123',
-      role: 'user',
-      title: 'Herr',
-      firstName: 'Max',
-      lastName: 'Mustermann',
-      birthDate: '1990-01-15'
-    })
-  });
-  
-  return response.json();
-};
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "email": "max.mustermann@example.com",
-    "role": "user",
-    "createdAt": "2026-02-03T21:38:21.007Z"
-  },
-  "message": "User created successfully"
-}
-```
-
-### 2. User-Update
-
-**Endpoint**: `PUT /api/users/:id`
-
-**Request Body**:
-```typescript
-interface UpdateUserRequest {
-  email?: string;
-  password?: string;
-  role?: 'admin' | 'user' | 'advisor' | 'investor';
-  emailVerified?: boolean;
-  identityVerified?: boolean;
-  
-  // Optional profile fields
-  title?: 'Herr' | 'Frau' | 'Divers';
-  firstName?: string;
-  lastName?: string;
-  birthDate?: string;         // ISO 8601: "YYYY-MM-DD"
-}
-```
-
-**Beispiel**:
-```typescript
-const updateUser = async (userId: string, updates: UpdateUserRequest) => {
-  const response = await fetch(`/api/users/${userId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      firstName: 'Maximilian',  // Update nur Vorname
-      lastName: 'Mustermann'
-    })
-  });
-  
-  return response.json();
-};
-```
-
-### 3. User Details abrufen (mit Profil)
-
-**Endpoint**: `GET /api/users/:id/details`
-
-**Response**:
 ```json
 {
   "success": true,
   "data": {
     "user": {
       "id": "uuid",
-      "email": "max.mustermann@example.com",
-      "role": "user",
-      "emailVerified": false,
-      "createdAt": "2026-02-03T21:38:21.007Z",
-      "updatedAt": "2026-02-03T21:38:21.007Z"
+      "email": "user@example.com",
+      "role": "customer",
+      "emailVerified": true
     },
     "profile": {
       "title": "Herr",
       "firstName": "Max",
       "lastName": "Mustermann",
-      "birthDate": "1990-01-15T00:00:00.000Z"
+      "birthDate": "1990-01-15T00:00:00.000Z",
+      "phone": "+41795551234",
+      "gender": "prefer_not_to_say",
+      "preferredCurrency": "CHF",
+      "preferredPaymentMethod": "bank_transfer"
     },
-    "address": null,
+    "address": {
+      "countryId": "uuid",
+      "postalCode": "8001",
+      "city": "Zürich",
+      "state": "ZH",
+      "street": "Bahnhofstrasse",
+      "houseNumber": "10A",
+      "addressLine2": "3rd floor",
+      "poBox": "Postfach 42"
+    },
+    "verificationStatus": {
+      "emailStatus": "verified",
+      "identityStatus": "pending"
+    }
+  }
+}
+```
+
+### 2) Patch profile and address (recommended for profile screens)
+
+Endpoint: `PATCH /api/users/{id}/profile`
+
+Request fields are optional and support partial updates:
+
+```typescript
+interface PatchUserProfileRequest {
+  title?: string | null;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  phone?: string | null;                 // E.164 format
+  gender?: string | null;
+  preferredCurrency?: string | null;     // ISO 4217 alpha-3
+  preferredPaymentMethod?: string | null;
+  address?: {
+    countryId?: string | null;           // UUID
+    postalCode?: string | null;
+    city?: string | null;
+    state?: string | null;
+    street?: string | null;
+    houseNumber?: string | null;
+    addressLine2?: string | null;
+    poBox?: string | null;
+  };
+}
+```
+
+Response shape:
+
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "uuid",
+    "profile": { "firstName": "Max" },
+    "address": { "city": "Zürich" },
     "verificationStatus": null
   }
 }
 ```
 
-## 📋 UI Components - Empfehlungen
+### 3) Create and update user (admin flows)
 
-### User Creation Form
+Endpoints:
 
-```tsx
-interface UserFormData {
-  email: string;
-  password: string;
-  role: string;
-  title?: string;
-  firstName?: string;
-  lastName?: string;
-  birthDate?: string;
-}
+- `POST /api/users`
+- `PUT /api/users/{id}`
 
-function CreateUserForm() {
-  const [formData, setFormData] = useState<UserFormData>({
-    email: '',
-    password: '',
-    role: 'user'
-  });
+Important:
 
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* Basis-Felder */}
-      <Input 
-        label="Email" 
-        name="email"
-        type="email"
-        required
-      />
-      <Input 
-        label="Passwort" 
-        name="password"
-        type="password"
-        required
-        minLength={8}
-        helperText="Min. 8 Zeichen, Buchstabe + Zahl"
-      />
-      <Select 
-        label="Rolle" 
-        name="role"
-        options={['user', 'admin', 'advisor', 'investor']}
-      />
+- `role` and `title` are accepted as strings but validated server-side.
+- Do not hardcode role/title enums in frontend logic.
+- Read possible values from backend-managed reference data in your app bootstrap flow.
 
-      {/* Profilfelder (optional) */}
-      <Divider>Profil-Informationen (optional)</Divider>
-      
-      <Select 
-        label="Anrede" 
-        name="title"
-        options={['Herr', 'Frau', 'Divers']}
-      />
-      <Input 
-        label="Vorname" 
-        name="firstName"
-      />
-      <Input 
-        label="Nachname" 
-        name="lastName"
-      />
-      <Input 
-        label="Geburtsdatum" 
-        name="birthDate"
-        type="date"
-      />
+## Standard Validation Error Contract
 
-      <Button type="submit">Benutzer erstellen</Button>
-    </form>
-  );
-}
-```
+All user-related validation errors should be handled with this shape:
 
-## 🔍 Wichtige Hinweise
-
-### Validierung
-
-1. **Email & Passwort**: Pflichtfelder bei Erstellung
-2. **Passwort-Policy**: 
-   - Minimum 8 Zeichen
-   - Mindestens 1 Buchstabe
-   - Mindestens 1 Zahl
-3. **Profilfelder**: Alle optional, aber wenn Profil erstellt werden soll, müssen `firstName`, `lastName` UND `birthDate` vorhanden sein
-4. **Geburtsdatum**: User muss mindestens 18 Jahre alt sein (backend validation)
-
-### Fehlerbehandlung
-
-```typescript
-const handleCreateUser = async (data: CreateUserRequest) => {
-  try {
-    const response = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-
-    const result = await response.json();
-
-    if (!result.success) {
-      // Zeige Fehler an
-      if (result.error.includes('email already exists')) {
-        toast.error('Diese Email-Adresse wird bereits verwendet');
-      } else if (result.error.includes('password')) {
-        toast.error('Passwort erfüllt nicht die Anforderungen');
-      } else {
-        toast.error(result.error);
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "fields": [
+      {
+        "path": "preferredCurrency",
+        "message": "Unknown currency code"
       }
-      return;
-    }
-
-    // Erfolg
-    toast.success('Benutzer erfolgreich erstellt');
-    return result.data;
-  } catch (error) {
-    toast.error('Netzwerkfehler beim Erstellen des Benutzers');
+    ]
   }
-};
-```
-
-## 📊 Datenbank-Schema
-
-Zur Referenz:
-
-```sql
--- users Tabelle (auth)
-users {
-  id UUID PRIMARY KEY,
-  email TEXT UNIQUE,
-  passwordhash TEXT,
-  role VARCHAR(50),
-  ...
-}
-
--- user_profiles Tabelle (profile data)
-user_profiles {
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  title user_title_enum ('Herr', 'Frau', 'Divers'),
-  first_name VARCHAR(100) NOT NULL,
-  last_name VARCHAR(100) NOT NULL,
-  birth_date DATE NOT NULL CHECK (birth_date <= CURRENT_DATE - INTERVAL '18 years'),
-  ...
 }
 ```
 
-## 🧪 Testing
+Client handling rule:
 
-### Curl Test
+- Map `details.fields[]` directly to field-level form errors.
+- Use `path` values for nested form keys (for example `address.countryId`).
 
-```bash
-# User mit Profil erstellen
-curl -X POST http://localhost:8888/api/users \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "TestPass123",
-    "role": "user",
-    "title": "Frau",
-    "firstName": "Anna",
-    "lastName": "Schmidt",
-    "birthDate": "1985-03-20"
-  }'
+## Auth/Session Implications (Web + Mobile)
 
-# User-Details mit Profil abrufen
-curl http://localhost:8888/api/users/{userId}/details
+Because token claims are now checked against live user state:
 
-# Profil aktualisieren
-curl -X PUT http://localhost:8888/api/users/{userId} \
-  -H "Content-Type: application/json" \
-  -d '{
-    "firstName": "Annemarie",
-    "title": "Divers"
-  }'
-```
+- A token can become invalid before `exp` when role changes.
+- A token can become invalid when account status becomes inactive/deleted.
 
-## ✅ Checkliste für Frontend-Integration
+When API returns `401` for protected user endpoints:
 
-- [ ] User-Erstellungs-Formular um optionale Profilfelder erweitert
-- [ ] User-Update-Formular um Profilfelder erweitert
-- [ ] User-Details-View zeigt Profilinformationen an
-- [ ] Validierung für Geburtsdatum (18+ Jahre) implementiert
-- [ ] Fehlerbehandlung für alle Validierungsfehler
-- [ ] Tests für User-Erstellung mit/ohne Profil
-- [ ] UI-Tests für Formular-Validierung
+1. Clear cached user profile.
+2. Force re-authentication.
+3. Refresh role-dependent UI after login.
 
-## 🔗 Related Endpoints
+## Suggested Integration Flow
 
-- `POST /api/users` - User erstellen (mit optionalem Profil)
-- `PUT /api/users/:id` - User aktualisieren (inkl. Profil)
-- `GET /api/users/:id` - Basis-User-Daten
-- `GET /api/users/:id/details` - User mit allen Details (Profil, Adresse, Verification)
+### Web App
 
-## 📝 Swagger Dokumentation
+1. On app start: call `GET /api/auth/me`.
+2. Load `GET /api/users/{id}/details` into profile state.
+3. On profile save: call `PATCH /api/users/{id}/profile` with changed fields only.
+4. Render backend field errors from `details.fields[]`.
 
-Die vollständige API-Dokumentation mit allen Feldern ist verfügbar unter:
-- http://localhost:8888/api-docs
+### Mobile App
+
+1. On session restore: validate token via existing authenticated endpoint.
+2. Fetch `GET /api/users/{id}/details` for profile screen hydration.
+3. Use optimistic UI only for local state; always reconcile with server response payload.
+4. On `401`, invalidate local session and navigate to login.
+
+## Minimal Test Checklist for Frontends
+
+- Create user with role/title and verify success.
+- Update user role/title and verify validation behavior.
+- Patch profile fields (`phone`, `preferredCurrency`, `address.*`) and verify persistence.
+- Trigger a validation error (for example invalid phone format) and render field error.
+- Trigger stale-token scenario (role change) and verify logout/re-auth flow.
+
+## Local API Docs
+
+- Swagger UI: `http://localhost:8888/api-docs`
