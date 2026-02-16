@@ -15,8 +15,7 @@ import {
   CreateOrderRequest, 
   CreateOrderResult, 
   GetOrdersOptions, 
-  GetOrdersResult,
-  OrderType 
+  GetOrdersResult
 } from '../types/OrderTypes';
 import { 
   validateCreateOrderRequest, 
@@ -70,7 +69,7 @@ export class OrderServiceImpl implements IOrderService {
         unitPrice: item.unitPrice,
         totalPrice: item.totalPrice
       })),
-      currency: "CHF", // TODO: Get from request or user preference
+      currency: "CHF", // Current default currency for order persistence
       subtotal: calculation.subtotal,
       taxes: calculation.taxes || 0,
       totalAmount: calculation.totalAmount,
@@ -123,5 +122,12 @@ export class OrderServiceImpl implements IOrderService {
    */
   async getOrdersByUserId(userId?: string, options?: GetOrdersOptions): Promise<GetOrdersResult> {
     return await this.orderRepository.findByUserId(userId, options || {});
+  }
+
+  async processOrderWorkflow(
+    orderId: string,
+    authenticatedUser: AuditTrailUser
+  ): Promise<{ previousStatus: string; newStatus: string }> {
+    return await this.orderRepository.processOrderWorkflow(orderId, authenticatedUser);
   }
 }

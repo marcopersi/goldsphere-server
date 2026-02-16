@@ -5,7 +5,7 @@
  * All SQL queries are encapsulated here
  */
 
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { IOrderRepository } from './IOrderRepository';
 import { Order, OrderItem, GetOrdersOptions, GetOrdersResult } from '../types/OrderTypes';
 import { createOrderWithAudit, createOrderItemWithAudit, updateOrderWithAudit, AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
@@ -164,7 +164,10 @@ export class OrderRepositoryImpl implements IOrderRepository {
       if (!ordersMap.has(row.id)) {
         ordersMap.set(row.id, []);
       }
-      ordersMap.get(row.id)!.push(row);
+      const orderRows = ordersMap.get(row.id);
+      if (orderRows) {
+        orderRows.push(row);
+      }
     }
     
     const orders = Array.from(ordersMap.values()).map(rows => this.mapDatabaseRowsToOrder(rows));
@@ -257,6 +260,286 @@ export class OrderRepositoryImpl implements IOrderRepository {
     
     const result = await this.pool.query(countQuery, queryParams);
     return Number.parseInt(result.rows[0].total);
+  }
+
+  async processOrderWorkflow(
+    orderId: string,
+    authenticatedUser: AuditTrailUser
+  ): Promise<{ previousStatus: string; newStatus: string }> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const orderResult = await client.query(
+        'SELECT id, userid, type, orderstatus FROM orders WHERE id = $1 FOR UPDATE',
+        [orderId]
+      );
+
+      if (orderResult.rows.length === 0) {
+        throw new Error('ORDER_NOT_FOUND');
+      }
+
+      const orderRow = orderResult.rows[0];
+      const currentStatus = String(orderRow.orderstatus);
+      const newStatus = this.getNextWorkflowStatus(currentStatus);
+
+      if (currentStatus === 'shipped') {
+        await this.applyOrderFulfillment(
+          client,
+          orderId,
+          String(orderRow.userid),
+          String(orderRow.type),
+          authenticatedUser
+        );
+      }
+
+      const auditUser = getAuditUser(authenticatedUser);
+      await client.query(
+        `UPDATE orders
+         SET orderstatus = $1,
+             updatedat = CURRENT_TIMESTAMP,
+             updatedBy = $2
+         WHERE id = $3`,
+        [newStatus, auditUser.id, orderId]
+      );
+
+      await client.query('COMMIT');
+      return { previousStatus: currentStatus, newStatus };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private getNextWorkflowStatus(currentStatus: string): string {
+    switch (currentStatus) {
+      case 'pending':
+        return 'confirmed';
+      case 'confirmed':
+        return 'processing';
+      case 'processing':
+        return 'shipped';
+      case 'shipped':
+        return 'delivered';
+      case 'delivered':
+        return 'completed';
+      case 'completed':
+      case 'cancelled':
+        throw new Error(`ORDER_WORKFLOW_INVALID_STATE:${currentStatus}`);
+      default:
+        throw new Error(`ORDER_WORKFLOW_INVALID_STATE:${currentStatus}`);
+    }
+  }
+
+  private async applyOrderFulfillment(
+    client: PoolClient,
+    orderId: string,
+    userId: string,
+    orderType: string,
+    authenticatedUser: AuditTrailUser
+  ): Promise<void> {
+    const auditUser = getAuditUser(authenticatedUser);
+    const portfolioId = await this.getOrCreatePortfolioId(client, userId, auditUser.id);
+
+    const orderItemsQuery = await client.query(
+      'SELECT productid, quantity, unitprice FROM order_items WHERE orderid = $1',
+      [orderId]
+    );
+
+    for (const item of orderItemsQuery.rows) {
+      const productId = String(item.productid);
+      const quantity = Number.parseFloat(String(item.quantity));
+      const unitPrice = Number.parseFloat(String(item.unitprice));
+
+      if (orderType === 'buy') {
+        await this.processBuyItem(client, {
+          userId,
+          productId,
+          quantity,
+          unitPrice,
+          portfolioId,
+          orderId,
+          auditUserId: auditUser.id,
+        });
+        continue;
+      }
+
+      if (orderType === 'sell') {
+        await this.processSellItem(client, {
+          userId,
+          productId,
+          quantity,
+          unitPrice,
+          orderId,
+          auditUserId: auditUser.id,
+        });
+        continue;
+      }
+
+      throw new Error(`Unsupported order type: ${orderType}`);
+    }
+  }
+
+  private async getOrCreatePortfolioId(client: PoolClient, userId: string, auditUserId: string): Promise<string> {
+    const existingPortfolio = await client.query(
+      'SELECT id FROM portfolio WHERE ownerid = $1 ORDER BY createdat ASC LIMIT 1',
+      [userId]
+    );
+
+    if (existingPortfolio.rows.length > 0) {
+      return String(existingPortfolio.rows[0].id);
+    }
+
+    const createdPortfolio = await client.query(
+      `INSERT INTO portfolio (ownerid, portfolioname, description, isactive, createdBy, updatedBy)
+       VALUES ($1, $2, $3, $4, $5, $5)
+       RETURNING id`,
+      [userId, 'Default Portfolio', 'Auto-created for order fulfillment', true, auditUserId]
+    );
+
+    return String(createdPortfolio.rows[0].id);
+  }
+
+  private async processBuyItem(
+    client: PoolClient,
+    input: {
+      userId: string;
+      productId: string;
+      quantity: number;
+      unitPrice: number;
+      portfolioId: string;
+      orderId: string;
+      auditUserId: string;
+    }
+  ): Promise<void> {
+    const existingPosition = await client.query(
+      `SELECT id, quantity, status
+       FROM position
+       WHERE userid = $1 AND productid = $2
+       ORDER BY updatedat DESC
+       LIMIT 1`,
+      [input.userId, input.productId]
+    );
+
+    let positionId: string;
+
+    if (existingPosition.rows.length > 0) {
+      const row = existingPosition.rows[0];
+      positionId = String(row.id);
+
+      if (String(row.status) === 'closed') {
+        await client.query(
+          `UPDATE position
+           SET quantity = $1,
+               purchaseprice = $2,
+               marketprice = $2,
+               status = 'active',
+               closeddate = NULL,
+               updatedBy = $3,
+               updatedat = CURRENT_TIMESTAMP
+           WHERE id = $4`,
+          [input.quantity, input.unitPrice, input.auditUserId, positionId]
+        );
+      } else {
+        const newQuantity = Number.parseFloat(String(row.quantity)) + input.quantity;
+        await client.query(
+          `UPDATE position
+           SET quantity = $1,
+               purchaseprice = $2,
+               updatedBy = $3,
+               updatedat = CURRENT_TIMESTAMP
+           WHERE id = $4`,
+          [newQuantity, input.unitPrice, input.auditUserId, positionId]
+        );
+      }
+    } else {
+      const newPosition = await client.query(
+        `INSERT INTO position (
+          userid, productid, portfolioid, purchasedate, purchaseprice, marketprice,
+          quantity, custodyserviceid, status, createdBy, updatedBy
+         )
+         VALUES ($1, $2, $3, NOW(), $4, $4, $5, NULL, 'active', $6, $6)
+         RETURNING id`,
+        [
+          input.userId,
+          input.productId,
+          input.portfolioId,
+          input.unitPrice,
+          input.quantity,
+          input.auditUserId,
+        ]
+      );
+      positionId = String(newPosition.rows[0].id);
+    }
+
+    await client.query(
+      `INSERT INTO transactions (positionid, userid, type, date, quantity, price, fees, notes, createdBy)
+       VALUES ($1, $2, 'buy', NOW(), $3, $4, 0, $5, $6)`,
+      [positionId, input.userId, input.quantity, input.unitPrice, `Buy order ${input.orderId}`, input.auditUserId]
+    );
+  }
+
+  private async processSellItem(
+    client: PoolClient,
+    input: {
+      userId: string;
+      productId: string;
+      quantity: number;
+      unitPrice: number;
+      orderId: string;
+      auditUserId: string;
+    }
+  ): Promise<void> {
+    const activePositionResult = await client.query(
+      `SELECT id, quantity
+       FROM position
+       WHERE userid = $1
+         AND productid = $2
+         AND status = 'active'
+       ORDER BY updatedat DESC
+       LIMIT 1`,
+      [input.userId, input.productId]
+    );
+
+    if (activePositionResult.rows.length === 0) {
+      return;
+    }
+
+    const activePosition = activePositionResult.rows[0];
+    const positionId = String(activePosition.id);
+    const currentQuantity = Number.parseFloat(String(activePosition.quantity));
+    const newQuantity = currentQuantity - input.quantity;
+
+    if (newQuantity <= 0) {
+      await client.query(
+        `UPDATE position
+         SET quantity = 0,
+             status = 'closed',
+             closeddate = NOW(),
+             updatedBy = $1,
+             updatedat = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [input.auditUserId, positionId]
+      );
+    } else {
+      await client.query(
+        `UPDATE position
+         SET quantity = $1,
+             updatedBy = $2,
+             updatedat = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [newQuantity, input.auditUserId, positionId]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO transactions (positionid, userid, type, date, quantity, price, fees, notes, createdBy)
+       VALUES ($1, $2, 'sell', NOW(), $3, $4, 0, $5, $6)`,
+      [positionId, input.userId, input.quantity, input.unitPrice, `Sell order ${input.orderId}`, input.auditUserId]
+    );
   }
 
   // ============================================================================

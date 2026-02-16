@@ -38,4 +38,12 @@ export interface IOrderRepository {
    * Count orders by user ID with filters
    */
   countByUserId(userId: string | undefined, options?: { status?: string; type?: string }): Promise<number>;
+
+  /**
+   * Process an order to the next workflow status atomically
+   */
+  processOrderWorkflow(
+    orderId: string,
+    authenticatedUser: AuditTrailUser
+  ): Promise<{ previousStatus: string; newStatus: string }>;
 }

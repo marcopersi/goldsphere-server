@@ -12,32 +12,27 @@ import { createLogger } from '../../../utils/logger';
 
 const logger = createLogger('PortfolioMappers');
 
-class ValueError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValueError';
-  }
-}
-
-function configureBaseURL(): string {
+function configureBaseURL(): string | null {
   const configuredBaseUrl = process.env.APP_BASE_URL || process.env.BASE_URL;
   if (!configuredBaseUrl) {
-    throw new ValueError('Missing base URL configuration: set APP_BASE_URL or BASE_URL.');
-  }
-
-  const configuredPort = process.env.PORT;
-  if (!configuredPort) {
-    throw new ValueError('Missing port configuration: set PORT.');
+    logger.warn('Missing APP_BASE_URL/BASE_URL. Falling back to relative product image URL.');
+    return null;
   }
 
   let composedUrl: URL;
   try {
     composedUrl = new URL(configuredBaseUrl);
   } catch {
-    throw new ValueError(`Invalid base URL configuration: ${configuredBaseUrl}`);
+    logger.error('Invalid APP_BASE_URL/BASE_URL. Falling back to relative product image URL.', {
+      configuredBaseUrl,
+    });
+    return null;
   }
 
-  composedUrl.port = configuredPort;
+  const configuredPort = process.env.PORT;
+  if (configuredPort) {
+    composedUrl.port = configuredPort;
+  }
 
   const finalBaseUrl = composedUrl.toString().endsWith('/')
     ? composedUrl.toString().slice(0, -1)
@@ -56,6 +51,9 @@ export function mapRowToSummary(row: Record<string, unknown>): PortfolioSummary 
     id: row.id as string,
     portfolioName: row.portfolioname as string,
     ownerId: row.ownerid as string,
+    ownerDisplayName: (row.owner_display_name as string) || (row.ownerid as string),
+    ownerName: (row.owner_name as string) || (row.ownerid as string),
+    ownerEmail: (row.owner_email as string) || undefined,
     description: row.description as string | null,
     isActive: (row.isactive as boolean) ?? true,
     totalValue: Number.parseFloat(row.total_value as string) || 0,
@@ -109,7 +107,10 @@ async function fetchProductForPosition(pool: Pool, productId: string) {
   }
 
   const row = result.rows[0];
-  const imageUrl = `${configureBaseURL()}/api/products/${row.id}/image`;
+  const apiBaseUrl = configureBaseURL();
+  const imageUrl = apiBaseUrl
+    ? `${apiBaseUrl}/api/products/${row.id}/image`
+    : `/api/products/${row.id}/image`;
 
   return {
     id: row.id,

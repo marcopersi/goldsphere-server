@@ -2,10 +2,19 @@ import { Request, Response } from "express";
 import dotenv from "dotenv";
 import app from "./app";
 import { getPool } from "./dbConfig";
+import { validateRuntimeEnvironment } from "./config/environment";
 import { MarketDataServiceFactory } from "./services/market-data/MarketDataServiceFactory";
 import type { MarketDataScheduler } from "./services/market-data/marketDataScheduler";
 
 dotenv.config();
+
+try {
+  validateRuntimeEnvironment();
+} catch (error) {
+  console.error('❌ FATAL: Invalid environment configuration');
+  console.error((error as Error).message);
+  process.exit(1);
+}
 
 let marketDataScheduler: MarketDataScheduler | null = null;
 

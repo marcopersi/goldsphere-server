@@ -522,7 +522,7 @@ export class OrdersController extends Controller {
     @Path() id: string
   ): Promise<any> {
     try {
-      const authenticatedUser = requireAuthenticatedUser(request);
+      requireAuthenticatedUser(request);
 
       // Validate UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -726,170 +726,7 @@ export class OrdersController extends Controller {
 
       // No redundant DB check needed — tsoa @Security("bearerAuth") already verifies user exists in DB
 
-      // Get current order
-      const currentOrder = await orderService.getOrderById(id);
-      if (!currentOrder) {
-        this.setStatus(404);
-        return {
-          success: false,
-          error: "Order not found"
-        };
-      }
-
-      console.log(`🔍 DEBUG: Current order ${id} status is "${currentOrder.status}"`);
-
-      // Determine next status based on workflow
-      let newStatus: string;
-      switch (currentOrder.status) {
-        case "pending":
-          newStatus = "confirmed";
-          break;
-        case "confirmed":
-          newStatus = "processing";
-          break;
-        case "processing":
-          newStatus = "shipped";
-          break;
-        case "shipped":
-          newStatus = "delivered";
-          
-          // When status changes to delivered, create positions in portfolio
-          // Get or create portfolio for the user
-          const portfolioQuery = await pool.query(
-            'SELECT id FROM portfolio WHERE ownerid = $1 LIMIT 1',
-            [currentOrder.userId]
-          );
-          
-          let portfolioId: string;
-          if (portfolioQuery.rows.length === 0) {
-            // Create default portfolio for user
-            const createPortfolio = await pool.query(
-              `INSERT INTO portfolio (ownerid, portfolioname, description, isactive) 
-               VALUES ($1, $2, $3, $4) 
-               RETURNING id`,
-              [currentOrder.userId, 'Default Portfolio', 'Auto-created for order fulfillment', true]
-            );
-            portfolioId = createPortfolio.rows[0].id;
-          } else {
-            portfolioId = portfolioQuery.rows[0].id;
-          }
-
-          // Get order items
-          const orderItemsQuery = await pool.query(
-            'SELECT productid, quantity, unitprice FROM order_items WHERE orderid = $1',
-            [id]
-          );
-
-          // Create positions for each order item
-          for (const item of orderItemsQuery.rows) {
-            // Check if position already exists for this product (active or closed)
-            const existingPositionQuery = await pool.query(
-              'SELECT id, quantity, status FROM position WHERE userid = $1 AND productid = $2 ORDER BY updatedat DESC LIMIT 1',
-              [currentOrder.userId, item.productid]
-            );
-
-            // Handle buy vs sell orders differently
-            if (currentOrder.type === 'buy') {
-              // BUY: Increase position quantity (or create/reactivate position)
-              let positionId: string;
-              
-              if (existingPositionQuery.rows.length > 0) {
-                const existingPosition = existingPositionQuery.rows[0];
-                positionId = existingPosition.id;
-                
-                if (existingPosition.status === 'closed') {
-                  // Reactivate closed position with fresh start
-                  await pool.query(
-                    'UPDATE position SET quantity = $1, purchaseprice = $2, marketprice = $3, status = $4, closeddate = NULL, updatedat = NOW() WHERE id = $5',
-                    [item.quantity, item.unitprice, item.unitprice, 'active', positionId]
-                  );
-                } else {
-                  // Update active position quantity (increase)
-                  const newQuantity = Number.parseFloat(existingPosition.quantity) + Number.parseFloat(item.quantity);
-                  await pool.query(
-                    'UPDATE position SET quantity = $1, purchaseprice = $2, updatedat = NOW() WHERE id = $3',
-                    [newQuantity, item.unitprice, positionId]
-                  );
-                }
-              } else {
-                // Create new position - using snake_case column names!
-                const newPosition = await pool.query(
-                  `INSERT INTO position (userid, productid, portfolioid, purchasedate, purchaseprice, marketprice, quantity, custodyserviceid, status) 
-                   VALUES ($1, $2, $3, NOW(), $4, $4, $5, NULL, $6)
-                   RETURNING id`,
-                  [currentOrder.userId, item.productid, portfolioId, item.unitprice, item.quantity, 'active']
-                );
-                positionId = newPosition.rows[0].id;
-              }
-              
-              // Create transaction record for buy
-              await pool.query(
-                `INSERT INTO transactions (positionid, userid, type, date, quantity, price, fees, notes)
-                 VALUES ($1, $2, $3, NOW(), $4, $5, 0, $6)`,
-                [positionId, currentOrder.userId, 'buy', item.quantity, item.unitprice, `Buy order ${id}`]
-              );
-              
-            } else if (currentOrder.type === 'sell') {
-              // SELL: Decrease position quantity (or close position if quantity reaches 0)
-              // Only look for active positions for selling
-              const activePosition = existingPositionQuery.rows.find((pos: any) => pos.status === 'active');
-              
-              if (activePosition) {
-                const positionId = activePosition.id;
-                const currentQuantity = Number.parseFloat(activePosition.quantity);
-                const sellQuantity = Number.parseFloat(item.quantity);
-                const newQuantity = currentQuantity - sellQuantity;
-
-                if (newQuantity <= 0) {
-                  // Close position if selling all or more than we have
-                  await pool.query(
-                    'UPDATE position SET quantity = 0, status = $1, closeddate = NOW(), updatedat = NOW() WHERE id = $2',
-                    ['closed', positionId]
-                  );
-                } else {
-                  // Reduce position quantity
-                  await pool.query(
-                    'UPDATE position SET quantity = $1, updatedat = NOW() WHERE id = $2',
-                    [newQuantity, positionId]
-                  );
-                }
-                
-                // Create transaction record for sell
-                await pool.query(
-                  `INSERT INTO transactions (positionid, userid, type, date, quantity, price, fees, notes)
-                   VALUES ($1, $2, $3, NOW(), $4, $5, 0, $6)`,
-                  [positionId, currentOrder.userId, 'sell', sellQuantity, item.unitprice, `Sell order ${id}`]
-                );
-              }
-              // If no active position for sell order, skip (can't sell what you don't have)
-            }
-          }
-          break;
-        case "delivered":
-          newStatus = "completed";
-          break;
-        case "completed":
-          this.setStatus(400);
-          return {
-            success: false,
-            error: "Order is already completed and cannot be processed further"
-          };
-        case "cancelled":
-          this.setStatus(400);
-          return {
-            success: false,
-            error: "Order is cancelled and cannot be processed"
-          };
-        default:
-          this.setStatus(400);
-          return {
-            success: false,
-            error: `Invalid order status '${currentOrder.status}' for further processing`
-          };
-      }
-
-      // Update order status
-      await orderService.updateOrderStatus(id, newStatus, authenticatedUser);
+      const workflowResult = await orderService.processOrderWorkflow(id, authenticatedUser);
 
       // Get updated order
       const updatedOrder = await orderService.getOrderById(id);
@@ -897,27 +734,70 @@ export class OrdersController extends Controller {
         throw new Error("Failed to retrieve updated order");
       }
 
-      logger.info(`Order ${id} processed successfully: ${currentOrder.status} -> ${newStatus}`);
+      logger.info(`Order ${id} processed successfully: ${workflowResult.previousStatus} -> ${workflowResult.newStatus}`);
 
       this.setStatus(200);
       return {
         success: true,
         data: updatedOrder,
-        message: `Order status updated to ${newStatus}`
+        message: `Order status updated to ${workflowResult.newStatus}`
       };
     } catch (error) {
       if (error instanceof AuthenticationError) {
         this.setStatus(401);
         return { success: false, error: error.message };
       }
+
+      const errorMessage = (error as Error).message;
+      const handledWorkflowError = this.mapWorkflowProcessError(errorMessage);
+      if (handledWorkflowError) {
+        return handledWorkflowError;
+      }
+
       logger.error("Error processing order", error);
       this.setStatus(500);
       return {
         success: false,
         error: "Failed to process order",
-        details: (error as Error).message
+        details: errorMessage
       };
     }
+  }
+
+  private mapWorkflowProcessError(errorMessage: string): OrdersErrorResponse | null {
+    if (errorMessage === 'ORDER_NOT_FOUND') {
+      this.setStatus(404);
+      return {
+        success: false,
+        error: 'Order not found'
+      };
+    }
+
+    if (!errorMessage.startsWith('ORDER_WORKFLOW_INVALID_STATE:')) {
+      return null;
+    }
+
+    const currentStatus = errorMessage.split(':')[1] || 'unknown';
+    this.setStatus(400);
+
+    if (currentStatus === 'completed') {
+      return {
+        success: false,
+        error: 'Order is already completed and cannot be processed further'
+      };
+    }
+
+    if (currentStatus === 'cancelled') {
+      return {
+        success: false,
+        error: 'Order is cancelled and cannot be processed'
+      };
+    }
+
+    return {
+      success: false,
+      error: `Invalid order status '${currentStatus}' for further processing`
+    };
   }
 
   /**

@@ -28,4 +28,12 @@ export interface IOrderService {
    * Get orders by user with filtering and pagination
    */
   getOrdersByUserId(userId?: string, options?: GetOrdersOptions): Promise<GetOrdersResult>;
+
+  /**
+   * Process order to next workflow status atomically
+   */
+  processOrderWorkflow(
+    orderId: string,
+    authenticatedUser: AuditTrailUser
+  ): Promise<{ previousStatus: string; newStatus: string }>;
 }

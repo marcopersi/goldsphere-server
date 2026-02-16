@@ -28,14 +28,14 @@ export class OrderRepositoryMock implements IOrderRepository {
           productId: 'prod-001',
           productName: 'Swiss Vreneli 20 Francs Gold Coin',
           quantity: 2,
-          unitPrice: 450.0,
-          totalPrice: 900.0
+          unitPrice: 450,
+          totalPrice: 900
         }
       ],
       currency: 'CHF',
-      subtotal: 900.0,
+      subtotal: 900,
       taxes: 0,
-      totalAmount: 900.0,
+      totalAmount: 900,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01')
     };
@@ -52,22 +52,22 @@ export class OrderRepositoryMock implements IOrderRepository {
           productId: 'prod-002',
           productName: 'PAMP Suisse 1oz Gold Bar',
           quantity: 1,
-          unitPrice: 2100.0,
-          totalPrice: 2100.0
+          unitPrice: 2100,
+          totalPrice: 2100
         },
         {
           id: 'item-003',
           productId: 'prod-003',
           productName: 'Austrian Philharmonic 1oz Silver Coin',
           quantity: 5,
-          unitPrice: 32.0,
-          totalPrice: 160.0
+          unitPrice: 32,
+          totalPrice: 160
         }
       ],
       currency: 'USD',
-      subtotal: 2260.0,
+      subtotal: 2260,
       taxes: 0,
-      totalAmount: 2260.0,
+      totalAmount: 2260,
       createdAt: new Date('2024-01-15'),
       updatedAt: new Date('2024-01-16')
     };
@@ -161,6 +161,48 @@ export class OrderRepositoryMock implements IOrderRepository {
     }
     
     return filteredOrders.length;
+  }
+
+  async processOrderWorkflow(
+    orderId: string,
+    _authenticatedUser: AuditTrailUser
+  ): Promise<{ previousStatus: string; newStatus: string }> {
+    const order = this.orders.get(orderId);
+    if (!order) {
+      throw new Error('ORDER_NOT_FOUND');
+    }
+
+    const currentStatus = order.status;
+    let newStatus: string;
+
+    switch (currentStatus) {
+      case 'pending':
+        newStatus = 'confirmed';
+        break;
+      case 'confirmed':
+        newStatus = 'processing';
+        break;
+      case 'processing':
+        newStatus = 'shipped';
+        break;
+      case 'shipped':
+        newStatus = 'delivered';
+        break;
+      case 'delivered':
+        newStatus = 'completed';
+        break;
+      case 'completed':
+      case 'cancelled':
+        throw new Error(`ORDER_WORKFLOW_INVALID_STATE:${currentStatus}`);
+      default:
+        throw new Error(`ORDER_WORKFLOW_INVALID_STATE:${currentStatus}`);
+    }
+
+    order.status = newStatus;
+    order.updatedAt = new Date();
+    this.orders.set(orderId, order);
+
+    return { previousStatus: currentStatus, newStatus };
   }
 
   // Test helper methods
