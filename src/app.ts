@@ -9,7 +9,6 @@ import { RegisterRoutes } from "./generated/routes";
 import * as tsoaSwaggerSpec from "./generated/swagger.json";
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
 import { WebhookController } from "./controllers/WebhookController";
-import { ReferenceDataAggregateService } from "./services/reference/ReferenceDataAggregateService";
 import { RateLimitPresets, createRateLimiter, createUserRateLimiter } from "./middleware/rateLimiter";
 
 // Load environment variables first
@@ -116,24 +115,6 @@ app.get("/info", (req: any, res: any) => {
     endpoints: ["/health", "/info", "/api/products", "/api/auth/login"],
     environment: process.env.NODE_ENV || "development"
   });
-});
-
-app.get('/api', async (_req: any, res: any) => {
-  try {
-    res.setHeader('Deprecation', 'true');
-    res.setHeader('Sunset', 'Fri, 31 Jul 2026 23:59:59 GMT');
-    res.setHeader('Link', '</api/references>; rel="successor-version"');
-
-    const service = new ReferenceDataAggregateService(getPool());
-    const data = await service.getAll();
-    return res.status(200).json({ success: true, data });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch reference data',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
 });
 
 // API spec endpoints (basic implementation)

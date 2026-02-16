@@ -17,41 +17,6 @@ afterAll(async () => {
 });
 
 describe("References API", () => {
-
-  describe("GET /api", () => {
-    it("should return aggregated reference data for root api alias", async () => {
-      const response = await request(app)
-        .get('/api');
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toBeDefined();
-      expect(Array.isArray(response.body.data.metals)).toBe(true);
-      expect(Array.isArray(response.body.data.weightUnits)).toBe(true);
-      expect(Array.isArray(response.body.data.currencies)).toBe(true);
-      expect(Array.isArray(response.body.data.roles)).toBe(true);
-      expect(Array.isArray(response.body.data.titles)).toBe(true);
-      expect(response.headers.deprecation).toBe('true');
-      expect(response.headers.link).toContain('</api/references>');
-      expect(response.headers.link).toContain('rel="successor-version"');
-
-      const unitValues = response.body.data.weightUnits.map((u: { value: string }) => u.value);
-      expect(unitValues).toEqual(expect.arrayContaining(['grams', 'kilograms', 'troy_ounces']));
-
-      const troyUnit = response.body.data.weightUnits.find((u: { value: string }) => u.value === 'troy_ounces');
-      expect(troyUnit).toBeDefined();
-      expect(troyUnit.displayName).toBe('ozt');
-      expect(Array.isArray(troyUnit.aliases)).toBe(true);
-      expect(troyUnit.aliases).toEqual(expect.arrayContaining(['ozt', 'toz']));
-
-      const roleValues = response.body.data.roles.map((r: { value: string }) => r.value);
-      expect(roleValues).toEqual(expect.arrayContaining(['customer', 'admin', 'user']));
-
-      const titleValues = response.body.data.titles.map((t: { value: string }) => t.value);
-      expect(titleValues).toEqual(expect.arrayContaining(['Herr', 'Frau', 'Divers']));
-    });
-  });
-
   describe("GET /api/references/", () => {
     it("should return reference data without authentication", async () => {
       const response = await request(app)
