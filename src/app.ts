@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
+import yaml from "js-yaml";
 import { getPool } from "./dbConfig";
 import { updateSwaggerSpec } from "./config/swagger";
 import { RegisterRoutes } from "./generated/routes";
@@ -149,6 +150,13 @@ app.get("/api-spec.json", (req: any, res: any) => {
   res.setHeader('Content-Type', 'application/json');
   const spec = updateSwaggerSpec(req);
   res.json(spec);
+});
+
+app.get("/api-spec.yaml", (req: any, res: any) => {
+  const spec = updateSwaggerSpec(req);
+  const yamlSpec = yaml.dump(spec, { noRefs: true });
+  res.setHeader('Content-Type', 'application/x-yaml; charset=utf-8');
+  res.send(yamlSpec);
 });
 
 RegisterRoutes(app);
