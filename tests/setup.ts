@@ -1,8 +1,10 @@
 // Global test setup
 import dotenv from 'dotenv';
 
-// Load test environment variables
+// Load test environment variables.
+// Priority: existing process env > .env.test > .env.ci
 dotenv.config({ path: '.env.test' });
+dotenv.config({ path: '.env.ci' });
 
 class ValueError extends Error {
   constructor(message: string) {

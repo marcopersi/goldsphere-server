@@ -31,6 +31,11 @@ This project uses multiple environment files for different deployment scenarios.
 - Mock/test API keys
 - Minimal logging
 
+### `.env.ci` (CI Test Environment)
+- Committed CI-safe defaults for unit test execution in GitHub Actions
+- Used as fallback when `.env.test` is not present in CI runners
+- Contains only non-sensitive test values
+
 ## Usage
 
 ### For Local Development
@@ -63,6 +68,7 @@ cp .env.prod .env
 
 `tests/setup.ts` validates required test env variables at startup and fails fast when missing/invalid.
 Set `TEST_TIMEOUT_MS` in `.env.test` to control Jest timeout (no hardcoded fallback).
+`tests/setup.ts` loads `.env.test` first and then `.env.ci` as fallback.
 
 ## Environment Variables
 

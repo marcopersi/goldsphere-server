@@ -10,6 +10,18 @@ The Docker image is published to GitHub Container Registry (GHCR):
 - Image: ghcr.io/<owner>/goldsphere-server
 - Tags: <version> and latest (on release)
 
+## Test Environment in CI
+
+Unit tests use `tests/setup.ts`, which enforces required env variables (fail-fast).
+
+To keep CI deterministic:
+
+- `.env.test` is used in local development
+- `.env.ci` is committed and used as CI fallback
+- load order is: existing process env -> `.env.test` -> `.env.ci`
+
+This ensures GitHub Actions can run `bun run test:ci` even when `.env.test` is not available in the runner.
+
 ## Publishing to GHCR
 
 The publish job runs after a successful semantic release on pushes to main. It logs in to GHCR using the built-in GitHub Actions token and pushes the image.
