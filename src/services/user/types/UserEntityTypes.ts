@@ -51,6 +51,10 @@ export interface UserProfileEntity {
   firstName: string;
   lastName: string;
   birthDate: Date;
+  phone?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,11 +65,14 @@ export interface UserProfileEntity {
 export interface UserAddressEntity {
   id: string;
   userId: string;
-  countryId: string;
-  postalCode: string;
-  city: string;
-  state: string;
-  street: string;
+  countryId?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  state?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  addressLine2?: string | null;
+  poBox?: string | null;
   isPrimary: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -157,6 +164,10 @@ export interface UserProfileDbRow {
   first_name: string;
   last_name: string;
   birth_date: Date;
+  phone: string | null;
+  gender: string | null;
+  preferred_currency: string | null;
+  preferred_payment_method: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -167,11 +178,14 @@ export interface UserProfileDbRow {
 export interface UserAddressDbRow {
   id: string;
   user_id: string;
-  countryid: string;
-  postal_code: string;
-  city: string;
-  state: string;
-  street: string;
+  countryid: string | null;
+  postal_code: string | null;
+  city: string | null;
+  state: string | null;
+  street: string | null;
+  house_number: string | null;
+  address_line2: string | null;
+  po_box: string | null;
   is_primary: boolean;
   created_at: Date;
   updated_at: Date;

@@ -22,7 +22,6 @@ import {
 } from './UserEntityTypes';
 import {
   UserRole,
-  UserTitle,
   EmailVerificationStatus,
   IdentityVerificationStatus,
   AccountStatus,
@@ -91,7 +90,7 @@ export function mapUserToResponse(user: UserEntity): Omit<UserEntity, 'passwordH
  * Map database row to UserProfileEntity
  */
 export function mapUserProfileEntity(row: UserProfileDbRow): UserProfileEntity {
-  const title = isValidUserTitle(row.title) ? row.title as UserTitle : null;
+  const title = isValidUserTitle(row.title) ? row.title : null;
   
   return {
     id: row.id,
@@ -100,6 +99,10 @@ export function mapUserProfileEntity(row: UserProfileDbRow): UserProfileEntity {
     firstName: row.first_name,
     lastName: row.last_name,
     birthDate: row.birth_date,
+    phone: row.phone,
+    gender: row.gender,
+    preferredCurrency: row.preferred_currency,
+    preferredPaymentMethod: row.preferred_payment_method,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -121,6 +124,9 @@ export function mapUserAddressEntity(row: UserAddressDbRow): UserAddressEntity {
     city: row.city,
     state: row.state,
     street: row.street,
+    houseNumber: row.house_number,
+    addressLine2: row.address_line2,
+    poBox: row.po_box,
     isPrimary: row.is_primary,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

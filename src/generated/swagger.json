@@ -225,19 +225,36 @@
 				"description": "User address data",
 				"properties": {
 					"countryId": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"postalCode": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"city": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"state": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"street": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
+					},
+					"houseNumber": {
+						"type": "string",
+						"nullable": true
+					},
+					"addressLine2": {
+						"type": "string",
+						"nullable": true
+					},
+					"poBox": {
+						"type": "string",
+						"nullable": true
 					}
 				},
 				"type": "object",
@@ -926,28 +943,38 @@
 			"Address": {
 				"properties": {
 					"countryId": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"postalCode": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"city": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"state": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
 					},
 					"street": {
-						"type": "string"
+						"type": "string",
+						"nullable": true
+					},
+					"houseNumber": {
+						"type": "string",
+						"nullable": true
+					},
+					"addressLine2": {
+						"type": "string",
+						"nullable": true
+					},
+					"poBox": {
+						"type": "string",
+						"nullable": true
 					}
 				},
-				"required": [
-					"countryId",
-					"postalCode",
-					"city",
-					"state",
-					"street"
-				],
 				"type": "object",
 				"additionalProperties": false
 			},
@@ -988,6 +1015,22 @@
 					},
 					"birthDate": {
 						"type": "string"
+					},
+					"phone": {
+						"type": "string",
+						"nullable": true
+					},
+					"gender": {
+						"type": "string",
+						"nullable": true
+					},
+					"preferredCurrency": {
+						"type": "string",
+						"nullable": true
+					},
+					"preferredPaymentMethod": {
+						"type": "string",
+						"nullable": true
 					},
 					"address": {
 						"$ref": "#/components/schemas/Address"
@@ -1124,6 +1167,37 @@
 					},
 					"password": {
 						"type": "string"
+					},
+					"phone": {
+						"type": "string"
+					},
+					"gender": {
+						"type": "string",
+						"enum": [
+							"male",
+							"female",
+							"diverse",
+							"prefer_not_to_say"
+						]
+					},
+					"preferredCurrency": {
+						"type": "string",
+						"enum": [
+							"CHF",
+							"EUR",
+							"USD",
+							"GBP",
+							"CAD",
+							"AUD"
+						]
+					},
+					"preferredPaymentMethod": {
+						"type": "string",
+						"enum": [
+							"bank_transfer",
+							"card",
+							"invoice"
+						]
 					}
 				},
 				"required": [

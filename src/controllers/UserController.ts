@@ -91,11 +91,14 @@ export interface UserProfileData {
  * User address data
  */
 export interface UserAddressData {
-  countryId?: string;
-  postalCode?: string;
-  city?: string;
-  state?: string;
-  street?: string;
+  countryId?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  state?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  addressLine2?: string | null;
+  poBox?: string | null;
 }
 
 /**

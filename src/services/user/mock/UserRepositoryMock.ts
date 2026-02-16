@@ -27,12 +27,12 @@ import {
 } from '../types';
 
 export class UserRepositoryMock implements IRegistrationRepository {
-  private users: Map<string, UserEntity> = new Map();
-  private profiles: Map<string, UserProfileEntity> = new Map();
-  private addresses: Map<string, UserAddressEntity> = new Map();
-  private verificationStatuses: Map<string, UserVerificationStatusEntity> = new Map();
-  private documentLogs: DocumentProcessingLogEntity[] = [];
-  private consentLogs: ConsentLogEntity[] = [];
+  private readonly users: Map<string, UserEntity> = new Map();
+  private readonly profiles: Map<string, UserProfileEntity> = new Map();
+  private readonly addresses: Map<string, UserAddressEntity> = new Map();
+  private readonly verificationStatuses: Map<string, UserVerificationStatusEntity> = new Map();
+  private readonly documentLogs: DocumentProcessingLogEntity[] = [];
+  private readonly consentLogs: ConsentLogEntity[] = [];
 
   constructor() {
     this.initializeMockData();
@@ -136,6 +136,10 @@ export class UserRepositoryMock implements IRegistrationRepository {
       firstName: profileData.firstName,
       lastName: profileData.lastName,
       birthDate: profileData.birthDate,
+      phone: profileData.phone ?? null,
+      gender: profileData.gender ?? null,
+      preferredCurrency: profileData.preferredCurrency ?? null,
+      preferredPaymentMethod: profileData.preferredPaymentMethod ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -151,11 +155,14 @@ export class UserRepositoryMock implements IRegistrationRepository {
     const address: UserAddressEntity = {
       id,
       userId: addressData.userId,
-      countryId: addressData.countryId,
-      postalCode: addressData.postalCode,
-      city: addressData.city,
-      state: addressData.state,
-      street: addressData.street,
+      countryId: addressData.countryId ?? null,
+      postalCode: addressData.postalCode ?? null,
+      city: addressData.city ?? null,
+      state: addressData.state ?? null,
+      street: addressData.street ?? null,
+      houseNumber: addressData.houseNumber ?? null,
+      addressLine2: addressData.addressLine2 ?? null,
+      poBox: addressData.poBox ?? null,
       isPrimary: addressData.isPrimary ?? true,
       createdAt: now,
       updatedAt: now,
@@ -241,8 +248,8 @@ export class UserRepositoryMock implements IRegistrationRepository {
     this.profiles.clear();
     this.addresses.clear();
     this.verificationStatuses.clear();
-    this.documentLogs = [];
-    this.consentLogs = [];
+    this.documentLogs.length = 0;
+    this.consentLogs.length = 0;
   }
 
   getAllUsers(): UserEntity[] {

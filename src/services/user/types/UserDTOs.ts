@@ -32,6 +32,10 @@ export interface CreateUserProfileData {
   firstName: string;
   lastName: string;
   birthDate: Date;
+  phone?: string;
+  gender?: string;
+  preferredCurrency?: string;
+  preferredPaymentMethod?: string;
 }
 
 /**
@@ -42,6 +46,10 @@ export interface UpdateUserProfileData {
   firstName?: string;
   lastName?: string;
   birthDate?: Date;
+  phone?: string;
+  gender?: string;
+  preferredCurrency?: string;
+  preferredPaymentMethod?: string;
 }
 
 /**
@@ -49,11 +57,14 @@ export interface UpdateUserProfileData {
  */
 export interface CreateUserAddressData {
   userId: string;
-  countryId: string;
-  postalCode: string;
-  city: string;
-  state: string;
-  street: string;
+  countryId?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  state?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  addressLine2?: string | null;
+  poBox?: string | null;
   isPrimary?: boolean;
 }
 
@@ -114,17 +125,24 @@ export interface UpdateUserProfileData {
   firstName?: string;
   lastName?: string;
   birthDate?: Date;
+  phone?: string;
+  gender?: string;
+  preferredCurrency?: string;
+  preferredPaymentMethod?: string;
 }
 
 /**
  * Update user address data
  */
 export interface UpdateUserAddressData {
-  countryId?: string;
-  postalCode?: string;
-  city?: string;
-  state?: string;
-  street?: string;
+  countryId?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  state?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  addressLine2?: string | null;
+  poBox?: string | null;
   isPrimary?: boolean;
 }
 

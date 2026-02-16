@@ -77,6 +77,10 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
           firstName: registrationData.personalInfo.firstName,
           lastName: registrationData.personalInfo.lastName,
           birthDate: new Date(registrationData.personalInfo.birthDate),
+          phone: registrationData.personalInfo.phone,
+          gender: registrationData.personalInfo.gender,
+          preferredCurrency: registrationData.personalInfo.preferredCurrency,
+          preferredPaymentMethod: registrationData.personalInfo.preferredPaymentMethod,
         });
 
         // Create user address
@@ -87,6 +91,9 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
           city: registrationData.address.city,
           state: registrationData.address.state,
           street: registrationData.address.street,
+          houseNumber: registrationData.address.houseNumber,
+          addressLine2: registrationData.address.addressLine2,
+          poBox: registrationData.address.poBox,
           isPrimary: true,
         });
 
@@ -96,7 +103,7 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
             userId: user.id,
             originalFilename: registrationData.documentInfo.originalFilename,
             processingStatus: 'completed',
-            extractedFields: registrationData.documentInfo.extractedFields as Record<string, unknown>,
+            extractedFields: registrationData.documentInfo.extractedFields,
             wasProcessed: registrationData.documentInfo.wasProcessed,
           });
         }
@@ -224,12 +231,19 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
           firstName: profile.firstName,
           lastName: profile.lastName,
           birthDate: profile.birthDate.toISOString().split('T')[0],
+          phone: profile.phone,
+          gender: profile.gender,
+          preferredCurrency: profile.preferredCurrency,
+          preferredPaymentMethod: profile.preferredPaymentMethod,
           address: {
             countryId: address.countryId,
             postalCode: address.postalCode,
             city: address.city,
             state: address.state,
             street: address.street,
+            houseNumber: address.houseNumber,
+            addressLine2: address.addressLine2,
+            poBox: address.poBox,
           },
           createdAt: profile.createdAt.toISOString(),
           verificationStatus: {

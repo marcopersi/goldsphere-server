@@ -51,9 +51,23 @@ export class UserRepository implements IRegistrationRepository {
 
   async createUserProfile(profileData: CreateUserProfileData): Promise<UserProfileEntity> {
     const result = await getPool().query<UserProfileDbRow>(
-      `INSERT INTO user_profiles (user_id, title, first_name, last_name, birth_date, created_at)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP) RETURNING *`,
-      [profileData.userId, profileData.title, profileData.firstName, profileData.lastName, profileData.birthDate]
+      `INSERT INTO user_profiles (
+        user_id, title, first_name, last_name, birth_date,
+        phone, gender, preferred_currency, preferred_payment_method,
+        created_at
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP) RETURNING *`,
+      [
+        profileData.userId,
+        profileData.title,
+        profileData.firstName,
+        profileData.lastName,
+        profileData.birthDate,
+        profileData.phone ?? null,
+        profileData.gender ?? null,
+        profileData.preferredCurrency ?? null,
+        profileData.preferredPaymentMethod ?? null,
+      ]
     );
 
     if (result.rows.length === 0) {
@@ -65,11 +79,19 @@ export class UserRepository implements IRegistrationRepository {
   async createUserAddress(addressData: CreateUserAddressData): Promise<UserAddressEntity> {
     const result = await getPool().query<UserAddressDbRow>(
       `INSERT INTO user_addresses 
-       (user_id, countryId, postal_code, city, state, street, is_primary, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
+       (
+         user_id, countryId, postal_code, city, state, street,
+         house_number, address_line2, po_box,
+         is_primary, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
       [
         addressData.userId, addressData.countryId, addressData.postalCode,
-        addressData.city, addressData.state, addressData.street, addressData.isPrimary ?? true
+        addressData.city, addressData.state, addressData.street,
+        addressData.houseNumber ?? null,
+        addressData.addressLine2 ?? null,
+        addressData.poBox ?? null,
+        addressData.isPrimary ?? true
       ]
     );
 

@@ -137,7 +137,7 @@ export class UserRepositoryImpl implements IUserRepository {
       `SELECT COUNT(*) FROM users ${whereClause}`,
       params
     );
-    const totalCount = parseInt(countResult.rows[0].count, 10);
+    const totalCount = Number.parseInt(countResult.rows[0].count, 10);
 
     // Get paginated results
     const result = await this.pool.query<UserDbRow>(
@@ -303,8 +303,12 @@ export class UserRepositoryImpl implements IUserRepository {
 
   async createUserProfile(profileData: CreateUserProfileData): Promise<UserProfileEntity> {
     const result = await this.pool.query<UserProfileDbRow>(
-      `INSERT INTO user_profiles (user_id, title, first_name, last_name, birth_date, created_at)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+      `INSERT INTO user_profiles (
+        user_id, title, first_name, last_name, birth_date,
+        phone, gender, preferred_currency, preferred_payment_method,
+        created_at
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
        RETURNING *`,
       [
         profileData.userId,
@@ -312,6 +316,10 @@ export class UserRepositoryImpl implements IUserRepository {
         profileData.firstName,
         profileData.lastName,
         profileData.birthDate,
+        profileData.phone ?? null,
+        profileData.gender ?? null,
+        profileData.preferredCurrency ?? null,
+        profileData.preferredPaymentMethod ?? null,
       ]
     );
 
@@ -351,6 +359,22 @@ export class UserRepositoryImpl implements IUserRepository {
       updateFields.push(`birth_date = $${paramIndex++}`);
       params.push(data.birthDate);
     }
+    if (data.phone !== undefined) {
+      updateFields.push(`phone = $${paramIndex++}`);
+      params.push(data.phone);
+    }
+    if (data.gender !== undefined) {
+      updateFields.push(`gender = $${paramIndex++}`);
+      params.push(data.gender);
+    }
+    if (data.preferredCurrency !== undefined) {
+      updateFields.push(`preferred_currency = $${paramIndex++}`);
+      params.push(data.preferredCurrency);
+    }
+    if (data.preferredPaymentMethod !== undefined) {
+      updateFields.push(`preferred_payment_method = $${paramIndex++}`);
+      params.push(data.preferredPaymentMethod);
+    }
 
     if (updateFields.length === 0) {
       return this.findUserProfileByUserId(userId);
@@ -377,8 +401,12 @@ export class UserRepositoryImpl implements IUserRepository {
   async createUserAddress(addressData: CreateUserAddressData): Promise<UserAddressEntity> {
     const result = await this.pool.query<UserAddressDbRow>(
       `INSERT INTO user_addresses 
-       (user_id, countryid, postal_code, city, state, street, is_primary, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       (
+         user_id, countryid, postal_code, city, state, street,
+         house_number, address_line2, po_box,
+         is_primary, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
       [
         addressData.userId,
@@ -387,6 +415,9 @@ export class UserRepositoryImpl implements IUserRepository {
         addressData.city,
         addressData.state,
         addressData.street,
+        addressData.houseNumber ?? null,
+        addressData.addressLine2 ?? null,
+        addressData.poBox ?? null,
         addressData.isPrimary ?? true,
       ]
     );
