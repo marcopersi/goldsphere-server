@@ -31,6 +31,9 @@ describe("References API", () => {
       expect(Array.isArray(response.body.data.currencies)).toBe(true);
       expect(Array.isArray(response.body.data.roles)).toBe(true);
       expect(Array.isArray(response.body.data.titles)).toBe(true);
+      expect(response.headers.deprecation).toBe('true');
+      expect(response.headers.link).toContain('</api/references>');
+      expect(response.headers.link).toContain('rel="successor-version"');
 
       const unitValues = response.body.data.weightUnits.map((u: { value: string }) => u.value);
       expect(unitValues).toEqual(expect.arrayContaining(['grams', 'kilograms', 'troy_ounces']));
