@@ -35,11 +35,16 @@ curl -X POST "http://localhost:8888/api/auth/login" \
 {
   "success": true,
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "expiresIn": 86400,
+    "expiresAt": "2026-01-11T18:47:04.702Z",
     "user": {
       "id": "user-uuid",
       "email": "bank.technical@goldsphere.vault",
-      "userName": "Bank Technical User"
+      "firstName": "Bank",
+      "lastName": "Technical",
+      "role": "investor"
     }
   }
 }

@@ -37,7 +37,7 @@ if [[ "$LOGIN_CODE" -lt 200 || "$LOGIN_CODE" -ge 300 ]]; then
   exit 1
 fi
 
-TOKEN=$(echo "$LOGIN_BODY" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+TOKEN=$(echo "$LOGIN_BODY" | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')
 if [[ -z "$TOKEN" ]]; then
   echo "Could not extract JWT token from login response" >&2
   echo "$LOGIN_BODY" >&2

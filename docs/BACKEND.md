@@ -706,7 +706,7 @@ describe('Endpoint Integration Tests', () => {
       .post('/api/auth/login')
       .send({ email: 'test@example.com', password: 'password' });
     
-    authToken = loginResponse.body.token;
+    authToken = loginResponse.body.data.accessToken;
   });
 
   it('should return data', async () => {

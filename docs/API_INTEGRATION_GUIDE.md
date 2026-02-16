@@ -1431,12 +1431,29 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": "user-uuid",
-    "email": "user@example.com",
-    "role": "investor"
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "expiresIn": 86400,
+    "expiresAt": "2026-01-11T18:47:04.702Z",
+    "user": {
+      "id": "user-uuid",
+      "email": "user@example.com",
+      "firstName": "Max",
+      "lastName": "Mustermann",
+      "role": "investor"
+    }
   }
+}
+```
+
+**Error Response:**
+
+```json
+{
+  "success": false,
+  "code": "AUTH_INVALID_CREDENTIALS",
+  "error": "Invalid credentials"
 }
 ```
 

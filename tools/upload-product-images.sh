@@ -37,7 +37,7 @@ login_response=$(curl -sS -X POST "${API_URL}/api/auth/login" \
 
 token=$(printf "%s" "$login_response" | python3 -c "import json,sys;\
 data=json.load(sys.stdin);\
-print(data.get('token','') if data.get('success') else '')")
+print(((data.get('data') or {}).get('accessToken','')) if data.get('success') else '')")
 
 if [[ -z "$token" ]]; then
   echo "Login failed. Response: $login_response" >&2

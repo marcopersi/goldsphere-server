@@ -115,6 +115,7 @@ Expected error payload format:
 ```json
 {
   "success": false,
+  "code": "AUTH_TOKEN_INVALID",
   "error": "No token provided"
 }
 ```
@@ -122,7 +123,8 @@ Expected error payload format:
 ```json
 {
   "success": false,
-  "error": "Invalid token"
+  "code": "AUTH_TOKEN_INVALID",
+  "error": "Invalid or expired token"
 }
 ```
 
