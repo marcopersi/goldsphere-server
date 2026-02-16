@@ -249,14 +249,19 @@ export class CustodyServiceController extends Controller {
     const result = await this.custodyService.getCustodyServiceById(id);
 
     if (!result.success || !result.data) {
+      let status: number;
       if (result.error?.includes("not found")) {
-        this.setStatus(404);
+        status = 404;
       } else if (result.error?.includes("Invalid")) {
-        this.setStatus(400);
+        status = 400;
       } else {
-        this.setStatus(500);
+        status = 500;
       }
-      throw new Error(result.error || "Failed to fetch custody service");
+
+      const errorMessage = result.error || "Failed to fetch custody service";
+      const httpError = new Error(errorMessage) as Error & { status: number };
+      httpError.status = status;
+      throw httpError;
     }
 
     return {
