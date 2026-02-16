@@ -1548,6 +1548,42 @@
 						},
 						"type": "array"
 					},
+					"roles": {
+						"items": {
+							"properties": {
+								"displayName": {
+									"type": "string"
+								},
+								"value": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"displayName",
+								"value"
+							],
+							"type": "object"
+						},
+						"type": "array"
+					},
+					"titles": {
+						"items": {
+							"properties": {
+								"displayName": {
+									"type": "string"
+								},
+								"value": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"displayName",
+								"value"
+							],
+							"type": "object"
+						},
+						"type": "array"
+					},
 					"producers": {
 						"items": {
 							"properties": {
@@ -1661,6 +1697,8 @@
 					"productTypes",
 					"countries",
 					"weightUnits",
+					"roles",
+					"titles",
 					"producers",
 					"currencies",
 					"custodians",

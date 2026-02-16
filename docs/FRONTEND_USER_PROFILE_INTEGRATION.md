@@ -124,6 +124,26 @@ Important:
 - `role` and `title` are accepted as strings but validated server-side.
 - Do not hardcode role/title enums in frontend logic.
 - Read possible values from backend-managed reference data in your app bootstrap flow.
+- Use `GET /api/references` and consume `data.roles[]` plus `data.titles[]`.
+
+Example (excerpt):
+
+```json
+{
+  "success": true,
+  "data": {
+    "roles": [
+      { "value": "customer", "displayName": "customer" },
+      { "value": "admin", "displayName": "admin" }
+    ],
+    "titles": [
+      { "value": "Herr", "displayName": "Herr" },
+      { "value": "Frau", "displayName": "Frau" },
+      { "value": "Divers", "displayName": "Divers" }
+    ]
+  }
+}
+```
 
 ## Standard Validation Error Contract
 

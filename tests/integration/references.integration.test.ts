@@ -29,6 +29,8 @@ describe("References API", () => {
       expect(Array.isArray(response.body.data.metals)).toBe(true);
       expect(Array.isArray(response.body.data.weightUnits)).toBe(true);
       expect(Array.isArray(response.body.data.currencies)).toBe(true);
+      expect(Array.isArray(response.body.data.roles)).toBe(true);
+      expect(Array.isArray(response.body.data.titles)).toBe(true);
 
       const unitValues = response.body.data.weightUnits.map((u: { value: string }) => u.value);
       expect(unitValues).toEqual(expect.arrayContaining(['grams', 'kilograms', 'troy_ounces']));
@@ -38,6 +40,12 @@ describe("References API", () => {
       expect(troyUnit.displayName).toBe('ozt');
       expect(Array.isArray(troyUnit.aliases)).toBe(true);
       expect(troyUnit.aliases).toEqual(expect.arrayContaining(['ozt', 'toz']));
+
+      const roleValues = response.body.data.roles.map((r: { value: string }) => r.value);
+      expect(roleValues).toEqual(expect.arrayContaining(['customer', 'admin', 'user']));
+
+      const titleValues = response.body.data.titles.map((t: { value: string }) => t.value);
+      expect(titleValues).toEqual(expect.arrayContaining(['Herr', 'Frau', 'Divers']));
     });
   });
 
@@ -62,6 +70,10 @@ describe("References API", () => {
       expect(Array.isArray(data.weightUnits)).toBe(true);
       expect(data.currencies).toBeDefined();
       expect(Array.isArray(data.currencies)).toBe(true);
+      expect(data.roles).toBeDefined();
+      expect(Array.isArray(data.roles)).toBe(true);
+      expect(data.titles).toBeDefined();
+      expect(Array.isArray(data.titles)).toBe(true);
     });
 
     it("should return valid metal data structure", async () => {

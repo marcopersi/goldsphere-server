@@ -14,12 +14,15 @@ import {
   PaymentFrequency,
   ProductTypeEnum,
 } from '@marcopersi/shared';
+import { UserRole, UserTitle } from '../user/types/UserEnums';
 
 export interface AggregatedReferenceData {
   metals: Array<{ symbol: string; name: string }>;
   productTypes: Array<{ name: string }>;
   countries: Array<{ code: string; name: string }>;
   weightUnits: Array<{ value: string; displayName: string; aliases: string[] }>;
+  roles: Array<{ value: string; displayName: string }>;
+  titles: Array<{ value: string; displayName: string }>;
   producers: Array<{ id: string; name: string }>;
   currencies: Array<{ id: string; isoCode2: string; isoCode3: string; isoNumericCode: number }>;
   custodians: Array<{ value: string; name: string }>;
@@ -53,6 +56,14 @@ export class ReferenceDataAggregateService {
         { value: 'kilograms', displayName: 'kg', aliases: ['kg', 'kilogram', 'kilograms'] },
         { value: 'troy_ounces', displayName: 'ozt', aliases: ['ozt', 'toz', 'troy_oz', 'troy ounce', 'troy ounces'] },
       ],
+      roles: Object.values(UserRole).map((role) => ({
+        value: role,
+        displayName: role,
+      })),
+      titles: Object.values(UserTitle).map((title) => ({
+        value: title,
+        displayName: title,
+      })),
       producers: producersResult.rows.map((row) => ({
         id: row.id,
         name: row.name,
