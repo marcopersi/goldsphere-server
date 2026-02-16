@@ -13,12 +13,9 @@ export class EmailServiceFactory {
   /**
    * Create production Email service with nodemailer
    * @param baseUrl Base URL for verification links
-   * @param fromEmail From email address (default: noreply@goldsphere.com)
+   * @param fromEmail From email address
    */
-  static create(
-    baseUrl: string = process.env.BASE_URL || 'http://localhost:8080',
-    fromEmail = 'noreply@goldsphere.com'
-  ): IEmailService {
+  static create(baseUrl: string, fromEmail: string): IEmailService {
     const config: EmailServiceConfig = {
       baseUrl,
       fromEmail

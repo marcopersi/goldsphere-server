@@ -9,24 +9,21 @@ import { PositionSchema } from '@marcopersi/shared';
 import { PortfolioSummary, Position } from '../types/PortfolioTypes';
 import { PRODUCT_SELECT_QUERY, CUSTODY_SELECT_QUERY } from './PortfolioQueries';
 import { createLogger } from '../../../utils/logger';
+import { getRequiredEnvVar } from '../../../config/environment';
 
 const logger = createLogger('PortfolioMappers');
 
-function configureBaseURL(): string | null {
-  const configuredBaseUrl = process.env.APP_BASE_URL || process.env.BASE_URL;
-  if (!configuredBaseUrl) {
-    logger.warn('Missing APP_BASE_URL/BASE_URL. Falling back to relative product image URL.');
-    return null;
-  }
+function configureBaseURL(): string {
+  const configuredBaseUrl = getRequiredEnvVar('APP_BASE_URL');
 
   let composedUrl: URL;
   try {
     composedUrl = new URL(configuredBaseUrl);
   } catch {
-    logger.error('Invalid APP_BASE_URL/BASE_URL. Falling back to relative product image URL.', {
+    logger.error('Invalid APP_BASE_URL. Unable to build product image URL.', {
       configuredBaseUrl,
     });
-    return null;
+    throw new Error(`Invalid APP_BASE_URL: ${configuredBaseUrl}`);
   }
 
   const configuredPort = process.env.PORT;
@@ -108,9 +105,7 @@ async function fetchProductForPosition(pool: Pool, productId: string) {
 
   const row = result.rows[0];
   const apiBaseUrl = configureBaseURL();
-  const imageUrl = apiBaseUrl
-    ? `${apiBaseUrl}/api/products/${row.id}/image`
-    : `/api/products/${row.id}/image`;
+  const imageUrl = `${apiBaseUrl}/api/products/${row.id}/image`;
 
   return {
     id: row.id,

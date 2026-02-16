@@ -164,6 +164,10 @@ describe('Enhanced User Registration API', () => {
 
         expect(response.body.success).toBe(false);
         expect(response.body.code).toBe('VALIDATION_ERROR');
+        expect(Array.isArray(response.body.details?.fields)).toBe(true);
+        expect(response.body.details.fields.length).toBeGreaterThan(0);
+        expect(response.body.details.fields[0]).toHaveProperty('path');
+        expect(response.body.details.fields[0]).toHaveProperty('message');
       });
 
       it('should reject weak password', async () => {

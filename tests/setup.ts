@@ -4,20 +4,45 @@ import dotenv from 'dotenv';
 // Load test environment variables
 dotenv.config({ path: '.env.test' });
 
-// Set default test environment variables
+class ValueError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValueError';
+  }
+}
+
+function requireEnvVar(name: string): string {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') {
+    throw new ValueError(`Missing required test environment variable: ${name}`);
+  }
+  return value;
+}
+
+function requireNumericEnvVar(name: string): number {
+  const rawValue = requireEnvVar(name);
+  const numericValue = Number.parseInt(rawValue, 10);
+  if (Number.isNaN(numericValue) || numericValue <= 0) {
+    throw new ValueError(`Invalid numeric value for ${name}: ${rawValue}`);
+  }
+  return numericValue;
+}
+
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
-process.env.PORT = '0'; // Use random port for testing
 
-// Database configuration - use environment variables from CI if available, otherwise local defaults
-process.env.DB_HOST = process.env.DB_HOST || 'localhost';
-process.env.DB_PORT = process.env.DB_PORT || '5432';
-process.env.DB_NAME = process.env.DB_NAME || 'goldsphere'; // Use local database name
-process.env.DB_USER = process.env.DB_USER || 'postgres';
-process.env.DB_PASSWORD = process.env.DB_PASSWORD || 'postgres'; // Use local password
+// Fail fast: required env vars for test execution
+requireEnvVar('JWT_SECRET');
+requireEnvVar('APP_BASE_URL');
+requireEnvVar('EMAIL_FROM');
+requireEnvVar('DB_HOST');
+requireEnvVar('DB_NAME');
+requireEnvVar('DB_USER');
+requireEnvVar('DB_PASSWORD');
+requireNumericEnvVar('DB_PORT');
 
-// Increase timeout for async operations
-jest.setTimeout(30000);
+// Increase timeout for async operations (env-driven)
+const testTimeoutMs = requireNumericEnvVar('TEST_TIMEOUT_MS');
+jest.setTimeout(testTimeoutMs);
 
 // Global cleanup for integration tests
 // This ensures database cleanup even if tests fail

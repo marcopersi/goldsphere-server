@@ -61,6 +61,9 @@ cp .env.prod .env
 # Make sure your test database is set up correctly
 ```
 
+`tests/setup.ts` validates required test env variables at startup and fails fast when missing/invalid.
+Set `TEST_TIMEOUT_MS` in `.env.test` to control Jest timeout (no hardcoded fallback).
+
 ## Environment Variables
 
 ### Required Variables
@@ -68,6 +71,8 @@ cp .env.prod .env
 - `PORT` - Server port
 - `DB_*` - Database connection settings
 - `JWT_SECRET` - JWT signing secret (min 32 chars)
+- `APP_BASE_URL` - Absolute backend base URL used for generated links and product image URLs
+- `EMAIL_FROM` - Sender address for transactional emails
 - `STRIPE_SECRET_KEY` - Stripe API secret key
 
 At startup, runtime validation is executed via `src/config/environment.ts`.
@@ -80,10 +85,7 @@ If required variables are missing or invalid, the server fails fast with a clear
 - `ENABLE_IMAGE_SEED` - Set `true` to auto-load product images on startup (default: `false`)
 - `ADMIN_EMAIL` - Admin login email for automated image seeding
 - `ADMIN_PASSWORD` - Admin login password for automated image seeding
-- `APP_BASE_URL` - Optional base URL used to build absolute product image URLs in portfolio position responses
-- `BASE_URL` - Optional fallback for `APP_BASE_URL`
-
-If `APP_BASE_URL` / `BASE_URL` are not set, portfolio position image URLs fall back to relative API paths (e.g. `/api/products/{id}/image`) instead of failing the request.
+- `APP_BASE_URL` and `EMAIL_FROM` are startup-validated and required. The server fails fast if either value is missing or invalid.
 
 ### Stripe Configuration
 - **Development/Test**: Use test keys (sk_test_...)

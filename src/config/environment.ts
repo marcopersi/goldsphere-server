@@ -13,7 +13,11 @@ const REQUIRED_ENV_VARS = [
   'DB_USER',
   'DB_PASSWORD',
   'JWT_SECRET',
+  'APP_BASE_URL',
+  'EMAIL_FROM',
 ] as const;
+
+export type RequiredEnvVar = (typeof REQUIRED_ENV_VARS)[number];
 
 function validateUrlIfPresent(value: string | undefined, variableName: string): void {
   if (!value) {
@@ -49,5 +53,13 @@ export function validateRuntimeEnvironment(): void {
   }
 
   validateUrlIfPresent(process.env.APP_BASE_URL, 'APP_BASE_URL');
-  validateUrlIfPresent(process.env.BASE_URL, 'BASE_URL');
+}
+
+export function getRequiredEnvVar(variableName: RequiredEnvVar): string {
+  const value = process.env[variableName];
+  if (value === undefined || value.trim() === '') {
+    throw new Error(`Missing required environment variable: ${variableName}`);
+  }
+
+  return value;
 }

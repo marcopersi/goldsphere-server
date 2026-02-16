@@ -23,6 +23,7 @@ import { UserRepository } from "../services/user/repository/UserRepository";
 import { PasswordService } from "../services/user/impl/PasswordService";
 import { TokenService } from "../services/user/impl/TokenService";
 import { EmailServiceFactory } from "../services/email";
+import { getRequiredEnvVar } from "../config/environment";
 import type { 
   EnhancedRegistrationRequest,
   EnhancedRegistrationResponse
@@ -36,7 +37,11 @@ interface RegistrationErrorResponse {
   success: false;
   error: string;
   code: string;
-  details?: unknown;
+  details?: {
+    fields?: Array<{ path: string; message: string }>;
+    field?: string;
+    message?: string;
+  };
 }
 
 interface EmailCheckResponse {
@@ -60,10 +65,10 @@ interface ResendVerificationResponse {
 function getRegistrationServices() {
   const userRepository = new UserRepository();
   const passwordService = new PasswordService();
-  const tokenService = new TokenService(process.env.JWT_SECRET || "fallback-secret");
+  const tokenService = new TokenService(getRequiredEnvVar('JWT_SECRET'));
   const emailService = EmailServiceFactory.create(
-    process.env.APP_BASE_URL || "http://localhost:8888",
-    process.env.EMAIL_FROM || "noreply@goldsphere.vault"
+    getRequiredEnvVar('APP_BASE_URL'),
+    getRequiredEnvVar('EMAIL_FROM')
   );
   const registrationService = new UserRegistrationServiceImpl(
     userRepository,
@@ -142,10 +147,17 @@ export class RegistrationController extends Controller {
     if (!result.success) {
       const statusCode = getErrorStatusCode(result.code);
       this.setStatus(statusCode);
+
+      const fields = result.details?.validationErrors?.map((validationError) => ({
+        path: validationError.field,
+        message: validationError.message,
+      }));
+
       return {
         success: false,
         code: result.code,
-        error: result.error || "Registration failed"
+        error: result.error || "Registration failed",
+        details: fields && fields.length > 0 ? { fields } : result.details,
       };
     }
 
