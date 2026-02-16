@@ -26,11 +26,14 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
       id: 'portfolio-001',
       portfolioName: 'Gold Investment Portfolio',
       ownerId: 'user-001',
+      ownerDisplayName: 'user-001@example.test',
+      ownerName: 'user-001@example.test',
+      ownerEmail: 'user-001@example.test',
       description: 'Primary gold investment portfolio',
       isActive: true,
-      totalValue: 50000.0,
-      totalCost: 45000.0,
-      totalGainLoss: 5000.0,
+      totalValue: 50000,
+      totalCost: 45000,
+      totalGainLoss: 5000,
       totalGainLossPercentage: 11.11,
       positionCount: 5,
       lastUpdated: new Date('2024-01-15'),
@@ -42,11 +45,14 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
       id: 'portfolio-002',
       portfolioName: 'Silver & Platinum Mix',
       ownerId: 'user-001',
+      ownerDisplayName: 'user-001@example.test',
+      ownerName: 'user-001@example.test',
+      ownerEmail: 'user-001@example.test',
       description: 'Diversified precious metals',
       isActive: true,
-      totalValue: 25000.0,
-      totalCost: 26000.0,
-      totalGainLoss: -1000.0,
+      totalValue: 25000,
+      totalCost: 26000,
+      totalGainLoss: -1000,
       totalGainLossPercentage: -3.85,
       positionCount: 3,
       lastUpdated: new Date('2024-01-10'),
@@ -72,11 +78,11 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
     if (typeof options.isActive === 'boolean') {
       filtered = filtered.filter(p => p.isActive === options.isActive);
     }
-    if (options.search) {
+    if (options?.search) {
       const searchLower = options.search.toLowerCase();
       filtered = filtered.filter(
         p => p.portfolioName.toLowerCase().includes(searchLower) ||
-             (p.description && p.description.toLowerCase().includes(searchLower))
+             p.description?.toLowerCase().includes(searchLower)
       );
     }
 
@@ -117,7 +123,7 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
           name: 'Swiss Vreneli 20 Francs',
           type: 'Coin',
           metal: { id: 'm-001', name: 'Gold', symbol: 'AU' },
-          price: 450.0,
+          price: 450,
           currency: 'CHF',
           weight: 0.1867,
           weightUnit: 'troy_ounces',
@@ -125,8 +131,8 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
           imageUrl: 'https://example.com/vreneli.jpg'
         },
         quantity: 10,
-        purchasePrice: 450.0,
-        marketPrice: 480.0,
+        purchasePrice: 450,
+        marketPrice: 480,
         purchaseDate: new Date('2024-01-01'),
         status: 'active',
         notes: '',
@@ -151,6 +157,8 @@ export class PortfolioRepositoryMock implements IPortfolioRepository {
       id,
       portfolioName: name,
       ownerId: userId,
+      ownerDisplayName: userId,
+      ownerName: userId,
       description: description || null,
       isActive: true,
       totalValue: 0,

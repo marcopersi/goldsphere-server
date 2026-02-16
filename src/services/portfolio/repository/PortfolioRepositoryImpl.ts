@@ -41,6 +41,8 @@ export class PortfolioRepositoryImpl implements IPortfolioRepository {
 
     const baseQuery = `
       FROM public.portfolio p
+      LEFT JOIN public.users u ON p.ownerid = u.id
+      LEFT JOIN public.user_profiles up ON u.id = up.user_id
       LEFT JOIN (${PORTFOLIO_STATS_SUBQUERY}) portfolio_stats ON p.id = portfolio_stats.portfolioid
       ${whereClause}
     `;
@@ -144,6 +146,8 @@ export class PortfolioRepositoryImpl implements IPortfolioRepository {
     const result = await this.pool.query(
       `SELECT ${PORTFOLIO_SELECT_FIELDS}
        FROM public.portfolio p
+       LEFT JOIN public.users u ON p.ownerid = u.id
+       LEFT JOIN public.user_profiles up ON u.id = up.user_id
        LEFT JOIN (${PORTFOLIO_STATS_SUBQUERY}) portfolio_stats ON p.id = portfolio_stats.portfolioid
        WHERE p.id = $1`,
       [portfolioId]

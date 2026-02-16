@@ -83,6 +83,50 @@ interface IProductRepository {
 
 **Location**: `/src/services/infrastructure/repository/` or `/backend/repositories/`
 
+### Order Workflow Processing (Transactional)
+
+Order workflow processing is implemented as an atomic repository operation to guarantee consistency between:
+
+- order status transitions
+- portfolio creation/reuse
+- position creation/update/closure
+- transaction history inserts
+
+Implementation details:
+
+- Entry point: `OrderRepositoryImpl.processOrderWorkflow(...)`
+- Uses `BEGIN` / `COMMIT` / `ROLLBACK` with row lock (`FOR UPDATE`) on the target order
+- Applies fulfillment side-effects when transitioning from `shipped` to `delivered`
+- Updates order status and side-effects within the same transaction
+
+This prevents partial writes and ensures workflow integrity under concurrent processing.
+
+### Portfolio Owner Display Metadata
+
+For admin-friendly portfolio views, portfolio summaries now include human-readable owner metadata:
+
+- `ownerDisplayName` (first + last name from `user_profiles`, fallback to email, fallback to owner UUID)
+- `ownerEmail`
+
+Data source:
+
+- `portfolio.ownerid` -> `users.id`
+- optional `user_profiles.user_id`
+
+These fields are selected in `PortfolioQueries` and mapped in `PortfolioMappers`.
+
+### Reference Data Aggregation and Compatibility Alias
+
+Reference data is now built by a dedicated aggregation service and reused by multiple endpoints:
+
+- Service: `ReferenceDataAggregateService`
+- Primary endpoint: `GET /api/references/`
+- Compatibility alias: `GET /api`
+
+Both endpoints return the same aggregated payload (`metals`, `productTypes`, `countries`, `producers`, `currencies`, `custodians`, `paymentFrequencies`, `custodyServiceTypes`).
+
+This avoids duplication in controller logic and prevents frontend breakage when legacy clients request `/api` directly for reference bootstrap data.
+
 ### Audit Trail
 
 All write operations must record audit metadata when the table supports it. Use `getAuditUser()` and `requireAuthenticatedUser()` to enforce strict user validation — **no silent fallbacks allowed**.

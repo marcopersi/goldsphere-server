@@ -25,6 +25,17 @@ export const PORTFOLIO_SELECT_FIELDS = `
   p.id,
   p.portfolioname,
   p.ownerid,
+  COALESCE(
+    NULLIF(TRIM(CONCAT(COALESCE(up.first_name, ''), ' ', COALESCE(up.last_name, ''))), ''),
+    u.email,
+    p.ownerid::text
+  ) as owner_display_name,
+  COALESCE(
+    NULLIF(TRIM(CONCAT(COALESCE(up.first_name, ''), ' ', COALESCE(up.last_name, ''))), ''),
+    u.email,
+    p.ownerid::text
+  ) as owner_name,
+  u.email as owner_email,
   p.description,
   COALESCE(p.isactive, true) as isactive,
   COALESCE(portfolio_stats.total_value, 0) as total_value,

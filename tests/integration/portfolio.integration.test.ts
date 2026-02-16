@@ -50,6 +50,11 @@ describe('Portfolio API', () => {
       expect(response.body.data).toHaveProperty('portfolios');
       expect(response.body.data).toHaveProperty('pagination');
       expect(Array.isArray(response.body.data.portfolios)).toBe(true);
+
+      if (response.body.data.portfolios.length > 0) {
+        expect(response.body.data.portfolios[0]).toHaveProperty('ownerDisplayName');
+        expect(response.body.data.portfolios[0]).toHaveProperty('ownerName');
+      }
     });
 
     it('should support search parameter', async () => {
@@ -249,7 +254,6 @@ describe('Portfolio API', () => {
 
   describe('DELETE /api/portfolios/:id', () => {
     it('should delete a portfolio without positions', async () => {
-      const pool = getPool();
       const portfolioName = `Delete Test ${Date.now()}`;
       const createResponse = await request(app)
         .post('/api/portfolios')

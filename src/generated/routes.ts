@@ -469,7 +469,7 @@ const models: TsoaRoute.Models = {
         "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "ReferenceData": {
+    "AggregatedReferenceData": {
         "dataType": "refObject",
         "properties": {
             "metals": {"dataType":"array","array":{"dataType":"nestedObjectLiteral","nestedProperties":{"name":{"dataType":"string","required":true},"symbol":{"dataType":"string","required":true}}},"required":true},
@@ -488,7 +488,7 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "success": {"dataType":"boolean","required":true},
-            "data": {"ref":"ReferenceData","required":true},
+            "data": {"ref":"AggregatedReferenceData","required":true},
         },
         "additionalProperties": false,
     },
@@ -912,6 +912,9 @@ const models: TsoaRoute.Models = {
             "id": {"dataType":"string","required":true},
             "portfolioName": {"dataType":"string","required":true},
             "ownerId": {"dataType":"string","required":true},
+            "ownerDisplayName": {"dataType":"string"},
+            "ownerName": {"dataType":"string"},
+            "ownerEmail": {"dataType":"string"},
             "description": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
             "isActive": {"dataType":"boolean","required":true},
             "totalValue": {"dataType":"double","required":true},
@@ -962,6 +965,9 @@ const models: TsoaRoute.Models = {
             "id": {"dataType":"string","required":true},
             "portfolioName": {"dataType":"string","required":true},
             "ownerId": {"dataType":"string","required":true},
+            "ownerDisplayName": {"dataType":"string"},
+            "ownerName": {"dataType":"string"},
+            "ownerEmail": {"dataType":"string"},
             "description": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
             "isActive": {"dataType":"boolean","required":true},
             "totalValue": {"dataType":"double","required":true},

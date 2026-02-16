@@ -1252,7 +1252,7 @@
 				"type": "object",
 				"additionalProperties": false
 			},
-			"ReferenceData": {
+			"AggregatedReferenceData": {
 				"properties": {
 					"metals": {
 						"items": {
@@ -1431,7 +1431,7 @@
 						"type": "boolean"
 					},
 					"data": {
-						"$ref": "#/components/schemas/ReferenceData"
+						"$ref": "#/components/schemas/AggregatedReferenceData"
 					}
 				},
 				"required": [
@@ -2690,6 +2690,15 @@
 					"ownerId": {
 						"type": "string"
 					},
+					"ownerDisplayName": {
+						"type": "string"
+					},
+					"ownerName": {
+						"type": "string"
+					},
+					"ownerEmail": {
+						"type": "string"
+					},
 					"description": {
 						"type": "string",
 						"nullable": true
@@ -3118,6 +3127,15 @@
 						"type": "string"
 					},
 					"ownerId": {
+						"type": "string"
+					},
+					"ownerDisplayName": {
+						"type": "string"
+					},
+					"ownerName": {
+						"type": "string"
+					},
+					"ownerEmail": {
 						"type": "string"
 					},
 					"description": {

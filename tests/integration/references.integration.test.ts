@@ -18,6 +18,19 @@ afterAll(async () => {
 
 describe("References API", () => {
 
+  describe("GET /api", () => {
+    it("should return aggregated reference data for root api alias", async () => {
+      const response = await request(app)
+        .get('/api');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toBeDefined();
+      expect(Array.isArray(response.body.data.metals)).toBe(true);
+      expect(Array.isArray(response.body.data.currencies)).toBe(true);
+    });
+  });
+
   describe("GET /api/references/", () => {
     it("should return reference data without authentication", async () => {
       const response = await request(app)

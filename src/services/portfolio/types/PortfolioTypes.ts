@@ -73,6 +73,9 @@ export interface PortfolioSummary {
   id: string;
   portfolioName: string;
   ownerId: string;
+  ownerDisplayName?: string;
+  ownerName?: string;
+  ownerEmail?: string;
   description?: string | null;
   isActive: boolean;
   totalValue: number;

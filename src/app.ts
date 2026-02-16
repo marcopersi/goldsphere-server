@@ -31,6 +31,7 @@ import * as tsoaSwaggerSpec from "./generated/swagger.json";
 // Authentication now handled by tsoa via @Security decorators and src/middleware/auth.ts
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
 import { WebhookController } from "./controllers/WebhookController";
+import { ReferenceDataAggregateService } from "./services/reference/ReferenceDataAggregateService";
 
 // Load environment variables first
 dotenv.config();
@@ -123,6 +124,20 @@ app.get("/info", (req: any, res: any) => {
     endpoints: ["/health", "/info", "/api/products", "/api/auth/login"],
     environment: process.env.NODE_ENV || "development"
   });
+});
+
+app.get('/api', async (_req: any, res: any) => {
+  try {
+    const service = new ReferenceDataAggregateService(getPool());
+    const data = await service.getAll();
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch reference data',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 });
 
 // API spec endpoints (basic implementation)
@@ -338,7 +353,7 @@ app.use("*", (req: any, res: any) => {
 });
 
 // Error handler middleware - must be LAST
-app.use((err: any, req: any, res: any, next: any) => {
+app.use((err: any, req: any, res: any, _next: any) => {
   // tsoa validation errors
   if (err.status === 400 && err.fields) {
     return res.status(400).json({
