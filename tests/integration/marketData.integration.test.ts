@@ -3,7 +3,7 @@
  */
 
 import request from 'supertest';
-import { generateToken } from '../../src/middleware/auth';
+import { generateToken } from '../helpers/authToken';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 import { getPool } from '../../src/dbConfig';
 

@@ -1,6 +1,6 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import { generateToken } from '../../src/middleware/auth';
+import { generateToken } from '../helpers/authToken';
 import { getPool } from '../../src/dbConfig';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 

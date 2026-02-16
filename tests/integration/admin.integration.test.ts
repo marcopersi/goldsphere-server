@@ -11,7 +11,7 @@ import request from 'supertest';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { generateToken } from '../../src/middleware/auth';
+import { generateToken } from '../helpers/authToken';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 import { getPool } from '../../src/dbConfig';
 
