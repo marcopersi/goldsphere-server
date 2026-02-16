@@ -11,6 +11,33 @@ import * as path from 'path';
 let testDbPool: Pool | null = null;
 let testDbName: string | null = null;
 
+const ADMIN_POOL_OPTIONS = {
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  connectionTimeoutMillis: 8000,
+  query_timeout: 15000,
+};
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
+  let timeoutHandle: NodeJS.Timeout | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
 export async function setupTestDatabase(): Promise<Pool> {
   console.log('🔧 Setting up fresh test database...');
   
@@ -20,7 +47,7 @@ export async function setupTestDatabase(): Promise<Pool> {
   console.log(`📊 Creating test database: ${testDbName}`);
   
   // First, create the test database using postgres connection
-  await createTestDatabase(testDbName);
+  await withTimeout(createTestDatabase(testDbName), 30000, 'createTestDatabase');
   
   // Create pool for the new test database
   testDbPool = new Pool({
@@ -35,12 +62,12 @@ export async function setupTestDatabase(): Promise<Pool> {
   });
 
   // Execute all SQL files to build complete schema and data
-  await initializeDatabaseSchema();
+  await withTimeout(initializeDatabaseSchema(), 120000, 'initializeDatabaseSchema');
   
   console.log(`✅ Test database ${testDbName} ready with fresh schema and sample data!`);
   
   // Verify setup
-  await verifyDatabaseSetup();
+  await withTimeout(verifyDatabaseSetup(), 30000, 'verifyDatabaseSetup');
   
   // Replace the global dbConfig immediately after setup
   await replaceGlobalDbConfig();
@@ -81,10 +108,7 @@ async function replaceGlobalDbConfig(): Promise<void> {
 
 async function createTestDatabase(dbName: string): Promise<void> {
   const postgresPool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
+    ...ADMIN_POOL_OPTIONS,
     database: 'postgres',
   });
 
@@ -189,10 +213,7 @@ export async function teardownTestDatabase(): Promise<void> {
     
     // Connect to postgres to drop test database
     const postgresPool = new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      port: Number(process.env.DB_PORT) || 5432,
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
+      ...ADMIN_POOL_OPTIONS,
       database: 'postgres',
     });
 
@@ -235,10 +256,7 @@ export async function cleanupAllTestDatabases(): Promise<void> {
   console.log('🧹 Cleaning up all leftover test databases...');
   
   const postgresPool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
+    ...ADMIN_POOL_OPTIONS,
     database: 'postgres',
   });
 
