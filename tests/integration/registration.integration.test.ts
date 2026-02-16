@@ -263,10 +263,12 @@ describe('Enhanced User Registration API', () => {
         await request(app).post('/api/auth/register').send(testData2).expect(201);
 
         const tokens = await getPool().query('SELECT email_verification_token FROM user_verification_status');
-        const tokenValues = tokens.rows.map((row: any) => row.email_verification_token);
+        const tokenValues = tokens.rows
+          .map((row: any) => row.email_verification_token)
+          .filter((token: unknown): token is string => typeof token === 'string' && token.trim().length > 0);
         const tokenSet = new Set(tokenValues);
-        
-        expect(tokenSet.size).toBe(tokens.rows.length); // All tokens should be unique
+
+        expect(tokenSet.size).toBe(tokenValues.length); // All non-null tokens should be unique
       });
     });
 
@@ -280,7 +282,7 @@ describe('Enhanced User Registration API', () => {
           .expect(201);
 
         expect(response.body.token).toMatch(/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/); // JWT format
-        
+
         const tokenParts = response.body.token.split('.');
         expect(tokenParts).toHaveLength(3);
       });

@@ -22,7 +22,7 @@ async function loginAsAdmin(): Promise<string> {
       email: 'admin@goldsphere.vault',
       password: 'admin123'
     });
-  return response.body.token;
+  return response.body.data.accessToken;
 }
 
 beforeAll(async () => {

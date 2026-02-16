@@ -54,7 +54,7 @@ describe('Login last_login Integration Tests', () => {
 
     expect(loginResponse.status).toBe(200);
     expect(loginResponse.body.success).toBe(true);
-    expect(loginResponse.body.token).toBeDefined();
+    expect(loginResponse.body.data.accessToken).toBeDefined();
 
     // Check that last_login was updated
     const afterLoginResult = await getPool().query(

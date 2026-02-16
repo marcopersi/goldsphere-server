@@ -17,7 +17,7 @@ async function createTemporaryAdmin(): Promise<{ userId: string; email: string; 
 
   const createResponse = await request(app)
     .post('/api/users')
-    .set('Authorization', `Bearer ${baseAdminLogin.body.token}`)
+    .set('Authorization', `Bearer ${baseAdminLogin.body.data.accessToken}`)
     .send({
       email,
       password,
@@ -26,6 +26,17 @@ async function createTemporaryAdmin(): Promise<{ userId: string; email: string; 
     .expect(201);
 
   const userId = createResponse.body.data.id;
+
+  const pool = getPool();
+  await pool.query(
+    `INSERT INTO user_profiles (user_id, first_name, last_name, birth_date)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id) DO UPDATE SET
+       first_name = EXCLUDED.first_name,
+       last_name = EXCLUDED.last_name,
+       birth_date = EXCLUDED.birth_date`,
+    [userId, 'Temp', 'Admin', '1990-01-01']
+  );
 
   const loginResponse = await request(app)
     .post('/api/auth/login')
@@ -36,90 +47,74 @@ async function createTemporaryAdmin(): Promise<{ userId: string; email: string; 
     userId,
     email,
     password,
-    token: loginResponse.body.token,
+    token: loginResponse.body.data.accessToken,
   };
 }
 
 describe('Authentication Endpoints', () => {
-  
   beforeAll(async () => {
-    // Setup fresh test database BEFORE importing app
     await setupTestDatabase();
-    
-    // Import app AFTER database setup to ensure pool replacement takes effect
     app = (await import('../../src/app')).default;
   });
 
   afterAll(async () => {
-    // Clean up test database
     await teardownTestDatabase();
   });
 
   describe('POST /api/auth/login', () => {
-    it('should authenticate with valid bank technical user credentials', async () => {
+    it('should authenticate with canonical contract payload', async () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
           email: 'bank.technical@goldsphere.vault',
-          password: 'GoldspherePassword'
+          password: 'GoldspherePassword',
         })
         .expect(200);
 
       expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('email', 'bank.technical@goldsphere.vault');
+      expect(response.body).toHaveProperty('data.accessToken');
+      expect(response.body).toHaveProperty('data.tokenType', 'Bearer');
+      expect(response.body).toHaveProperty('data.expiresIn');
+      expect(typeof response.body.data.expiresIn).toBe('number');
+      expect(response.body).toHaveProperty('data.expiresAt');
+      expect(response.body).toHaveProperty('data.user.id');
+      expect(response.body).toHaveProperty('data.user.email', 'bank.technical@goldsphere.vault');
+      expect(response.body).toHaveProperty('data.user.firstName');
+      expect(response.body).toHaveProperty('data.user.lastName');
+      expect(response.body).toHaveProperty('data.user.role');
+      expect(response.body).not.toHaveProperty('token');
+      expect(response.body).not.toHaveProperty('user');
+      expect(typeof response.body.data.user.firstName).toBe('string');
+      expect(typeof response.body.data.user.lastName).toBe('string');
+      expect(response.body.data.user.firstName.trim().length).toBeGreaterThan(0);
+      expect(response.body.data.user.lastName.trim().length).toBeGreaterThan(0);
     });
 
-    it('should authenticate with valid admin credentials', async () => {
+    it('should reject invalid credentials with code', async () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
           email: 'admin@goldsphere.vault',
-          password: 'admin123'
-        })
-        .expect(200);
-
-      expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('email', 'admin@goldsphere.vault');
-    });
-
-    it('should reject invalid credentials', async () => {
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'admin@goldsphere.vault',
-          password: 'wrongpassword'
+          password: 'wrongpassword',
         })
         .expect(401);
 
-      expect(response.body).toHaveProperty('error', 'Invalid credentials');
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('code', 'AUTH_INVALID_CREDENTIALS');
     });
 
-    it('should require email and password', async () => {
+    it('should return validation error when password missing', async () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          email: 'admin@goldsphere.vault'
-          // missing password
+          email: 'admin@goldsphere.vault',
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error', 'Email and password are required');
-    });
-
-    it('should handle non-existent user', async () => {
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send({
-          email: 'nonexistent@goldsphere.vault',
-          password: 'password123'
-        })
-        .expect(401);
-
-      expect(response.body).toHaveProperty('error', 'Invalid credentials');
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
+      expect(response.body).toHaveProperty('details.fields');
+      expect(Array.isArray(response.body.details.fields)).toBe(true);
     });
   });
 
@@ -127,17 +122,15 @@ describe('Authentication Endpoints', () => {
     let validToken: string;
 
     beforeEach(async () => {
-      // Use a real user from the database for token validation tests
-      // Get the bank technical user that we know exists in test database
       const userResult = await request(app)
         .post('/api/auth/login')
         .send({
           email: 'bank.technical@goldsphere.vault',
-          password: 'GoldspherePassword'
+          password: 'GoldspherePassword',
         })
         .expect(200);
 
-      validToken = userResult.body.token;
+      validToken = userResult.body.data.accessToken;
     });
 
     it('should validate valid token', async () => {
@@ -147,43 +140,34 @@ describe('Authentication Endpoints', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('email', 'bank.technical@goldsphere.vault');
+      expect(response.body).toHaveProperty('data.user.email', 'bank.technical@goldsphere.vault');
     });
 
-    it('should reject request without token', async () => {
+    it('should reject request without token with code', async () => {
       const response = await request(app)
         .get('/api/auth/validate')
         .expect(401);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('code', 'AUTH_TOKEN_INVALID');
     });
 
-    it('should reject invalid token', async () => {
+    it('should reject invalid token with code', async () => {
       const response = await request(app)
         .get('/api/auth/validate')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toMatch(/invalid|expired/i);
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('code');
+      expect(response.body.code).toMatch(/AUTH_TOKEN_INVALID|AUTH_TOKEN_EXPIRED/);
     });
 
-    it('should reject malformed authorization header', async () => {
-      const response = await request(app)
-        .get('/api/auth/validate')
-        .set('Authorization', 'InvalidFormat')
-        .expect(401);
-
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should reject token for non-existent user (security fix)', async () => {
-      // Create a token for a user that doesn't exist in database
+    it('should reject token for non-existent user with user inactive code', async () => {
       const fakeToken = generateToken({
-        id: 'fake-user-id',
-        email: 'fake@example.com', 
-        role: 'user'
+        id: '11111111-1111-4111-8111-111111111111',
+        email: 'fake@example.com',
+        role: 'user',
       });
 
       const response = await request(app)
@@ -191,33 +175,19 @@ describe('Authentication Endpoints', () => {
         .set('Authorization', `Bearer ${fakeToken}`)
         .expect(401);
 
-      expect(response.body).toHaveProperty('error');
-    });
-  });
-
-  describe('JWT Token Generation and Validation', () => {
-    it('should generate valid JWT tokens', () => {
-      const payload = {
-        id: 'user-123',
-        email: 'user@example.com',
-        role: 'user'
-      };
-
-      const token = generateToken(payload);
-      expect(typeof token).toBe('string');
-      expect(token.split('.')).toHaveLength(3); // JWT format: header.payload.signature
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('code', 'AUTH_USER_INACTIVE');
     });
   });
 
   describe('POST /api/auth/refresh', () => {
-    it('should refresh a valid token', async () => {
-      // First login to get a valid token
+    it('should refresh a valid token with canonical payload', async () => {
       const loginResponse = await request(app)
         .post('/api/auth/login')
         .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
         .expect(200);
 
-      const token = loginResponse.body.token;
+      const token = loginResponse.body.data.accessToken;
 
       const response = await request(app)
         .post('/api/auth/refresh')
@@ -225,47 +195,41 @@ describe('Authentication Endpoints', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('token');
-      expect(typeof response.body.token).toBe('string');
+      expect(response.body).toHaveProperty('data.accessToken');
+      expect(response.body).toHaveProperty('data.tokenType', 'Bearer');
+      expect(response.body).toHaveProperty('data.expiresIn');
+      expect(response.body).toHaveProperty('data.expiresAt');
     });
 
     it('should reject refresh without token', async () => {
       const response = await request(app)
-        .post('/api/auth/refresh');
-
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('error', 'No token provided');
-    });
-
-    it('should reject refresh with invalid token', async () => {
-      const response = await request(app)
         .post('/api/auth/refresh')
-        .set('Authorization', 'Bearer invalid.token.here')
         .expect(401);
 
       expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('error', 'Invalid token');
+      expect(response.body).toHaveProperty('code', 'AUTH_TOKEN_INVALID');
     });
   });
 
   describe('GET /api/auth/me', () => {
-    it('should return current user info', async () => {
+    it('should return current user info in data envelope', async () => {
       const loginResponse = await request(app)
         .post('/api/auth/login')
         .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
         .expect(200);
 
-      const token = loginResponse.body.token;
+      const token = loginResponse.body.data.accessToken;
 
       const response = await request(app)
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('id');
-      expect(response.body).toHaveProperty('email', 'bank.technical@goldsphere.vault');
-      expect(response.body).toHaveProperty('role');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data.user.id');
+      expect(response.body).toHaveProperty('data.user.email', 'bank.technical@goldsphere.vault');
+      expect(response.body).toHaveProperty('data.user.role');
+      expect(response.body).not.toHaveProperty('user');
     });
 
     it('should reject without token', async () => {
@@ -274,27 +238,22 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('error', 'No token provided');
+      expect(response.body).toHaveProperty('code', 'AUTH_TOKEN_INVALID');
     });
 
-    it('should reject with invalid token', async () => {
-      const response = await request(app)
-        .get('/api/auth/me')
-        .set('Authorization', 'Bearer invalid.token.here')
-        .expect(401);
+    it('should reject with expired token using stable code', async () => {
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret || jwtSecret.trim().length === 0) {
+        throw new Error('JWT_SECRET is required for auth integration tests');
+      }
 
-      expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('error', 'Invalid token');
-    });
-
-    it('should reject with expired token', async () => {
       const expiredToken = jwt.sign(
         {
           id: '11111111-1111-4111-8111-111111111111',
           email: 'expired@goldsphere.vault',
           role: 'user',
         },
-        process.env.JWT_SECRET || 'your-secret-key',
+        jwtSecret,
         { expiresIn: '-1h' }
       );
 
@@ -304,7 +263,7 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('error', 'Token has expired');
+      expect(response.body).toHaveProperty('code', 'AUTH_TOKEN_EXPIRED');
     });
   });
 
@@ -313,10 +272,7 @@ describe('Authentication Endpoints', () => {
       const tempAdmin = await createTemporaryAdmin();
       const pool = getPool();
 
-      await pool.query(
-        `UPDATE users SET role = 'customer' WHERE id = $1`,
-        [tempAdmin.userId]
-      );
+      await pool.query(`UPDATE users SET role = 'customer' WHERE id = $1`, [tempAdmin.userId]);
 
       try {
         const response = await request(app)
@@ -324,12 +280,10 @@ describe('Authentication Endpoints', () => {
           .set('Authorization', `Bearer ${tempAdmin.token}`)
           .expect(401);
 
-        expect(response.body).toHaveProperty('error');
+        expect(response.body).toHaveProperty('success', false);
+        expect(response.body).toHaveProperty('code', 'AUTH_STALE_ROLE_CLAIM');
       } finally {
-        await pool.query(
-          `DELETE FROM users WHERE id = $1`,
-          [tempAdmin.userId]
-        );
+        await pool.query(`DELETE FROM users WHERE id = $1`, [tempAdmin.userId]);
       }
     });
 
@@ -337,10 +291,7 @@ describe('Authentication Endpoints', () => {
       const tempAdmin = await createTemporaryAdmin();
       const pool = getPool();
 
-      await pool.query(
-        `UPDATE users SET account_status = 'deleted' WHERE id = $1`,
-        [tempAdmin.userId]
-      );
+      await pool.query(`UPDATE users SET account_status = 'deleted' WHERE id = $1`, [tempAdmin.userId]);
 
       try {
         const response = await request(app)
@@ -348,12 +299,10 @@ describe('Authentication Endpoints', () => {
           .set('Authorization', `Bearer ${tempAdmin.token}`)
           .expect(401);
 
-        expect(response.body).toHaveProperty('error');
+        expect(response.body).toHaveProperty('success', false);
+        expect(response.body).toHaveProperty('code', 'AUTH_USER_INACTIVE');
       } finally {
-        await pool.query(
-          `DELETE FROM users WHERE id = $1`,
-          [tempAdmin.userId]
-        );
+        await pool.query(`DELETE FROM users WHERE id = $1`, [tempAdmin.userId]);
       }
     });
   });

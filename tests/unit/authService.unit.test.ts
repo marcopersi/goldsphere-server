@@ -20,6 +20,8 @@ describe('AuthService', () => {
       id: 'user-123',
       email: 'test@goldsphere.vault',
       passwordHash: hashedPassword,
+      firstName: 'Test',
+      lastName: 'User',
       role: 'user',
       status: 'active',
       ...overrides,
@@ -47,7 +49,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should return success with token for valid credentials', async () => {
+    it('should return success with canonical session payload for valid credentials', async () => {
       const testUser = await createTestUser();
       mockRepository.addUser(testUser);
 
@@ -58,9 +60,14 @@ describe('AuthService', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data!.token).toBeDefined();
-      expect(result.data!.user.email).toBe('test@goldsphere.vault');
-      expect(result.data!.user.role).toBe('user');
+      expect(result.data!.data.accessToken).toBeDefined();
+      expect(result.data!.data.tokenType).toBe('Bearer');
+      expect(typeof result.data!.data.expiresIn).toBe('number');
+      expect(typeof result.data!.data.expiresAt).toBe('string');
+      expect(result.data!.data.user.email).toBe('test@goldsphere.vault');
+      expect(result.data!.data.user.firstName).toBe('Test');
+      expect(result.data!.data.user.lastName).toBe('User');
+      expect(result.data!.data.user.role).toBe('user');
     });
 
     it('should update last login timestamp on successful login', async () => {
@@ -109,7 +116,7 @@ describe('AuthService', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe(AuthErrorCode.ACCOUNT_INACTIVE);
+      expect(result.error?.code).toBe(AuthErrorCode.USER_INACTIVE);
     });
 
     it('should return error for missing email', async () => {
@@ -132,10 +139,10 @@ describe('AuthService', () => {
       expect(result.error?.code).toBe(AuthErrorCode.INVALID_CREDENTIALS);
     });
 
-    it('should assign admin role for admin emails', async () => {
+    it('should keep persisted admin role', async () => {
       const adminUser = await createTestUser({
         email: 'admin@goldsphere.vault',
-        role: undefined, // No explicit role, should detect from email
+        role: 'admin',
       });
       mockRepository.addUser(adminUser);
 
@@ -145,7 +152,24 @@ describe('AuthService', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data!.user.role).toBe('admin');
+      expect(result.data!.data.user.role).toBe('admin');
+    });
+
+    it('should return internal error when required names are missing', async () => {
+      const namelessUser = await createTestUser({
+        firstName: '',
+        lastName: '   ',
+      });
+      mockRepository.addUser(namelessUser);
+
+      const result = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.INTERNAL_ERROR);
+      expect(result.error?.message).toBe('Internal server error');
     });
   });
 
@@ -159,7 +183,7 @@ describe('AuthService', () => {
         password: testPassword,
       });
 
-      const token = loginResult.data!.token;
+      const token = loginResult.data!.data.accessToken;
       const result = await authService.validateToken(token);
 
       expect(result.success).toBe(true);
@@ -175,8 +199,8 @@ describe('AuthService', () => {
     });
 
     it('should return error for expired token', async () => {
-      // Create service with very short expiry
-      const shortExpiryService = new AuthServiceImpl(mockRepository, testSecret, '1ms');
+      // Create service with short expiry (JWT expiration works at second precision)
+      const shortExpiryService = new AuthServiceImpl(mockRepository, testSecret, '1s');
       const testUser = await createTestUser();
       mockRepository.addUser(testUser);
 
@@ -185,10 +209,13 @@ describe('AuthService', () => {
         password: testPassword,
       });
 
-      // Wait for token to expire
-      await new Promise(resolve => setTimeout(resolve, 50));
+      expect(loginResult.success).toBe(true);
+      expect(loginResult.data).toBeDefined();
 
-      const result = await shortExpiryService.validateToken(loginResult.data!.token);
+      // Wait for token to expire
+      await new Promise(resolve => setTimeout(resolve, 1100));
+
+      const result = await shortExpiryService.validateToken(loginResult.data!.data.accessToken);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(AuthErrorCode.TOKEN_EXPIRED);
@@ -205,7 +232,7 @@ describe('AuthService', () => {
         password: testPassword,
       });
 
-      const originalToken = loginResult.data!.token;
+      const originalToken = loginResult.data!.data.accessToken;
       
       // Wait a bit to ensure different iat timestamp
       await new Promise(resolve => setTimeout(resolve, 1100));
@@ -213,8 +240,8 @@ describe('AuthService', () => {
       const result = await authService.refreshToken(originalToken);
 
       expect(result.success).toBe(true);
-      expect(result.data!.token).toBeDefined();
-      expect(result.data!.token).not.toBe(originalToken);
+      expect(result.data!.data.accessToken).toBeDefined();
+      expect(result.data!.data.accessToken).not.toBe(originalToken);
     });
 
     it('should return error if user is no longer active', async () => {
@@ -230,10 +257,10 @@ describe('AuthService', () => {
       mockRepository.removeUser('test@goldsphere.vault');
       mockRepository.addUser({ ...testUser, status: 'inactive' });
 
-      const result = await authService.refreshToken(loginResult.data!.token);
+      const result = await authService.refreshToken(loginResult.data!.data.accessToken);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe(AuthErrorCode.ACCOUNT_INACTIVE);
+      expect(result.error?.code).toBe(AuthErrorCode.USER_INACTIVE);
     });
 
     it('should return error for invalid token', async () => {
@@ -254,12 +281,14 @@ describe('AuthService', () => {
         password: testPassword,
       });
 
-      const result = await authService.getCurrentUser(loginResult.data!.token);
+      const result = await authService.getCurrentUser(loginResult.data!.data.accessToken);
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.data!.id).toBe('user-123');
       expect(result.data!.email).toBe('test@goldsphere.vault');
+      expect(result.data!.firstName).toBe('Test');
+      expect(result.data!.lastName).toBe('User');
       expect(result.data!.role).toBe('user');
     });
 

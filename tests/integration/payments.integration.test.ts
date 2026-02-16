@@ -21,7 +21,7 @@ describe('Payments API', () => {
       .post('/api/auth/login')
       .send({ email: 'admin@goldsphere.vault', password: 'admin123' });
 
-    authToken = loginResponse.body.token;
+    authToken = loginResponse.body.data.accessToken;
   });
 
   afterAll(async () => {

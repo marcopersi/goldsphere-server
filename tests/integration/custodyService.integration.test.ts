@@ -12,7 +12,6 @@ let app: any;
 
 describe('Custody Service Integration Tests', () => {
   let authToken: string;
-  let testCustodianId: string;
 
   beforeAll(async () => {
     // Setup fresh test database BEFORE importing app
@@ -29,14 +28,12 @@ describe('Custody Service Integration Tests', () => {
         password: 'GoldspherePassword'
       });
 
-    authToken = loginResponse.body.token;
+    authToken = loginResponse.body.data.accessToken;
 
     // Get a test custodian ID
     const pool = getPool();
     const result = await pool.query('SELECT id FROM custodian LIMIT 1');
-    if (result.rows.length > 0) {
-      testCustodianId = result.rows[0].id;
-    }
+    expect(result.rows.length).toBeGreaterThan(0);
   });
 
   afterAll(async () => {
@@ -202,14 +199,13 @@ describe('Custody Service Integration Tests', () => {
     });
 
     it('should handle non-existent service', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
+      const fakeId = '11111111-1111-4111-8111-111111111111';
 
       const response = await request(app)
         .get(`/api/custody/custodyServices/${fakeId}`)
         .set('Authorization', `Bearer ${authToken}`);
 
-      // Controller throws error when data is null, resulting in 500
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
     });
 
@@ -329,10 +325,10 @@ describe('Custody Service Integration Tests', () => {
 
     it('should return 404 for non-existent custody service', async () => {
       const response = await request(app)
-        .get('/api/custody/custodyServices/00000000-0000-0000-0000-000000000000')
+        .get('/api/custody/custodyServices/22222222-2222-4222-8222-222222222222')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 

@@ -59,6 +59,8 @@ export async function setupTestDatabase(): Promise<Pool> {
     max: 5,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 10000,
+    query_timeout: 30000,
+    statement_timeout: 30000,
   });
 
   // Execute all SQL files to build complete schema and data

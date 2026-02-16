@@ -7,8 +7,19 @@ interface AuthTokenPayload {
   role: string;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const envJwtSecret = process.env.JWT_SECRET;
+const envJwtExpiresIn = process.env.JWT_EXPIRES_IN;
+
+if (!envJwtSecret || envJwtSecret.trim().length === 0) {
+  throw new Error('JWT_SECRET is required in tests/helpers/authToken.ts');
+}
+
+if (!envJwtExpiresIn || envJwtExpiresIn.trim().length === 0) {
+  throw new Error('JWT_EXPIRES_IN is required in tests/helpers/authToken.ts');
+}
+
+const JWT_SECRET: string = envJwtSecret;
+const JWT_EXPIRES_IN: string = envJwtExpiresIn;
 
 export function generateToken(payload: AuthTokenPayload): string {
   const signOptions: SignOptions = {

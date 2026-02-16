@@ -95,9 +95,12 @@ process.on('exit', () => {
 
 
 const isLeakCheck = process.env.JEST_LEAK_CHECK === 'true';
+const isIntegrationRun = process.argv.some((arg) => arg.includes('tests/integration'));
 
-// Mock console methods to reduce noise in tests (skip for leak diagnostics)
-if (!isLeakCheck) {
+// Mock console methods to reduce noise in tests.
+// Keep logs enabled for integration runs to surface DB setup progress and avoid
+// perceived "stuck" executions with no output.
+if (!isLeakCheck && !isIntegrationRun) {
   globalThis.console = {
     ...console,
     log: jest.fn(),

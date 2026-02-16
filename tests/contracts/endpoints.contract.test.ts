@@ -21,7 +21,7 @@ describe('Endpoint contracts', () => {
       .post('/api/auth/login')
       .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
       .expect(200);
-    token = res.body.token;
+    token = res.body.data.accessToken;
   }, 30000);
 
   afterAll(async () => {

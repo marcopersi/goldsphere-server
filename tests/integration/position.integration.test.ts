@@ -23,7 +23,7 @@ describe('Position API', () => {
       });
     
     if (loginResponse.status === 200) {
-      authToken = loginResponse.body.token;
+      authToken = loginResponse.body.data.accessToken;
     }
   });
 

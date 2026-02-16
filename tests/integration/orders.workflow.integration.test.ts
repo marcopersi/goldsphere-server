@@ -57,7 +57,7 @@ describe('Orders Workflow Integration', () => {
       throw new Error(`Auth failed: ${loginResponse.status} ${JSON.stringify(loginResponse.body)}`);
     }
 
-    authToken = loginResponse.body.token;
+    authToken = loginResponse.body.data.accessToken;
 
     const pool = getPool();
     const userResult = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@goldsphere.vault']);

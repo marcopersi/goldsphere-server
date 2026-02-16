@@ -29,7 +29,7 @@ describe('Product Image Integration Tests', () => {
         password: 'GoldspherePassword'
       });
 
-    authToken = loginResponse.body.token;
+    authToken = loginResponse.body.data.accessToken;
 
     // Get a product that has an image
     const pool = getPool();

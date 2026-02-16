@@ -17,7 +17,7 @@ async function login() {
     });
     
     console.log('✅ Login successful');
-    return response.data.token;
+    return response.data.data.accessToken;
   } catch (error) {
     console.error('❌ Login failed:', error.response?.data || error.message);
     process.exit(1);

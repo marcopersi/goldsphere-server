@@ -32,7 +32,7 @@ describe("Orders API", () => {
       });
 
     if (loginResponse.status === 200) {
-      authToken = loginResponse.body.token;
+      authToken = loginResponse.body.data.accessToken;
     } else {
       throw new Error(`Auth failed: ${loginResponse.status} ${JSON.stringify(loginResponse.body)}`);
     }
