@@ -9,11 +9,16 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
   birth_date DATE NOT NULL,
+  phone VARCHAR(20),
+  gender VARCHAR(24) CHECK (gender IN ('male', 'female', 'diverse', 'prefer_not_to_say')),
+  preferred_currency CHAR(3) REFERENCES currency(isocode3),
+  preferred_payment_method VARCHAR(20) CHECK (preferred_payment_method IN ('bank_transfer', 'card', 'invoice')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   
   -- Add constraint to ensure user is at least 18 years old
-  CONSTRAINT user_must_be_adult CHECK (birth_date <= CURRENT_DATE - INTERVAL '18 years')
+  CONSTRAINT user_must_be_adult CHECK (birth_date <= CURRENT_DATE - INTERVAL '18 years'),
+  CONSTRAINT chk_user_profile_phone_e164 CHECK (phone IS NULL OR phone ~ '^\+[1-9][0-9]{1,14}$')
 );
 
 -- Create user_addresses table for comprehensive address information
@@ -21,10 +26,13 @@ CREATE TABLE IF NOT EXISTS user_addresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   countryId UUID REFERENCES country(id),
-  postal_code VARCHAR(20) NOT NULL,
-  city VARCHAR(100) NOT NULL,
-  state VARCHAR(100) NOT NULL, -- Canton/State name
-  street VARCHAR(200) NOT NULL, -- Street and house number
+  postal_code VARCHAR(20),
+  city VARCHAR(100),
+  state VARCHAR(100), -- Canton/State name
+  street VARCHAR(200),
+  house_number VARCHAR(50),
+  address_line2 VARCHAR(200),
+  po_box VARCHAR(100),
   is_primary BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -115,7 +123,15 @@ COMMENT ON TABLE consent_log IS 'GDPR-compliant consent tracking for legal compl
 COMMENT ON TABLE user_verification_status IS 'Tracks email and identity verification status for each user';
 
 COMMENT ON COLUMN user_profiles.title IS 'Personal title: Herr, Frau, or Divers';
+COMMENT ON COLUMN user_profiles.phone IS 'Phone number in E.164 format (e.g., +41791234567)';
+COMMENT ON COLUMN user_profiles.gender IS 'Gender: male, female, diverse, prefer_not_to_say';
+COMMENT ON COLUMN user_profiles.preferred_currency IS 'Preferred display currency (ISO 4217 alpha-3, e.g., CHF, EUR, USD)';
+COMMENT ON COLUMN user_profiles.preferred_payment_method IS 'Preferred payment method: bank_transfer, card, invoice';
 COMMENT ON COLUMN user_addresses.countryId IS 'Foreign key to country table';
 COMMENT ON COLUMN user_addresses.state IS 'Canton for Switzerland, State for other countries';
+COMMENT ON COLUMN user_addresses.street IS 'Street name';
+COMMENT ON COLUMN user_addresses.house_number IS 'House or building number';
+COMMENT ON COLUMN user_addresses.address_line2 IS 'Additional address information (optional)';
+COMMENT ON COLUMN user_addresses.po_box IS 'PO box value (optional)';
 COMMENT ON COLUMN document_processing_log.extracted_fields IS 'JSON array of field names that were auto-filled by AI parsing';
 
