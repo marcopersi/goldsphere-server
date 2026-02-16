@@ -1304,6 +1304,31 @@
 						},
 						"type": "array"
 					},
+					"weightUnits": {
+						"items": {
+							"properties": {
+								"aliases": {
+									"items": {
+										"type": "string"
+									},
+									"type": "array"
+								},
+								"displayName": {
+									"type": "string"
+								},
+								"value": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"aliases",
+								"displayName",
+								"value"
+							],
+							"type": "object"
+						},
+						"type": "array"
+					},
 					"producers": {
 						"items": {
 							"properties": {
@@ -1416,6 +1441,7 @@
 					"metals",
 					"productTypes",
 					"countries",
+					"weightUnits",
 					"producers",
 					"currencies",
 					"custodians",

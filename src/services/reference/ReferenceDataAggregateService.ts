@@ -19,6 +19,7 @@ export interface AggregatedReferenceData {
   metals: Array<{ symbol: string; name: string }>;
   productTypes: Array<{ name: string }>;
   countries: Array<{ code: string; name: string }>;
+  weightUnits: Array<{ value: string; displayName: string; aliases: string[] }>;
   producers: Array<{ id: string; name: string }>;
   currencies: Array<{ id: string; isoCode2: string; isoCode3: string; isoNumericCode: number }>;
   custodians: Array<{ value: string; name: string }>;
@@ -47,6 +48,11 @@ export class ReferenceDataAggregateService {
         code: country.code,
         name: country.name,
       })),
+      weightUnits: [
+        { value: 'grams', displayName: 'g', aliases: ['g', 'gram', 'grams'] },
+        { value: 'kilograms', displayName: 'kg', aliases: ['kg', 'kilogram', 'kilograms'] },
+        { value: 'troy_ounces', displayName: 'ozt', aliases: ['ozt', 'toz', 'troy_oz', 'troy ounce', 'troy ounces'] },
+      ],
       producers: producersResult.rows.map((row) => ({
         id: row.id,
         name: row.name,

@@ -27,7 +27,17 @@ describe("References API", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toBeDefined();
       expect(Array.isArray(response.body.data.metals)).toBe(true);
+      expect(Array.isArray(response.body.data.weightUnits)).toBe(true);
       expect(Array.isArray(response.body.data.currencies)).toBe(true);
+
+      const unitValues = response.body.data.weightUnits.map((u: { value: string }) => u.value);
+      expect(unitValues).toEqual(expect.arrayContaining(['grams', 'kilograms', 'troy_ounces']));
+
+      const troyUnit = response.body.data.weightUnits.find((u: { value: string }) => u.value === 'troy_ounces');
+      expect(troyUnit).toBeDefined();
+      expect(troyUnit.displayName).toBe('ozt');
+      expect(Array.isArray(troyUnit.aliases)).toBe(true);
+      expect(troyUnit.aliases).toEqual(expect.arrayContaining(['ozt', 'toz']));
     });
   });
 
@@ -48,6 +58,8 @@ describe("References API", () => {
       expect(Array.isArray(data.productTypes)).toBe(true);
       expect(data.countries).toBeDefined();
       expect(Array.isArray(data.countries)).toBe(true);
+      expect(data.weightUnits).toBeDefined();
+      expect(Array.isArray(data.weightUnits)).toBe(true);
       expect(data.currencies).toBeDefined();
       expect(Array.isArray(data.currencies)).toBe(true);
     });

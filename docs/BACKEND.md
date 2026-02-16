@@ -123,7 +123,20 @@ Reference data is now built by a dedicated aggregation service and reused by mul
 - Primary endpoint: `GET /api/references/`
 - Compatibility alias: `GET /api`
 
-Both endpoints return the same aggregated payload (`metals`, `productTypes`, `countries`, `producers`, `currencies`, `custodians`, `paymentFrequencies`, `custodyServiceTypes`).
+Both endpoints return the same aggregated payload (`metals`, `productTypes`, `countries`, `weightUnits`, `producers`, `currencies`, `custodians`, `paymentFrequencies`, `custodyServiceTypes`).
+
+#### Weight Unit Canonicalization
+
+Weight units are canonicalized in the product management service before validation/persistence.
+
+- Canonical values: `grams`, `kilograms`, `troy_ounces`
+- Accepted aliases (normalized server-side):
+  - grams: `g`, `gram`, `grams`
+  - kilograms: `kg`, `kilogram`, `kilograms`
+  - troy ounces: `ozt`, `toz`, `troy_oz`, `troy_ounce`, `troy_ounces`
+- Legacy non-canonical value `ounces` is not accepted.
+
+Reference clients should use `weightUnits[].value` as storage/API value and `displayName` only for UI.
 
 This avoids duplication in controller logic and prevents frontend breakage when legacy clients request `/api` directly for reference bootstrap data.
 

@@ -216,6 +216,16 @@ describe('ProductManagementService Unit Tests', () => {
       ).rejects.toThrow('Weight unit must be one of');
     });
 
+    it('should normalize ozt to troy_ounces', async () => {
+      const result = await service.updateProduct(existingProductId, { weightUnit: 'ozt' }, testUser);
+      expect(result.weightUnit).toBe('troy_ounces');
+    });
+
+    it('should normalize kg to kilograms', async () => {
+      const result = await service.updateProduct(existingProductId, { weightUnit: 'kg' }, testUser);
+      expect(result.weightUnit).toBe('kilograms');
+    });
+
     it('should reject negative stock quantity', async () => {
       await expect(
         service.updateProduct(existingProductId, { stockQuantity: -5 }, testUser)

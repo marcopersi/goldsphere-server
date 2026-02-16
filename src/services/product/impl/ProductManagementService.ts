@@ -9,10 +9,34 @@ import { IProductRepository } from '../repository/IProductRepository';
 import { CreateProductRequest, UpdateProductRequest, ProductManagementResponse, ProductListOptions, ProductListResponse, CreateProductByIdRequest, UpdateProductByIdRequest } from '../types/ProductTypes';
 import { AuditTrailUser } from '../../../utils/auditTrail';
 
+const VALID_WEIGHT_UNITS = ['troy_ounces', 'grams', 'kilograms'] as const;
+const WEIGHT_UNIT_ALIASES: Record<string, (typeof VALID_WEIGHT_UNITS)[number]> = {
+  g: 'grams',
+  gram: 'grams',
+  grams: 'grams',
+  kg: 'kilograms',
+  kilogram: 'kilograms',
+  kilograms: 'kilograms',
+  ozt: 'troy_ounces',
+  toz: 'troy_ounces',
+  troy_oz: 'troy_ounces',
+  troy_ounce: 'troy_ounces',
+  troy_ounces: 'troy_ounces',
+};
+
 export class ProductManagementService implements IProductManagementService {
   constructor(private readonly repository: IProductRepository) {}
+
+  private normalizeWeightUnit(value: string): (typeof VALID_WEIGHT_UNITS)[number] {
+    const normalized = WEIGHT_UNIT_ALIASES[value.trim().toLowerCase()];
+    if (!normalized) {
+      throw new Error(`Weight unit must be one of: ${VALID_WEIGHT_UNITS.join(', ')}`);
+    }
+    return normalized;
+  }
   
   async createProduct(data: CreateProductRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
+    data.weightUnit = this.normalizeWeightUnit(data.weightUnit);
     this.validateProductData(data);
     return await this.repository.create(data, authenticatedUser);
   }
@@ -72,6 +96,10 @@ export class ProductManagementService implements IProductManagementService {
       throw new Error('Invalid product ID format');
     }
     
+    if (data.weightUnit) {
+      data.weightUnit = this.normalizeWeightUnit(data.weightUnit);
+    }
+
     // Validate update data (only validate fields that are present)
     this.validateUpdateData(data);
     
@@ -230,10 +258,7 @@ export class ProductManagementService implements IProductManagementService {
     
     // Validate weight unit if present
     if (data.weightUnit) {
-      const validWeightUnits = ['troy_ounces', 'grams', 'ounces', 'kilograms'];
-      if (!validWeightUnits.includes(data.weightUnit)) {
-        throw new Error(`Weight unit must be one of: ${validWeightUnits.join(', ')}`);
-      }
+      this.normalizeWeightUnit(data.weightUnit);
     }
   }
   
@@ -290,13 +315,12 @@ export class ProductManagementService implements IProductManagementService {
       throw new Error(`Currency must be one of: ${validCurrencies.join(', ')}`);
     }
     
-    const validWeightUnits = ['troy_ounces', 'grams', 'ounces', 'kilograms'];
-    if (!validWeightUnits.includes(data.weightUnit)) {
-      throw new Error(`Weight unit must be one of: ${validWeightUnits.join(', ')}`);
-    }
+    this.normalizeWeightUnit(data.weightUnit);
   }
   
   async createProductById(data: CreateProductByIdRequest, authenticatedUser: AuditTrailUser): Promise<ProductManagementResponse> {
+    data.weightUnit = this.normalizeWeightUnit(data.weightUnit);
+
     // Validate required fields
     if (!data.name || data.name.trim().length === 0) {
       throw new Error('Product name is required');
@@ -370,6 +394,10 @@ export class ProductManagementService implements IProductManagementService {
       throw new Error('No fields to update');
     }
     
+    if (data.weightUnit) {
+      data.weightUnit = this.normalizeWeightUnit(data.weightUnit);
+    }
+
     // Validate UUID formats for reference IDs if provided
     if (data.productTypeId && !uuidRegex.test(data.productTypeId)) {
       throw new Error('Invalid productTypeId format');

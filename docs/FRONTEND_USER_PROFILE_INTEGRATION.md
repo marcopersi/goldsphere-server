@@ -20,6 +20,23 @@ Die User-Endpoints (`POST /api/users` und `PUT /api/users/:id`) unterstützen je
 
 ## 🎯 Frontend Implementation
 
+### Profile Loading Endpoints (Important)
+
+There is no `GET /api/profile` endpoint in this backend.
+
+Use one of these endpoints instead:
+
+- `GET /api/auth/me` → returns current authenticated user identity (`id`, `email`, `role`)
+- `GET /api/users/:id/details` → returns full profile payload (`user`, `profile`, `address`, `verificationStatus`)
+
+Typical flow:
+
+1. Call `GET /api/auth/me` with bearer token
+2. Read `id` from response
+3. Call `GET /api/users/:id/details`
+
+If the frontend requests `GET /api/profile`, the backend will return `404 Not Found`.
+
 ### 1. User-Erstellung (Admin Panel / Registration)
 
 **Endpoint**: `POST /api/users`
