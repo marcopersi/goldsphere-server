@@ -4,12 +4,13 @@ import cors from "cors";
 import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import { getPool } from "./dbConfig";
-import { updateSwaggerSpec, swaggerSpec } from "./config/swagger";
+import { updateSwaggerSpec } from "./config/swagger";
 import { RegisterRoutes } from "./generated/routes";
 import * as tsoaSwaggerSpec from "./generated/swagger.json";
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
 import { WebhookController } from "./controllers/WebhookController";
 import { RateLimitPresets, createRateLimiter, createUserRateLimiter } from "./middleware/rateLimiter";
+import { AUTH_ERROR_CODES } from "./services/auth/contract/AuthErrorFactory";
 
 // Load environment variables first
 dotenv.config();
@@ -218,10 +219,27 @@ app.use((err: any, req: any, res: any, _next: any) => {
   // Generic error handler
   const status = err.status || 500;
   const message = err.message || "Internal server error";
-  
+
+  const codedMessageMatch = /^([A-Z_]+):\s*(.*)$/.exec(message);
+  const resolvedCode = err.code || codedMessageMatch?.[1];
+  const resolvedMessage = codedMessageMatch?.[2] || message;
+
+  if (status === 401 || status === 403) {
+    return res.status(status).json({
+      success: false,
+      code:
+        resolvedCode ||
+        (status === 401
+          ? AUTH_ERROR_CODES.AUTH_TOKEN_INVALID
+          : AUTH_ERROR_CODES.AUTH_INSUFFICIENT_PERMISSIONS),
+      error: resolvedMessage,
+    });
+  }
+
   res.status(status).json({
     success: false,
-    error: message
+    code: resolvedCode,
+    error: resolvedMessage,
   });
 });
 

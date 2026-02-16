@@ -7,9 +7,9 @@ import {
   LoginRequest, 
   LoginResponse, 
   AuthResult, 
-  TokenPayload,
-  AuthUser 
+  TokenPayload
 } from './types';
+import type { AuthUser } from './contract/AuthContract';
 
 export interface IAuthService {
   /**

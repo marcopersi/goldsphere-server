@@ -1795,22 +1795,25 @@ const models: TsoaRoute.Models = {
         "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "AuthUserResponse": {
-        "dataType": "refObject",
-        "properties": {
-            "id": {"dataType":"string","required":true},
-            "email": {"dataType":"string","required":true},
-            "role": {"dataType":"string","required":true},
-        },
-        "additionalProperties": false,
+    "infer_typeofSessionSuccessResponseSchema_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"data":{"dataType":"nestedObjectLiteral","nestedProperties":{"issuedAt":{"dataType":"string"},"refreshToken":{"dataType":"string"},"user":{"dataType":"nestedObjectLiteral","nestedProperties":{"role":{"dataType":"string","required":true},"lastName":{"dataType":"string","required":true},"firstName":{"dataType":"string","required":true},"email":{"dataType":"string","required":true},"id":{"dataType":"string","required":true}},"required":true},"expiresAt":{"dataType":"string","required":true},"expiresIn":{"dataType":"double","required":true},"tokenType":{"dataType":"enum","enums":["Bearer"],"required":true},"accessToken":{"dataType":"string","required":true}},"required":true},"success":{"dataType":"enum","enums":[true],"required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "LoginSuccessResponse": {
+    "SessionSuccessResponse": {
+        "dataType": "refAlias",
+        "type": {"ref":"infer_typeofSessionSuccessResponseSchema_","validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "AuthErrorCode": {
+        "dataType": "refAlias",
+        "type": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["AUTH_INVALID_CREDENTIALS"]},{"dataType":"enum","enums":["AUTH_TOKEN_EXPIRED"]},{"dataType":"enum","enums":["AUTH_TOKEN_INVALID"]},{"dataType":"enum","enums":["AUTH_UNAUTHORIZED"]},{"dataType":"enum","enums":["AUTH_ACCOUNT_LOCKED"]},{"dataType":"enum","enums":["AUTH_USER_INACTIVE"]},{"dataType":"enum","enums":["AUTH_STALE_ROLE_CLAIM"]},{"dataType":"enum","enums":["AUTH_INSUFFICIENT_PERMISSIONS"]},{"dataType":"enum","enums":["VALIDATION_ERROR"]},{"dataType":"enum","enums":["AUTH_INTERNAL_ERROR"]}],"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "AuthErrorDetails": {
         "dataType": "refObject",
         "properties": {
-            "success": {"dataType":"enum","enums":[true],"required":true},
-            "token": {"dataType":"string","required":true},
-            "user": {"ref":"AuthUserResponse","required":true},
+            "fields": {"dataType":"array","array":{"dataType":"nestedObjectLiteral","nestedProperties":{"message":{"dataType":"string","required":true},"path":{"dataType":"string","required":true}}}},
         },
         "additionalProperties": false,
     },
@@ -1819,7 +1822,9 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "success": {"dataType":"enum","enums":[false],"required":true},
+            "code": {"ref":"AuthErrorCode","required":true},
             "error": {"dataType":"string","required":true},
+            "details": {"ref":"AuthErrorDetails"},
         },
         "additionalProperties": false,
     },
@@ -1833,13 +1838,14 @@ const models: TsoaRoute.Models = {
         "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "ValidateResponse": {
-        "dataType": "refObject",
-        "properties": {
-            "success": {"dataType":"enum","enums":[true],"required":true},
-            "user": {"ref":"AuthUserResponse","required":true},
-        },
-        "additionalProperties": false,
+    "infer_typeofUserSuccessResponseSchema_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"data":{"dataType":"nestedObjectLiteral","nestedProperties":{"user":{"dataType":"nestedObjectLiteral","nestedProperties":{"role":{"dataType":"string","required":true},"lastName":{"dataType":"string","required":true},"firstName":{"dataType":"string","required":true},"email":{"dataType":"string","required":true},"id":{"dataType":"string","required":true}},"required":true}},"required":true},"success":{"dataType":"enum","enums":[true],"required":true}},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "UserSuccessResponse": {
+        "dataType": "refAlias",
+        "type": {"ref":"infer_typeofUserSuccessResponseSchema_","validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ImageUploadResponse": {
@@ -5113,6 +5119,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
                 authorization: {"in":"header","name":"Authorization","dataType":"string"},
         };
         app.get('/api/auth/me',
+            authenticateMiddleware([{"bearerAuth":[]}]),
             ...(fetchMiddlewares<RequestHandler>(AuthController)),
             ...(fetchMiddlewares<RequestHandler>(AuthController.prototype.getCurrentUser)),
 

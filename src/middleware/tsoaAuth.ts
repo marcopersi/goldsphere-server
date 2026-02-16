@@ -8,8 +8,15 @@ import { Request } from 'express';
 import jwt from 'jsonwebtoken';
 import { getPool } from '../dbConfig';
 import { UserErrorCode, UserServiceFactory } from '../services/user';
+import { AUTH_ERROR_CODES } from '../services/auth/contract/AuthErrorFactory';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const envJwtSecret = process.env.JWT_SECRET;
+
+if (!envJwtSecret || envJwtSecret.trim().length === 0) {
+  throw new Error('JWT_SECRET must be configured for tsoa authentication middleware');
+}
+
+const JWT_SECRET: string = envJwtSecret;
 
 export interface AuthenticatedUser {
   id: string;
@@ -17,9 +24,21 @@ export interface AuthenticatedUser {
   role: string;
 }
 
+interface AuthSecurityError extends Error {
+  status: number;
+  code: string;
+}
+
+function createAuthSecurityError(status: number, code: string, message: string): AuthSecurityError {
+  const error = new Error(message) as AuthSecurityError;
+  error.status = status;
+  error.code = code;
+  return error;
+}
+
 function getBearerToken(authHeader?: string): string {
   if (!authHeader) {
-    throw new Error('No authorization header provided');
+    throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'No authorization header provided');
   }
 
   return authHeader.startsWith('Bearer ')
@@ -33,12 +52,15 @@ async function verifyAuthenticatedUser(decoded: AuthenticatedUser): Promise<Auth
 
   if (!verification.success || !verification.data) {
     if (verification.errorCode === UserErrorCode.USER_NOT_FOUND) {
-      throw new Error('User not found or has been deactivated');
+      throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_USER_INACTIVE, 'User not found or has been deactivated');
     }
     if (verification.errorCode === UserErrorCode.UNAUTHORIZED) {
-      throw new Error(verification.error || 'Unauthorized');
+      if (verification.error === 'Token role is stale. Please re-authenticate.') {
+        throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_STALE_ROLE_CLAIM, verification.error);
+      }
+      throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_USER_INACTIVE, verification.error || 'Unauthorized');
     }
-    throw new Error('Invalid or expired token');
+    throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'Invalid or expired token');
   }
 
   return {
@@ -49,22 +71,20 @@ async function verifyAuthenticatedUser(decoded: AuthenticatedUser): Promise<Auth
 }
 
 function rethrowKnownAuthError(error: unknown): never {
-  if (!(error instanceof Error)) {
-    throw new Error('Invalid or expired token');
+  if (!error || !(error instanceof Error)) {
+    throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'Invalid or expired token');
   }
 
-  const knownErrors = new Set([
-    'User not found or has been deactivated',
-    'User account is inactive',
-    'Token role is stale. Please re-authenticate.',
-    'Insufficient permissions',
-  ]);
-
-  if (knownErrors.has(error.message)) {
+  const authError = error as Partial<AuthSecurityError>;
+  if (typeof authError.status === 'number' && typeof authError.code === 'string') {
     throw error;
   }
 
-  throw new Error('Invalid or expired token');
+  if (error instanceof jwt.TokenExpiredError) {
+    throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Token has expired');
+  }
+
+  throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'Invalid or expired token');
 }
 
 /**
@@ -88,9 +108,7 @@ export async function expressAuthentication(
     const authenticatedUser = await verifyAuthenticatedUser(decoded);
 
     if (scopes && scopes.length > 0 && !scopes.includes(authenticatedUser.role)) {
-      const scopeError = new Error('Insufficient permissions') as Error & { status: number };
-      scopeError.status = 403;
-      throw scopeError;
+      throw createAuthSecurityError(403, AUTH_ERROR_CODES.AUTH_INSUFFICIENT_PERMISSIONS, 'Insufficient permissions');
     }
 
     return authenticatedUser;

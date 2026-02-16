@@ -5922,60 +5922,127 @@
 				"type": "object",
 				"additionalProperties": false
 			},
-			"AuthUserResponse": {
-				"description": "Auth user info",
+			"infer_typeofSessionSuccessResponseSchema_": {
 				"properties": {
-					"id": {
-						"type": "string",
-						"description": "User ID (UUID)",
-						"example": "123e4567-e89b-12d3-a456-426614174000"
+					"data": {
+						"properties": {
+							"issuedAt": {
+								"type": "string"
+							},
+							"refreshToken": {
+								"type": "string"
+							},
+							"user": {
+								"properties": {
+									"role": {
+										"type": "string"
+									},
+									"lastName": {
+										"type": "string"
+									},
+									"firstName": {
+										"type": "string"
+									},
+									"email": {
+										"type": "string"
+									},
+									"id": {
+										"type": "string"
+									}
+								},
+								"required": [
+									"role",
+									"lastName",
+									"firstName",
+									"email",
+									"id"
+								],
+								"type": "object"
+							},
+							"expiresAt": {
+								"type": "string"
+							},
+							"expiresIn": {
+								"type": "number",
+								"format": "double"
+							},
+							"tokenType": {
+								"type": "string",
+								"enum": [
+									"Bearer"
+								],
+								"nullable": false
+							},
+							"accessToken": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"user",
+							"expiresAt",
+							"expiresIn",
+							"tokenType",
+							"accessToken"
+						],
+						"type": "object"
 					},
-					"email": {
-						"type": "string",
-						"description": "User email",
-						"example": "user@goldsphere.vault"
-					},
-					"role": {
-						"type": "string",
-						"description": "User role",
-						"example": "user"
-					}
-				},
-				"required": [
-					"id",
-					"email",
-					"role"
-				],
-				"type": "object",
-				"additionalProperties": false
-			},
-			"LoginSuccessResponse": {
-				"description": "Successful login response",
-				"properties": {
 					"success": {
 						"type": "boolean",
 						"enum": [
 							true
 						],
 						"nullable": false
-					},
-					"token": {
-						"type": "string"
-					},
-					"user": {
-						"$ref": "#/components/schemas/AuthUserResponse"
 					}
 				},
 				"required": [
-					"success",
-					"token",
-					"user"
+					"data",
+					"success"
 				],
+				"type": "object"
+			},
+			"SessionSuccessResponse": {
+				"$ref": "#/components/schemas/infer_typeofSessionSuccessResponseSchema_"
+			},
+			"AuthErrorCode": {
+				"type": "string",
+				"enum": [
+					"AUTH_INVALID_CREDENTIALS",
+					"AUTH_TOKEN_EXPIRED",
+					"AUTH_TOKEN_INVALID",
+					"AUTH_UNAUTHORIZED",
+					"AUTH_ACCOUNT_LOCKED",
+					"AUTH_USER_INACTIVE",
+					"AUTH_STALE_ROLE_CLAIM",
+					"AUTH_INSUFFICIENT_PERMISSIONS",
+					"VALIDATION_ERROR",
+					"AUTH_INTERNAL_ERROR"
+				]
+			},
+			"AuthErrorDetails": {
+				"properties": {
+					"fields": {
+						"items": {
+							"properties": {
+								"message": {
+									"type": "string"
+								},
+								"path": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"message",
+								"path"
+							],
+							"type": "object"
+						},
+						"type": "array"
+					}
+				},
 				"type": "object",
 				"additionalProperties": false
 			},
 			"AuthErrorResponse": {
-				"description": "Error response",
 				"properties": {
 					"success": {
 						"type": "boolean",
@@ -5984,12 +6051,19 @@
 						],
 						"nullable": false
 					},
+					"code": {
+						"$ref": "#/components/schemas/AuthErrorCode"
+					},
 					"error": {
 						"type": "string"
+					},
+					"details": {
+						"$ref": "#/components/schemas/AuthErrorDetails"
 					}
 				},
 				"required": [
 					"success",
+					"code",
 					"error"
 				],
 				"type": "object",
@@ -6012,26 +6086,59 @@
 				"type": "object",
 				"additionalProperties": false
 			},
-			"ValidateResponse": {
-				"description": "Token validation response",
+			"infer_typeofUserSuccessResponseSchema_": {
 				"properties": {
+					"data": {
+						"properties": {
+							"user": {
+								"properties": {
+									"role": {
+										"type": "string"
+									},
+									"lastName": {
+										"type": "string"
+									},
+									"firstName": {
+										"type": "string"
+									},
+									"email": {
+										"type": "string"
+									},
+									"id": {
+										"type": "string"
+									}
+								},
+								"required": [
+									"role",
+									"lastName",
+									"firstName",
+									"email",
+									"id"
+								],
+								"type": "object"
+							}
+						},
+						"required": [
+							"user"
+						],
+						"type": "object"
+					},
 					"success": {
 						"type": "boolean",
 						"enum": [
 							true
 						],
 						"nullable": false
-					},
-					"user": {
-						"$ref": "#/components/schemas/AuthUserResponse"
 					}
 				},
 				"required": [
-					"success",
-					"user"
+					"data",
+					"success"
 				],
-				"type": "object",
-				"additionalProperties": false
+				"type": "object"
+			},
+			"UserSuccessResponse": {
+				"$ref": "#/components/schemas/infer_typeofUserSuccessResponseSchema_"
 			},
 			"ImageUploadResponse": {
 				"properties": {
@@ -13218,7 +13325,7 @@
 								"schema": {
 									"anyOf": [
 										{
-											"$ref": "#/components/schemas/LoginSuccessResponse"
+											"$ref": "#/components/schemas/SessionSuccessResponse"
 										},
 										{
 											"$ref": "#/components/schemas/AuthErrorResponse"
@@ -13249,7 +13356,7 @@
 						}
 					},
 					"403": {
-						"description": "Account inactive or locked",
+						"description": "Account locked",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -13289,7 +13396,14 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/ValidateResponse"
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/UserSuccessResponse"
+										},
+										{
+											"$ref": "#/components/schemas/AuthErrorResponse"
+										}
+									]
 								}
 							}
 						}
@@ -13329,7 +13443,7 @@
 								"schema": {
 									"anyOf": [
 										{
-											"$ref": "#/components/schemas/LoginSuccessResponse"
+											"$ref": "#/components/schemas/SessionSuccessResponse"
 										},
 										{
 											"$ref": "#/components/schemas/AuthErrorResponse"
@@ -13380,7 +13494,7 @@
 								"schema": {
 									"anyOf": [
 										{
-											"$ref": "#/components/schemas/AuthUserResponse"
+											"$ref": "#/components/schemas/UserSuccessResponse"
 										},
 										{
 											"$ref": "#/components/schemas/AuthErrorResponse"
@@ -13406,7 +13520,11 @@
 				"tags": [
 					"Authentication"
 				],
-				"security": [],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
 				"parameters": [
 					{
 						"description": "Bearer token header",

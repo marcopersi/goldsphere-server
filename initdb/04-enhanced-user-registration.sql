@@ -115,6 +115,82 @@ CREATE INDEX IF NOT EXISTS idx_user_addresses_primary ON user_addresses(user_id,
 CREATE INDEX IF NOT EXISTS idx_users_email_verified ON users(email_verified);
 CREATE INDEX IF NOT EXISTS idx_users_identity_verified ON users(identity_verified);
 
+-- =============================================================================
+-- STEP 9: Backfill core system user profiles (idempotent)
+-- =============================================================================
+
+-- Ensure core users always have profile rows with non-empty first/last names.
+-- This keeps auth contract fields (firstName/lastName) stable for all environments.
+INSERT INTO user_profiles (
+  user_id,
+  title,
+  first_name,
+  last_name,
+  birth_date,
+  phone,
+  gender,
+  preferred_currency,
+  preferred_payment_method
+)
+SELECT
+  u.id,
+  NULL,
+  CASE
+    WHEN u.email = 'bank.technical@goldsphere.vault' THEN 'Bank'
+    WHEN u.email = 'admin@goldsphere.vault' THEN 'Admin'
+    ELSE 'System'
+  END,
+  CASE
+    WHEN u.email = 'bank.technical@goldsphere.vault' THEN 'Technical'
+    WHEN u.email = 'admin@goldsphere.vault' THEN 'User'
+    ELSE 'Internal'
+  END,
+  DATE '1990-01-01',
+  NULL,
+  'prefer_not_to_say',
+  'CHF',
+  'bank_transfer'
+FROM users u
+WHERE u.email IN ('bank.technical@goldsphere.vault', 'admin@goldsphere.vault', 'system@internal')
+ON CONFLICT (user_id) DO UPDATE SET
+  first_name = CASE
+    WHEN EXCLUDED.first_name IS NOT NULL AND btrim(EXCLUDED.first_name) <> '' THEN EXCLUDED.first_name
+    ELSE user_profiles.first_name
+  END,
+  last_name = CASE
+    WHEN EXCLUDED.last_name IS NOT NULL AND btrim(EXCLUDED.last_name) <> '' THEN EXCLUDED.last_name
+    ELSE user_profiles.last_name
+  END,
+  birth_date = COALESCE(user_profiles.birth_date, EXCLUDED.birth_date),
+  gender = COALESCE(user_profiles.gender, EXCLUDED.gender),
+  preferred_currency = COALESCE(user_profiles.preferred_currency, EXCLUDED.preferred_currency),
+  preferred_payment_method = COALESCE(user_profiles.preferred_payment_method, EXCLUDED.preferred_payment_method);
+
+-- Repair any accidental empty names for core users.
+UPDATE user_profiles up
+SET
+  first_name = CASE
+    WHEN u.email = 'bank.technical@goldsphere.vault' THEN 'Bank'
+    WHEN u.email = 'admin@goldsphere.vault' THEN 'Admin'
+    ELSE 'System'
+  END,
+  last_name = CASE
+    WHEN u.email = 'bank.technical@goldsphere.vault' THEN 'Technical'
+    WHEN u.email = 'admin@goldsphere.vault' THEN 'User'
+    ELSE 'Internal'
+  END
+FROM users u
+WHERE up.user_id = u.id
+  AND u.email IN ('bank.technical@goldsphere.vault', 'admin@goldsphere.vault', 'system@internal')
+  AND (btrim(up.first_name) = '' OR btrim(up.last_name) = '');
+
+-- Ensure verification rows exist for core users.
+INSERT INTO user_verification_status (user_id, email_verification_status, identity_verification_status)
+SELECT u.id, 'verified', 'verified'
+FROM users u
+WHERE u.email IN ('bank.technical@goldsphere.vault', 'admin@goldsphere.vault', 'system@internal')
+ON CONFLICT (user_id) DO NOTHING;
+
 -- Add comments for documentation
 COMMENT ON TABLE user_profiles IS 'Stores detailed personal information for users';
 COMMENT ON TABLE user_addresses IS 'Stores address information for users, supporting multiple addresses per user';

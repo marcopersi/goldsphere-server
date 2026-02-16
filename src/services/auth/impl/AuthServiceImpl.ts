@@ -4,7 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
-import jwt, { SignOptions } from 'jsonwebtoken';
+import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import type { StringValue } from 'ms';
 import { IAuthService } from '../IAuthService';
 import { IAuthRepository } from '../repository/IAuthRepository';
@@ -13,12 +13,71 @@ import {
   LoginResponse,
   AuthResult,
   TokenPayload,
-  AuthUser,
   AuthErrorCode,
   validateLoginRequest,
 } from '../types';
+import { type AuthUser, serializeSessionSuccessResponse } from '../contract/AuthContract';
 
-type RoleType = 'admin' | 'user' | 'advisor' | 'investor';
+type RoleType = 'admin' | 'user' | 'customer' | 'advisor' | 'investor';
+
+function requireNonEmptyString(value: string | null | undefined, fieldName: string): string {
+  if (typeof value !== 'string') {
+    throw new TypeError(`Missing required auth user field: ${fieldName}`);
+  }
+
+  const trimmedValue = value.trim();
+  if (trimmedValue.length === 0) {
+    throw new TypeError(`Missing required auth user field: ${fieldName}`);
+  }
+
+  return trimmedValue;
+}
+
+function resolveRole(value: string | null | undefined): RoleType {
+  const role = requireNonEmptyString(value, 'role');
+  const allowedRoles: readonly RoleType[] = ['admin', 'user', 'customer', 'advisor', 'investor'];
+
+  if (!allowedRoles.includes(role as RoleType)) {
+    throw new Error(`Unsupported auth role value: ${role}`);
+  }
+
+  return role as RoleType;
+}
+
+function mapAuthUser(user: {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+}, fallbackRole?: string): AuthUser {
+  const roleSource = fallbackRole ?? user.role;
+
+  return {
+    id: requireNonEmptyString(user.id, 'id'),
+    email: requireNonEmptyString(user.email, 'email'),
+    firstName: requireNonEmptyString(user.firstName, 'firstName'),
+    lastName: requireNonEmptyString(user.lastName, 'lastName'),
+    role: resolveRole(roleSource),
+  };
+}
+
+function decodeTokenTimestamps(token: string): { expiresIn: number; expiresAt: string; issuedAt?: string } {
+  const decoded = jwt.decode(token) as JwtPayload | null;
+
+  if (!decoded || typeof decoded !== 'object' || typeof decoded.exp !== 'number') {
+    throw new Error('Unable to decode token expiration metadata');
+  }
+
+  const issuedAtSeconds = typeof decoded.iat === 'number' ? decoded.iat : undefined;
+  const expiresIn = issuedAtSeconds ? Math.max(0, decoded.exp - issuedAtSeconds) : Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+
+  return {
+    expiresIn,
+    expiresAt: new Date(decoded.exp * 1000).toISOString(),
+    issuedAt: issuedAtSeconds ? new Date(issuedAtSeconds * 1000).toISOString() : undefined,
+  };
+}
 
 export class AuthServiceImpl implements IAuthService {
   private readonly jwtSecret: string;
@@ -29,8 +88,19 @@ export class AuthServiceImpl implements IAuthService {
     jwtSecret?: string,
     tokenExpiry?: StringValue
   ) {
-    this.jwtSecret = jwtSecret || process.env.JWT_SECRET || 'your-secret-key';
-    this.tokenExpiry = tokenExpiry || '24h';
+    const resolvedJwtSecret = jwtSecret ?? process.env.JWT_SECRET;
+    const resolvedTokenExpiry = tokenExpiry ?? (process.env.JWT_EXPIRES_IN as StringValue | undefined);
+
+    if (!resolvedJwtSecret || resolvedJwtSecret.trim().length === 0) {
+      throw new Error('JWT_SECRET must be configured for AuthServiceImpl');
+    }
+
+    if (!resolvedTokenExpiry || String(resolvedTokenExpiry).trim().length === 0) {
+      throw new Error('JWT_EXPIRES_IN must be configured for AuthServiceImpl');
+    }
+
+    this.jwtSecret = resolvedJwtSecret;
+    this.tokenExpiry = resolvedTokenExpiry;
   }
 
   async login(request: LoginRequest): Promise<AuthResult<LoginResponse>> {
@@ -61,10 +131,15 @@ export class AuthServiceImpl implements IAuthService {
 
       // Check user status
       if (user.status !== 'active') {
+        const statusCode =
+          user.status === 'locked' || user.status === 'blocked' || user.status === 'suspended'
+            ? AuthErrorCode.ACCOUNT_LOCKED
+            : AuthErrorCode.USER_INACTIVE;
+
         return {
           success: false,
           error: {
-            code: AuthErrorCode.ACCOUNT_INACTIVE,
+            code: statusCode,
             message: 'Account is not active',
           },
         };
@@ -88,8 +163,7 @@ export class AuthServiceImpl implements IAuthService {
       // Update last login
       await this.authRepository.updateLastLogin(user.id);
 
-      // Determine role (fallback to email-based detection for legacy)
-      const userRole: RoleType = (user.role as RoleType) || (user.email.includes('admin') ? 'admin' : 'user');
+      const userRole = resolveRole(user.role);
 
       // Generate JWT token
       const payload = {
@@ -104,19 +178,25 @@ export class AuthServiceImpl implements IAuthService {
 
       const token = jwt.sign(payload, this.jwtSecret, signOptions);
 
-      const authUser: AuthUser = {
-        id: user.id,
-        email: user.email,
-        role: userRole,
-      };
+      const { expiresIn, expiresAt, issuedAt } = decodeTokenTimestamps(token);
+
+      const authUser = mapAuthUser(user, userRole);
+
+      const sessionResponse = serializeSessionSuccessResponse({
+        success: true,
+        data: {
+          accessToken: token,
+          tokenType: 'Bearer',
+          expiresIn,
+          expiresAt,
+          issuedAt,
+          user: authUser,
+        },
+      });
 
       return {
         success: true,
-        data: {
-          success: true,
-          token,
-          user: authUser,
-        },
+        data: sessionResponse,
       };
     } catch (error) {
       console.error('Login error:', error);
@@ -183,11 +263,11 @@ export class AuthServiceImpl implements IAuthService {
 
     // Verify user still exists and is active
     const user = await this.authRepository.findUserByEmail(payload.email);
-    if (!user || user.status !== 'active') {
+    if (user?.status !== 'active') {
       return {
         success: false,
         error: {
-          code: AuthErrorCode.ACCOUNT_INACTIVE,
+          code: AuthErrorCode.USER_INACTIVE,
           message: 'Account is no longer active',
         },
       };
@@ -206,17 +286,36 @@ export class AuthServiceImpl implements IAuthService {
 
     const newToken = jwt.sign(newPayload, this.jwtSecret, signOptions);
 
-    return {
+    const { expiresIn, expiresAt, issuedAt } = decodeTokenTimestamps(newToken);
+
+    let authUser: AuthUser;
+    try {
+      authUser = mapAuthUser(user);
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: AuthErrorCode.INTERNAL_ERROR,
+          message: `Failed to build refresh session payload: ${(error as Error).message}`,
+        },
+      };
+    }
+
+    const refreshResponse = serializeSessionSuccessResponse({
       success: true,
       data: {
-        success: true,
-        token: newToken,
-        user: {
-          id: payload.id,
-          email: payload.email,
-          role: payload.role,
-        },
+        accessToken: newToken,
+        tokenType: 'Bearer',
+        expiresIn,
+        expiresAt,
+        issuedAt,
+        user: authUser,
       },
+    });
+
+    return {
+      success: true,
+      data: refreshResponse,
     };
   }
 
@@ -243,14 +342,32 @@ export class AuthServiceImpl implements IAuthService {
     }
 
     const payload = validation.data;
-    return {
-      success: true,
-      data: {
-        id: payload.id,
-        email: payload.email,
-        role: payload.role,
-      },
-    };
+
+    const user = await this.authRepository.findUserByEmail(payload.email);
+    if (user?.status !== 'active') {
+      return {
+        success: false,
+        error: {
+          code: AuthErrorCode.USER_INACTIVE,
+          message: 'Account is no longer active',
+        },
+      };
+    }
+
+    try {
+      return {
+        success: true,
+        data: mapAuthUser(user),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: AuthErrorCode.INTERNAL_ERROR,
+          message: `Failed to build current user payload: ${(error as Error).message}`,
+        },
+      };
+    }
   }
 }
 

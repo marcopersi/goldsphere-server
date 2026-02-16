@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import type { SessionSuccessResponse } from '../contract/AuthContract';
 
 // =============================================================================
 // Zod Schemas
@@ -17,7 +18,7 @@ export const LoginRequestSchema = z.object({
 export const TokenPayloadSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
-  role: z.enum(['admin', 'user', 'advisor', 'investor']),
+  role: z.enum(['admin', 'user', 'customer', 'advisor', 'investor']),
   iat: z.number().optional(),
   exp: z.number().optional(),
 });
@@ -27,13 +28,16 @@ export const TokenPayloadSchema = z.object({
 // =============================================================================
 
 export const AuthErrorCode = {
-  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
-  USER_NOT_FOUND: 'USER_NOT_FOUND',
-  ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
-  ACCOUNT_LOCKED: 'ACCOUNT_LOCKED',
-  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
-  TOKEN_INVALID: 'TOKEN_INVALID',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
+  TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
+  TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
+  UNAUTHORIZED: 'AUTH_UNAUTHORIZED',
+  ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
+  USER_INACTIVE: 'AUTH_USER_INACTIVE',
+  STALE_ROLE_CLAIM: 'AUTH_STALE_ROLE_CLAIM',
+  INSUFFICIENT_PERMISSIONS: 'AUTH_INSUFFICIENT_PERMISSIONS',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  INTERNAL_ERROR: 'AUTH_INTERNAL_ERROR',
 } as const;
 
 export type AuthErrorCode = typeof AuthErrorCode[keyof typeof AuthErrorCode];
@@ -44,17 +48,12 @@ export type AuthErrorCode = typeof AuthErrorCode[keyof typeof AuthErrorCode];
 
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
-export interface LoginResponse {
+export interface AuthResponseEnvelope<T> {
   success: true;
-  token: string;
-  user: AuthUser;
+  data: T;
 }
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  role: string;
-}
+export type LoginResponse = SessionSuccessResponse;
 
 export type TokenPayload = z.infer<typeof TokenPayloadSchema>;
 
@@ -77,8 +76,10 @@ export interface AuthUserRecord {
   id: string;
   email: string;
   passwordHash: string;
+  firstName: string;
+  lastName: string;
   role: string;
-  status: 'active' | 'inactive' | 'pending' | 'locked';
+  status: 'active' | 'blocked' | 'suspended' | 'deleted' | 'inactive' | 'pending' | 'locked';
   lastLogin?: Date;
 }
 
