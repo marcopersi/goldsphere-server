@@ -139,14 +139,25 @@ app.get("/api-spec", (req: any, res: any) => {
 });
 
 // Swagger UI - serve assets locally to avoid CDN/TLS issues
-app.use('/docs', swaggerUi.serve);
-app.get('/docs', swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'GoldSphere API Documentation',
-  swaggerOptions: {
-    persistAuthorization: true
-  }
-}));
+app.use(
+  '/docs',
+  swaggerUi.serveFiles(undefined, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'GoldSphere API Documentation',
+    swaggerOptions: {
+      url: '/api-spec.json',
+      persistAuthorization: true,
+    },
+  }),
+  swaggerUi.setup(undefined, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'GoldSphere API Documentation',
+    swaggerOptions: {
+      url: '/api-spec.json',
+      persistAuthorization: true,
+    },
+  })
+);
 
 app.get("/api-spec.json", (req: any, res: any) => {
   res.setHeader('Content-Type', 'application/json');
@@ -156,14 +167,31 @@ app.get("/api-spec.json", (req: any, res: any) => {
 
 RegisterRoutes(app);
 
+app.get('/api-docs/swagger.json', (_req: any, res: any) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json(tsoaSwaggerSpec);
+});
+
 // Swagger UI for tsoa-generated spec (accessible at /api-docs)
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(tsoaSwaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'GoldSphere API Documentation (tsoa)',
-  swaggerOptions: {
-    persistAuthorization: true
-  }
-}));
+app.use(
+  '/api-docs',
+  swaggerUi.serveFiles(undefined, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'GoldSphere API Documentation (tsoa)',
+    swaggerOptions: {
+      url: '/api-docs/swagger.json',
+      persistAuthorization: true,
+    },
+  }),
+  swaggerUi.setup(undefined, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'GoldSphere API Documentation (tsoa)',
+    swaggerOptions: {
+      url: '/api-docs/swagger.json',
+      persistAuthorization: true,
+    },
+  })
+);
 
 // Webhook routes (no auth required)
 app.use("/api/payments/webhook", (req, res) => {
