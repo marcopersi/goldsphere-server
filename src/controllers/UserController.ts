@@ -10,6 +10,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Path,
   Body,
@@ -22,242 +23,39 @@ import {
   Request,
 } from 'tsoa';
 import type { Request as ExpressRequest } from 'express';
-import { getPool } from '../dbConfig';
 import { requireAuthenticatedUser } from '../utils/auditTrail';
 import { UuidSchema } from '@marcopersi/shared';
-import { 
-  UserServiceFactory, 
-  UserErrorCode,
-  UserRole,
-  UserTitle,
-  isValidUserRole,
-} from '../services/user';
-import type { IUserService } from '../services/user/service/IUserService';
-
-// ============================================================================
-// Request/Response Types for tsoa
-// ============================================================================
-
-/**
- * User response
- */
-export interface UserResponse {
-  id: string;
-  email: string;
-  role: string;
-  emailVerified?: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-/**
- * User list response with pagination
- */
-export interface UserListResponse {
-  success: true;
-  data: UserResponse[];
-  pagination: {
-    page: number;
-    limit: number;
-    totalCount: number;
-    totalPages: number;
-  };
-}
-
-/**
- * User with details response
- */
-export interface UserDetailsResponse {
-  success: true;
-  data: {
-    user: UserResponse;
-    profile: UserProfileData | null;
-    address: UserAddressData | null;
-    verificationStatus: VerificationStatusData | null;
-  };
-}
-
-/**
- * User profile data
- */
-export interface UserProfileData {
-  title?: string | null;
-  firstName?: string;
-  lastName?: string;
-  birthDate?: Date;
-}
-
-/**
- * User address data
- */
-export interface UserAddressData {
-  countryId?: string | null;
-  postalCode?: string | null;
-  city?: string | null;
-  state?: string | null;
-  street?: string | null;
-  houseNumber?: string | null;
-  addressLine2?: string | null;
-  poBox?: string | null;
-}
-
-/**
- * Verification status data
- */
-export interface VerificationStatusData {
-  emailStatus?: string;
-  identityStatus?: string;
-}
-
-/**
- * Create user request
- */
-export interface CreateUserRequest {
-  /**
-   * User email address
-   * @example "newuser@goldsphere.vault"
-   */
-  email: string;
-  
-  /**
-   * User password (min 8 chars, letters + numbers)
-   * @example "SecurePassword123"
-   */
-  password: string;
-  
-  /**
-   * User role
-   * @example "user"
-   */
-  role?: 'admin' | 'user' | 'advisor' | 'investor';
-  
-  /**
-   * Personal title
-   * @example "Herr"
-   */
-  title?: 'Herr' | 'Frau' | 'Divers';
-  
-  /**
-   * First name
-   * @example "Max"
-   */
-  firstName?: string;
-  
-  /**
-   * Last name
-   * @example "Mustermann"
-   */
-  lastName?: string;
-  
-  /**
-   * Birth date (ISO 8601 format)
-   * @example "1990-01-15"
-   */
-  birthDate?: Date;
-}
-
-/**
- * Update user request
- */
-export interface UpdateUserRequest {
-  email?: string;
-  password?: string;
-  role?: 'admin' | 'user' | 'advisor' | 'investor';
-  emailVerified?: boolean;
-  identityVerified?: boolean;
-  // Profile fields
-  title?: 'Herr' | 'Frau' | 'Divers';
-  firstName?: string;
-  lastName?: string;
-  birthDate?: Date;
-}
-
-/**
- * Block user request
- */
-export interface BlockUserRequest {
-  /**
-   * Reason for blocking the user
-   * @example "Violation of terms of service"
-   */
-  reason: string;
-}
-
-/**
- * Blocked user response
- */
-export interface BlockedUserResponse {
-  id: string;
-  email: string;
-  accountStatus: string;
-  blockedAt?: Date | null;
-  blockedBy?: string | null;
-  blockReason?: string | null;
-}
-
-/**
- * Success response wrapper
- */
-export interface SuccessResponseWrapper<T> {
-  success: true;
-  data: T;
-  message?: string;
-}
-
-/**
- * Error response
- */
-export interface UserErrorResponse {
-  success: false;
-  error: string;
-  code?: string;
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-function getUserService(): IUserService {
-  return UserServiceFactory.createUserService(getPool());
-}
-
-/**
- * Converts string title to UserTitle enum
- */
-function parseUserTitle(title?: 'Herr' | 'Frau' | 'Divers'): UserTitle | null | undefined {
-  if (title === undefined) return undefined;
-  if (title === null) return null;
-  
-  switch (title) {
-    case 'Herr': return UserTitle.HERR;
-    case 'Frau': return UserTitle.FRAU;
-    case 'Divers': return UserTitle.DIVERS;
-    default: return null;
-  }
-}
-
-function mapErrorCodeToStatus(errorCode?: UserErrorCode): number {
-  switch (errorCode) {
-    case UserErrorCode.USER_NOT_FOUND:
-      return 404;
-    case UserErrorCode.EMAIL_ALREADY_EXISTS:
-    case UserErrorCode.USER_HAS_DEPENDENCIES:
-    case UserErrorCode.USER_ALREADY_BLOCKED:
-    case UserErrorCode.USER_NOT_BLOCKED:
-    case UserErrorCode.INVALID_STATUS_TRANSITION:
-      return 409;
-    case UserErrorCode.INVALID_EMAIL_FORMAT:
-    case UserErrorCode.INVALID_PASSWORD:
-    case UserErrorCode.VALIDATION_ERROR:
-      return 400;
-    case UserErrorCode.UNAUTHORIZED:
-    case UserErrorCode.CANNOT_BLOCK_SELF:
-      return 403;
-    default:
-      return 500;
-  }
-}
-
+import { UserErrorCode } from '../services/user';
+import type { UserRole, UserTitle } from '../services/user';
+import {
+  getUserService,
+  mapErrorCodeToStatus,
+} from './user/UserController.helpers';
+import {
+  mapBlockedUserResponse,
+  mapUserDetailsData,
+  mapUserProfilePatchData,
+  mapUserResponse,
+} from './user/UserController.mappers';
+import {
+  PatchProfileSchema,
+  toValidationErrorResponse,
+  validateRoleAndTitleReferences,
+  validatePatchProfileReferences,
+} from './user/UserController.validation';
+import type {
+  BlockedUserResponse,
+  BlockUserRequest,
+  CreateUserRequest,
+  PatchUserProfileRequest,
+  SuccessResponseWrapper,
+  UpdateUserRequest,
+  UserDetailsResponse,
+  UserErrorResponse,
+  UserListResponse,
+  UserProfilePatchResponse,
+  UserResponse,
+} from './user/UserController.types';
 // ============================================================================
 // Controller
 // ============================================================================
@@ -289,12 +87,18 @@ export class UserController extends Controller {
     @Query() sortOrder?: 'asc' | 'desc'
   ): Promise<UserListResponse> {
     const userService = getUserService();
+
+    const roleValidationResult = await validateRoleAndTitleReferences(userService, { role });
+    if (roleValidationResult) {
+      this.setStatus(400);
+      throw new Error(roleValidationResult.details?.fields?.[0]?.message ?? 'Validation failed');
+    }
     
     const options = {
       page: page || 1,
       limit: Math.min(limit || 20, 100),
       search,
-      role: isValidUserRole(role as string) ? role as UserRole : undefined,
+      role: role as UserRole | undefined,
       sortBy: sortBy || 'email',
       sortOrder: sortOrder || 'asc',
     };
@@ -313,14 +117,7 @@ export class UserController extends Controller {
 
     return {
       success: true,
-      data: result.data.users.map(user => ({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      })),
+      data: result.data.users.map(mapUserResponse),
       pagination: result.data.pagination,
     };
   }
@@ -350,14 +147,7 @@ export class UserController extends Controller {
 
     return {
       success: true,
-      data: result.data.map(user => ({
-        id: user.id,
-        email: user.email,
-        accountStatus: user.accountStatus || 'blocked',
-        blockedAt: user.blockedAt,
-        blockedBy: user.blockedBy,
-        blockReason: user.blockReason,
-      })),
+      data: result.data.map(mapBlockedUserResponse),
     };
   }
 
@@ -458,37 +248,103 @@ export class UserController extends Controller {
       };
     }
 
-    const { user, profile, address, verificationStatus } = result.data;
+    return {
+      success: true,
+      data: mapUserDetailsData(result.data),
+    };
+  }
+
+  /**
+   * Patch user profile fields
+   * @summary Patch user profile
+   * @param id User UUID
+   * @param body Profile patch data
+   */
+  @Patch('{id}/profile')
+  @Security('bearerAuth')
+  @SuccessResponse(200, 'User profile patched')
+  @Response<UserErrorResponse>(400, 'Invalid input')
+  @Response<UserErrorResponse>(403, 'Forbidden')
+  @Response<UserErrorResponse>(404, 'User not found')
+  public async patchUserProfile(
+    @Path() id: string,
+    @Body() body: PatchUserProfileRequest,
+    @Request() request: ExpressRequest
+  ): Promise<UserProfilePatchResponse | UserErrorResponse> {
+    const parsedBody = PatchProfileSchema.safeParse(body);
+    if (!parsedBody.success) {
+      this.setStatus(400);
+      return toValidationErrorResponse(parsedBody.error.issues);
+    }
+
+    const idValidation = UuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      this.setStatus(400);
+      return {
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: 'Validation failed',
+        details: {
+          fields: [{ path: 'id', message: 'Invalid user ID format' }],
+        },
+      };
+    }
+
+    const authenticatedUser = requireAuthenticatedUser(request);
+    if (authenticatedUser.id !== id && authenticatedUser.role !== 'admin') {
+      this.setStatus(403);
+      return {
+        success: false,
+        code: 'UNAUTHORIZED',
+        error: 'You can only patch your own profile'
+      };
+    }
+
+    const userService = getUserService();
+
+    const referenceValidationError = await validatePatchProfileReferences(userService, parsedBody.data);
+    if (referenceValidationError) {
+      this.setStatus(400);
+      return referenceValidationError;
+    }
+
+    const result = await userService.updateUserProfile(
+      id,
+      {
+        title:
+          parsedBody.data.title === null
+            ? null
+            : (parsedBody.data.title as UserTitle | undefined),
+        firstName: parsedBody.data.firstName,
+        lastName: parsedBody.data.lastName,
+        birthDate: parsedBody.data.birthDate,
+        phone: parsedBody.data.phone,
+        gender: parsedBody.data.gender,
+        preferredCurrency: parsedBody.data.preferredCurrency,
+        preferredPaymentMethod: parsedBody.data.preferredPaymentMethod,
+        address: parsedBody.data.address,
+      },
+      authenticatedUser
+    );
+
+    if (!result.success || !result.data) {
+      let status = 500;
+      if (result.errorCode === UserErrorCode.USER_NOT_FOUND) {
+        status = 404;
+      } else if (result.errorCode === UserErrorCode.VALIDATION_ERROR) {
+        status = 400;
+      }
+      this.setStatus(status);
+      return {
+        success: false,
+        code: result.errorCode,
+        error: result.error || 'Failed to patch user profile'
+      };
+    }
 
     return {
       success: true,
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          emailVerified: user.emailVerified,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        },
-        profile: profile ? {
-          title: profile.title,
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          birthDate: profile.birthDate,
-        } : null,
-        address: address ? {
-          countryId: address.countryId,
-          postalCode: address.postalCode,
-          city: address.city,
-          state: address.state,
-          street: address.street,
-        } : null,
-        verificationStatus: verificationStatus ? {
-          emailStatus: verificationStatus.emailVerificationStatus,
-          identityStatus: verificationStatus.identityVerificationStatus,
-        } : null,
-      },
+      data: mapUserProfilePatchData(result.data),
     };
   }
 
@@ -516,14 +372,23 @@ export class UserController extends Controller {
       };
     }
 
-    const authenticatedUser = requireAuthenticatedUser(request);
-
     const userService = getUserService();
+
+    const referenceValidation = await validateRoleAndTitleReferences(userService, {
+      role,
+      title: body.title,
+    });
+    if (referenceValidation) {
+      this.setStatus(400);
+      return referenceValidation;
+    }
+
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await userService.createUser({
       email,
       password,
-      role: role && isValidUserRole(role) ? role : undefined,
-      title: parseUserTitle(body.title),
+      role: role as UserRole | undefined,
+      title: body.title as UserTitle | undefined,
       firstName: body.firstName,
       lastName: body.lastName,
       birthDate: body.birthDate,
@@ -549,12 +414,7 @@ export class UserController extends Controller {
     this.setStatus(201);
     return {
       success: true,
-      data: {
-        id: result.data.id,
-        email: result.data.email,
-        role: result.data.role,
-        createdAt: result.data.createdAt,
-      },
+      data: mapUserResponse(result.data),
       message: 'User created successfully',
     };
   }
@@ -587,7 +447,17 @@ export class UserController extends Controller {
 
     const { email, password, role, emailVerified, identityVerified } = body;
 
-    if (!email && !password && role === undefined && emailVerified === undefined && identityVerified === undefined) {
+    if (
+      !email &&
+      !password &&
+      role === undefined &&
+      emailVerified === undefined &&
+      identityVerified === undefined &&
+      body.title === undefined &&
+      body.firstName === undefined &&
+      body.lastName === undefined &&
+      body.birthDate === undefined
+    ) {
       this.setStatus(400);
       return {
         success: false,
@@ -595,16 +465,28 @@ export class UserController extends Controller {
       };
     }
 
-    const authenticatedUser = requireAuthenticatedUser(request);
-
     const userService = getUserService();
+
+    const referenceValidation = await validateRoleAndTitleReferences(userService, {
+      role,
+      title: body.title,
+    });
+    if (referenceValidation) {
+      this.setStatus(400);
+      return referenceValidation;
+    }
+
+    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await userService.updateUser(id, {
       email,
       password,
-      role: role && isValidUserRole(role) ? role : undefined,
+      role: role as UserRole | undefined,
       emailVerified,
       identityVerified,
-      title: parseUserTitle(body.title),
+      title:
+        body.title === null
+          ? null
+          : (body.title as UserTitle | undefined),
       firstName: body.firstName,
       lastName: body.lastName,
       birthDate: body.birthDate,
@@ -629,13 +511,7 @@ export class UserController extends Controller {
 
     return {
       success: true,
-      data: {
-        id: result.data.id,
-        email: result.data.email,
-        role: result.data.role,
-        emailVerified: result.data.emailVerified,
-        updatedAt: result.data.updatedAt,
-      },
+      data: mapUserResponse(result.data),
       message: 'User updated successfully',
     };
   }
@@ -688,14 +564,7 @@ export class UserController extends Controller {
 
     return {
       success: true,
-      data: {
-        id: result.data.id,
-        email: result.data.email,
-        accountStatus: result.data.accountStatus || 'blocked',
-        blockedAt: result.data.blockedAt,
-        blockedBy: result.data.blockedBy,
-        blockReason: result.data.blockReason,
-      },
+      data: mapBlockedUserResponse(result.data),
       message: 'User blocked successfully',
     };
   }
@@ -739,11 +608,7 @@ export class UserController extends Controller {
 
     return {
       success: true,
-      data: {
-        id: result.data.id,
-        email: result.data.email,
-        role: result.data.role,
-      },
+      data: mapUserResponse(result.data),
       message: 'User unblocked successfully',
     };
   }
@@ -787,11 +652,7 @@ export class UserController extends Controller {
 
     return {
       success: true,
-      data: {
-        id: result.data.id,
-        email: result.data.email,
-        role: result.data.role,
-      },
+      data: mapUserResponse(result.data),
       message: 'User soft deleted successfully',
     };
   }

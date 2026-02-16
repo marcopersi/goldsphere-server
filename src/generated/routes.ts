@@ -84,6 +84,7 @@ const models: TsoaRoute.Models = {
             "success": {"dataType":"enum","enums":[false],"required":true},
             "error": {"dataType":"string","required":true},
             "code": {"dataType":"string"},
+            "details": {"dataType":"nestedObjectLiteral","nestedProperties":{"fields":{"dataType":"array","array":{"dataType":"nestedObjectLiteral","nestedProperties":{"message":{"dataType":"string","required":true},"path":{"dataType":"string","required":true}}}}}},
         },
         "additionalProperties": false,
     },
@@ -128,6 +129,10 @@ const models: TsoaRoute.Models = {
             "firstName": {"dataType":"string"},
             "lastName": {"dataType":"string"},
             "birthDate": {"dataType":"datetime"},
+            "phone": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "gender": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "preferredCurrency": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "preferredPaymentMethod": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
         },
         "additionalProperties": false,
     },
@@ -165,13 +170,38 @@ const models: TsoaRoute.Models = {
         "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "UserProfilePatchResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"verificationStatus":{"dataType":"union","subSchemas":[{"ref":"VerificationStatusData"},{"dataType":"enum","enums":[null]}],"required":true},"address":{"dataType":"union","subSchemas":[{"ref":"UserAddressData"},{"dataType":"enum","enums":[null]}],"required":true},"profile":{"dataType":"union","subSchemas":[{"ref":"UserProfileData"},{"dataType":"enum","enums":[null]}],"required":true},"userId":{"dataType":"string","required":true}},"required":true},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "PatchUserProfileRequest": {
+        "dataType": "refObject",
+        "properties": {
+            "title": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "firstName": {"dataType":"string"},
+            "lastName": {"dataType":"string"},
+            "birthDate": {"dataType":"datetime"},
+            "phone": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "gender": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "preferredCurrency": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "preferredPaymentMethod": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
+            "address": {"dataType":"nestedObjectLiteral","nestedProperties":{"poBox":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},"addressLine2":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},"houseNumber":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},"street":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},"state":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},"city":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},"postalCode":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},"countryId":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]}}},
+        },
+        "additionalProperties": false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CreateUserRequest": {
         "dataType": "refObject",
         "properties": {
             "email": {"dataType":"string","required":true},
             "password": {"dataType":"string","required":true},
-            "role": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["admin"]},{"dataType":"enum","enums":["user"]},{"dataType":"enum","enums":["advisor"]},{"dataType":"enum","enums":["investor"]}]},
-            "title": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["Herr"]},{"dataType":"enum","enums":["Frau"]},{"dataType":"enum","enums":["Divers"]}]},
+            "role": {"dataType":"string"},
+            "title": {"dataType":"string"},
             "firstName": {"dataType":"string"},
             "lastName": {"dataType":"string"},
             "birthDate": {"dataType":"datetime"},
@@ -184,10 +214,10 @@ const models: TsoaRoute.Models = {
         "properties": {
             "email": {"dataType":"string"},
             "password": {"dataType":"string"},
-            "role": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["admin"]},{"dataType":"enum","enums":["user"]},{"dataType":"enum","enums":["advisor"]},{"dataType":"enum","enums":["investor"]}]},
+            "role": {"dataType":"string"},
             "emailVerified": {"dataType":"boolean"},
             "identityVerified": {"dataType":"boolean"},
-            "title": {"dataType":"union","subSchemas":[{"dataType":"enum","enums":["Herr"]},{"dataType":"enum","enums":["Frau"]},{"dataType":"enum","enums":["Divers"]}]},
+            "title": {"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}]},
             "firstName": {"dataType":"string"},
             "lastName": {"dataType":"string"},
             "birthDate": {"dataType":"datetime"},
@@ -400,7 +430,7 @@ const models: TsoaRoute.Models = {
             "success": {"dataType":"enum","enums":[false],"required":true},
             "error": {"dataType":"string","required":true},
             "code": {"dataType":"string","required":true},
-            "details": {"dataType":"any"},
+            "details": {"dataType":"nestedObjectLiteral","nestedProperties":{"message":{"dataType":"string"},"field":{"dataType":"string"},"fields":{"dataType":"array","array":{"dataType":"nestedObjectLiteral","nestedProperties":{"message":{"dataType":"string","required":true},"path":{"dataType":"string","required":true}}}}}},
         },
         "additionalProperties": false,
     },
@@ -1991,6 +2021,39 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
 
               await templateService.apiHandler({
                 methodName: 'getUserDetails',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsUserController_patchUserProfile: Record<string, TsoaRoute.ParameterSchema> = {
+                id: {"in":"path","name":"id","required":true,"dataType":"string"},
+                body: {"in":"body","name":"body","required":true,"ref":"PatchUserProfileRequest"},
+                request: {"in":"request","name":"request","required":true,"dataType":"object"},
+        };
+        app.patch('/api/users/:id/profile',
+            authenticateMiddleware([{"bearerAuth":[]}]),
+            ...(fetchMiddlewares<RequestHandler>(UserController)),
+            ...(fetchMiddlewares<RequestHandler>(UserController.prototype.patchUserProfile)),
+
+            async function UserController_patchUserProfile(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsUserController_patchUserProfile, request, response });
+
+                const controller = new UserController();
+
+              await templateService.apiHandler({
+                methodName: 'patchUserProfile',
                 controller,
                 response,
                 next,

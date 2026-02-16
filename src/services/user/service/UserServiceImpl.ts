@@ -14,6 +14,8 @@ import {
   UserErrorCode,
   CreateUserInput,
   UpdateUserInput,
+  UpdateUserProfileInput,
+  UserReferenceValidationInput,
   UserWithDetails,
 } from './IUserService';
 import {
@@ -22,6 +24,8 @@ import {
   UpdateUserData,
   ListUsersOptions,
   GetUsersResult,
+  UserRole,
+  UserTitle,
 } from '../types';
 import { AuditTrailUser } from '../../../utils/auditTrail';
 
@@ -31,6 +35,8 @@ const MIN_PASSWORD_LENGTH = 8;
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_GENDERS = ['male', 'female', 'diverse', 'prefer_not_to_say'] as const;
+const ALLOWED_PAYMENT_METHODS = ['bank_transfer', 'card', 'invoice'] as const;
 
 export class UserServiceImpl implements IUserService {
   constructor(private readonly userRepository: IUserRepository) {}
@@ -326,6 +332,151 @@ export class UserServiceImpl implements IUserService {
     }
   }
 
+  async updateUserProfile(
+    id: string,
+    input: UpdateUserProfileInput,
+    _authenticatedUser: AuditTrailUser
+  ): Promise<UserOperationResult<UserWithDetails>> {
+    try {
+      const existingUser = await this.userRepository.findUserById(id);
+      if (!existingUser) {
+        return {
+          success: false,
+          error: 'User not found',
+          errorCode: UserErrorCode.USER_NOT_FOUND,
+        };
+      }
+
+      const hasProfileUpdates = this.hasProfileUpdates(input);
+      const hasAddressUpdates = this.hasAddressUpdates(input.address);
+
+      if (!hasProfileUpdates && !hasAddressUpdates) {
+        return this.getUserWithDetails(id);
+      }
+
+      if (hasProfileUpdates) {
+        const profileResult = await this.upsertProfile(id, input);
+        if (!profileResult.success) {
+          return profileResult;
+        }
+      }
+
+      if (hasAddressUpdates && input.address) {
+        await this.upsertAddress(id, input.address);
+      }
+
+      return this.getUserWithDetails(id);
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      return {
+        success: false,
+        error: 'Failed to update user profile',
+        errorCode: UserErrorCode.INTERNAL_ERROR,
+      };
+    }
+  }
+
+  private hasProfileUpdates(input: UpdateUserProfileInput): boolean {
+    return (
+      input.title !== undefined ||
+      input.firstName !== undefined ||
+      input.lastName !== undefined ||
+      input.birthDate !== undefined ||
+      input.phone !== undefined ||
+      input.gender !== undefined ||
+      input.preferredCurrency !== undefined ||
+      input.preferredPaymentMethod !== undefined
+    );
+  }
+
+  private hasAddressUpdates(input?: UpdateUserProfileInput['address']): boolean {
+    if (!input) {
+      return false;
+    }
+
+    return (
+      input.countryId !== undefined ||
+      input.postalCode !== undefined ||
+      input.city !== undefined ||
+      input.state !== undefined ||
+      input.street !== undefined ||
+      input.houseNumber !== undefined ||
+      input.addressLine2 !== undefined ||
+      input.poBox !== undefined
+    );
+  }
+
+  private async upsertProfile(
+    userId: string,
+    input: UpdateUserProfileInput
+  ): Promise<UserOperationResult<UserWithDetails>> {
+    const existingProfile = await this.userRepository.findUserProfileByUserId(userId);
+
+    if (existingProfile) {
+      await this.userRepository.updateUserProfile(userId, {
+        title: input.title,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        birthDate: input.birthDate,
+        phone: input.phone,
+        gender: input.gender,
+        preferredCurrency: input.preferredCurrency,
+        preferredPaymentMethod: input.preferredPaymentMethod,
+      });
+      return { success: true };
+    }
+
+    if (!input.firstName || !input.lastName || !input.birthDate) {
+      return {
+        success: false,
+        error: 'Missing required fields to create profile: firstName, lastName, birthDate',
+        errorCode: UserErrorCode.VALIDATION_ERROR,
+      };
+    }
+
+    await this.userRepository.createUserProfile({
+      userId,
+      title: input.title ?? null,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      birthDate: input.birthDate,
+      phone: input.phone ?? null,
+      gender: input.gender ?? null,
+      preferredCurrency: input.preferredCurrency ?? null,
+      preferredPaymentMethod: input.preferredPaymentMethod ?? null,
+    });
+
+    return { success: true };
+  }
+
+  private async upsertAddress(
+    userId: string,
+    addressInput: NonNullable<UpdateUserProfileInput['address']>
+  ): Promise<void> {
+    const existingAddress = await this.userRepository.findUserAddressByUserId(userId);
+    const addressPayload = {
+      countryId: addressInput.countryId,
+      postalCode: addressInput.postalCode,
+      city: addressInput.city,
+      state: addressInput.state,
+      street: addressInput.street,
+      houseNumber: addressInput.houseNumber,
+      addressLine2: addressInput.addressLine2,
+      poBox: addressInput.poBox,
+      isPrimary: true,
+    };
+
+    if (existingAddress) {
+      await this.userRepository.updateUserAddress(userId, addressPayload);
+      return;
+    }
+
+    await this.userRepository.createUserAddress({
+      userId,
+      ...addressPayload,
+    });
+  }
+
   async deleteUser(id: string): Promise<UserOperationResult<void>> {
     try {
       // Check user exists
@@ -594,6 +745,117 @@ export class UserServiceImpl implements IUserService {
     }
   }
 
+  async validateReferenceData(input: UserReferenceValidationInput): Promise<UserOperationResult<void>> {
+    try {
+      if (input.role && !Object.values(UserRole).includes(input.role as UserRole)) {
+        return {
+          success: false,
+          error: `Unsupported role value. Allowed values: ${Object.values(UserRole).join(', ')}`,
+          errorCode: UserErrorCode.VALIDATION_ERROR,
+        };
+      }
+
+      if (input.title && !Object.values(UserTitle).includes(input.title as UserTitle)) {
+        return {
+          success: false,
+          error: `Unsupported title value. Allowed values: ${Object.values(UserTitle).join(', ')}`,
+          errorCode: UserErrorCode.VALIDATION_ERROR,
+        };
+      }
+
+      if (input.gender && !ALLOWED_GENDERS.includes(input.gender as (typeof ALLOWED_GENDERS)[number])) {
+        return {
+          success: false,
+          error: `Unsupported gender value. Allowed values: ${ALLOWED_GENDERS.join(', ')}`,
+          errorCode: UserErrorCode.VALIDATION_ERROR,
+        };
+      }
+
+      if (
+        input.preferredPaymentMethod &&
+        !ALLOWED_PAYMENT_METHODS.includes(
+          input.preferredPaymentMethod as (typeof ALLOWED_PAYMENT_METHODS)[number]
+        )
+      ) {
+        return {
+          success: false,
+          error: `Unsupported payment method. Allowed values: ${ALLOWED_PAYMENT_METHODS.join(', ')}`,
+          errorCode: UserErrorCode.VALIDATION_ERROR,
+        };
+      }
+
+      if (input.preferredCurrency) {
+        const currencyExists = await this.userRepository.currencyCodeExists(input.preferredCurrency);
+        if (!currencyExists) {
+          return {
+            success: false,
+            error: 'Unknown currency code',
+            errorCode: UserErrorCode.VALIDATION_ERROR,
+          };
+        }
+      }
+
+      if (input.countryId) {
+        const countryExists = await this.userRepository.countryExists(input.countryId);
+        if (!countryExists) {
+          return {
+            success: false,
+            error: 'Unknown country ID',
+            errorCode: UserErrorCode.VALIDATION_ERROR,
+          };
+        }
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error validating reference data:', error);
+      return {
+        success: false,
+        error: 'Failed to validate reference data',
+        errorCode: UserErrorCode.INTERNAL_ERROR,
+      };
+    }
+  }
+
+  async verifyUser(userId: string, expectedRole?: string): Promise<UserOperationResult<UserEntity>> {
+    try {
+      const user = await this.userRepository.findUserById(userId);
+
+      if (!user) {
+        return {
+          success: false,
+          error: 'User not found or has been deactivated',
+          errorCode: UserErrorCode.USER_NOT_FOUND,
+        };
+      }
+
+      if (user.accountStatus !== 'active') {
+        return {
+          success: false,
+          error: 'User account is inactive',
+          errorCode: UserErrorCode.UNAUTHORIZED,
+        };
+      }
+
+      if (expectedRole && user.role !== expectedRole) {
+        return {
+          success: false,
+          error: 'Token role is stale. Please re-authenticate.',
+          errorCode: UserErrorCode.UNAUTHORIZED,
+        };
+      }
+
+      return { success: true, data: user };
+    } catch (error) {
+      console.error('Error verifying user auth state:', error);
+      return {
+        success: false,
+        error: 'Failed to verify user',
+        errorCode: UserErrorCode.INTERNAL_ERROR,
+      };
+    }
+  }
+
   async updateLastLogin(userId: string): Promise<void> {
     try {
       // Self-audit: the user logging in is the audit user for their own last_login update
@@ -638,7 +900,7 @@ export class UserServiceImpl implements IUserService {
       return { valid: false, message: 'Password must contain at least one letter' };
     }
 
-    if (!/[0-9]/.test(password)) {
+    if (!/\d/.test(password)) {
       return { valid: false, message: 'Password must contain at least one number' };
     }
 

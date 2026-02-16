@@ -150,6 +150,11 @@ export interface IUserRepository {
    */
   findUserAddressesByUserId(userId: string): Promise<UserAddressEntity[]>;
 
+  /**
+   * Update primary user address by user ID
+   */
+  updateUserAddress(userId: string, data: import('../types').UpdateUserAddressData): Promise<UserAddressEntity | null>;
+
   // =========================================================================
   // Verification Status Operations
   // =========================================================================
@@ -205,4 +210,14 @@ export interface IUserRepository {
    * Check if user has portfolios
    */
   hasPortfolios(userId: string): Promise<boolean>;
+
+  /**
+   * Check if currency exists by ISO code (alpha-3)
+   */
+  currencyCodeExists(isoCode3: string): Promise<boolean>;
+
+  /**
+   * Check if country exists by ID
+   */
+  countryExists(countryId: string): Promise<boolean>;
 }

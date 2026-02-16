@@ -18,6 +18,7 @@ import {
   CreateUserData,
   CreateUserProfileData,
   UpdateUserProfileData,
+  UpdateUserAddressData,
   CreateUserAddressData,
   CreateDocumentLogData,
   CreateConsentLogData,
@@ -445,6 +446,66 @@ export class UserRepositoryImpl implements IUserRepository {
     return result.rows.map(mapUserAddressEntity);
   }
 
+  async updateUserAddress(userId: string, data: UpdateUserAddressData): Promise<UserAddressEntity | null> {
+    const updateFields: string[] = [];
+    const params: (string | boolean | null)[] = [];
+    let paramIndex = 1;
+
+    if (data.countryId !== undefined) {
+      updateFields.push(`countryid = $${paramIndex++}`);
+      params.push(data.countryId);
+    }
+    if (data.postalCode !== undefined) {
+      updateFields.push(`postal_code = $${paramIndex++}`);
+      params.push(data.postalCode);
+    }
+    if (data.city !== undefined) {
+      updateFields.push(`city = $${paramIndex++}`);
+      params.push(data.city);
+    }
+    if (data.state !== undefined) {
+      updateFields.push(`state = $${paramIndex++}`);
+      params.push(data.state);
+    }
+    if (data.street !== undefined) {
+      updateFields.push(`street = $${paramIndex++}`);
+      params.push(data.street);
+    }
+    if (data.houseNumber !== undefined) {
+      updateFields.push(`house_number = $${paramIndex++}`);
+      params.push(data.houseNumber);
+    }
+    if (data.addressLine2 !== undefined) {
+      updateFields.push(`address_line2 = $${paramIndex++}`);
+      params.push(data.addressLine2);
+    }
+    if (data.poBox !== undefined) {
+      updateFields.push(`po_box = $${paramIndex++}`);
+      params.push(data.poBox);
+    }
+    if (data.isPrimary !== undefined) {
+      updateFields.push(`is_primary = $${paramIndex++}`);
+      params.push(data.isPrimary);
+    }
+
+    if (updateFields.length === 0) {
+      return this.findUserAddressByUserId(userId);
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    params.push(userId);
+
+    const result = await this.pool.query<UserAddressDbRow>(
+      `UPDATE user_addresses
+       SET ${updateFields.join(', ')}
+       WHERE user_id = $${paramIndex} AND is_primary = true
+       RETURNING *`,
+      params
+    );
+
+    return result.rows.length > 0 ? mapUserAddressEntity(result.rows[0]) : null;
+  }
+
   // Continued in part 2...
   // =========================================================================
   // Verification Status Operations
@@ -598,6 +659,19 @@ export class UserRepositoryImpl implements IUserRepository {
       'SELECT 1 FROM portfolio WHERE ownerid = $1 LIMIT 1',
       [userId]
     );
+    return result.rows.length > 0;
+  }
+
+  async currencyCodeExists(isoCode3: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'SELECT 1 FROM currency WHERE UPPER(isocode3) = UPPER($1) LIMIT 1',
+      [isoCode3]
+    );
+    return result.rows.length > 0;
+  }
+
+  async countryExists(countryId: string): Promise<boolean> {
+    const result = await this.pool.query('SELECT 1 FROM country WHERE id = $1 LIMIT 1', [countryId]);
     return result.rows.length > 0;
   }
 

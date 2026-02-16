@@ -23,12 +23,11 @@ import {
   CreateUserData,
   UpdateUserData,
   UpdateUserProfileData,
+  UpdateUserAddressData,
   ListUsersOptions,
   GetUsersResult,
   UserRole,
   UserTitle,
-  EmailVerificationStatus,
-  IdentityVerificationStatus,
   AccountStatus,
   UserErrorCode,
 } from '../../src/services/user';
@@ -252,6 +251,19 @@ class UserRepositoryMock implements IUserRepository {
     return this.addresses.get(userId) ?? null;
   }
 
+  async updateUserAddress(userId: string, data: UpdateUserAddressData): Promise<UserAddressEntity | null> {
+    const address = this.addresses.get(userId);
+    if (!address) return null;
+
+    const updated: UserAddressEntity = {
+      ...address,
+      ...data,
+      updatedAt: new Date(),
+    };
+    this.addresses.set(userId, updated);
+    return updated;
+  }
+
   async findVerificationStatusByUserId(userId: string): Promise<UserVerificationStatusEntity | null> {
     return this.verificationStatuses.get(userId) ?? null;
   }
@@ -264,12 +276,20 @@ class UserRepositoryMock implements IUserRepository {
     return false; // No portfolios in test
   }
 
+  async currencyCodeExists(isoCode3: string): Promise<boolean> {
+    return ['CHF', 'EUR', 'USD', 'GBP', 'CAD', 'AUD'].includes(isoCode3.toUpperCase());
+  }
+
+  async countryExists(countryId: string): Promise<boolean> {
+    return countryId.length > 0;
+  }
+
   // Stub methods for interface compliance
   async createUserProfile(): Promise<UserProfileEntity> { throw new Error('Not implemented'); }
   async createUserAddress(): Promise<UserAddressEntity> { throw new Error('Not implemented'); }
   async findUserAddressesByUserId(): Promise<UserAddressEntity[]> { return []; }
   async createUserVerificationStatus(): Promise<UserVerificationStatusEntity> { throw new Error('Not implemented'); }
-  async updateVerificationStatus(): Promise<void> {}
+  async updateVerificationStatus(): Promise<void> { return; }
   async logDocumentProcessing(): Promise<any> { throw new Error('Not implemented'); }
   async logConsent(): Promise<any> { throw new Error('Not implemented'); }
   async executeTransaction<T>(callback: (client: any) => Promise<T>): Promise<T> {

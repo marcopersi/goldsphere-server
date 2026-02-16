@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import pool from '../dbConfig';
+import { getPool } from '../dbConfig';
+import { UserErrorCode, UserServiceFactory } from '../services/user';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -29,42 +30,46 @@ export function verifyToken(token: string): JWTPayload {
   return jwt.verify(token, JWT_SECRET) as JWTPayload;
 }
 
-/**
- * Verify user exists in database and fetch current role
- * Returns user data from DB, not from token
- */
-async function verifyUserInDatabase(userId: string): Promise<{
-  id: string;
-  email: string;
-  role: string;
-  accountStatus: string;
-} | null> {
-  try {
-    const result = await pool.query(
-      'SELECT id, email, role, account_status FROM users WHERE id = $1', 
-      [userId]
-    );
-    
-    if (result.rows.length === 0) {
-      return null;
-    }
-    
-    const user = result.rows[0];
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      accountStatus: user.account_status
-    };
-  } catch (error) {
-    console.error('Database verification error:', error);
+function getBearerToken(authHeader?: string): string | null {
+  if (!authHeader) {
     return null;
   }
+  return authHeader.split(' ')[1] || null;
+}
+
+function respondVerificationFailure(res: Response, errorCode?: UserErrorCode, errorMessage?: string): void {
+  if (errorCode === UserErrorCode.USER_NOT_FOUND) {
+    res.status(401).json({
+      error: 'Invalid token',
+      details: 'User no longer exists'
+    });
+    return;
+  }
+
+  if (errorCode === UserErrorCode.UNAUTHORIZED && errorMessage === 'User account is inactive') {
+    res.status(401).json({
+      error: 'Account inactive',
+      details: 'Your account has been deactivated'
+    });
+    return;
+  }
+
+  if (errorCode === UserErrorCode.UNAUTHORIZED && errorMessage === 'Token role is stale. Please re-authenticate.') {
+    res.status(401).json({
+      error: 'Token expired',
+      details: 'User role has changed. Please re-authenticate to get a new token.'
+    });
+    return;
+  }
+
+  res.status(401).json({
+    error: 'Invalid token',
+    details: 'Please provide a valid JWT token'
+  });
 }
 
 export async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader?.split(' ')[1]; // Bearer TOKEN
+  const token = getBearerToken(req.headers['authorization']);
 
   if (!token) {
     res.status(401).json({ 
@@ -76,34 +81,16 @@ export async function authenticateToken(req: AuthenticatedRequest, res: Response
 
   try {
     const decoded = verifyToken(token);
-    
-    // Verify user exists in database and fetch current data
-    const dbUser = await verifyUserInDatabase(decoded.id);
-    if (!dbUser) {
-      res.status(401).json({ 
-        error: 'Invalid token',
-        details: 'User no longer exists'
-      });
+
+    const userService = UserServiceFactory.createUserService(getPool());
+    const verification = await userService.verifyUser(decoded.id, decoded.role);
+
+    if (!verification.success || !verification.data) {
+      respondVerificationFailure(res, verification.errorCode, verification.error);
       return;
     }
-    
-    // Check if user account is active
-    if (dbUser.accountStatus !== 'active') {
-      res.status(401).json({ 
-        error: 'Account inactive',
-        details: 'Your account has been deactivated'
-      });
-      return;
-    }
-    
-    // SECURITY: Check if role has changed since token was issued
-    if (dbUser.role !== decoded.role) {
-      res.status(401).json({ 
-        error: 'Token expired',
-        details: 'User role has changed. Please re-authenticate to get a new token.'
-      });
-      return;
-    }
+
+    const dbUser = verification.data;
     
     // Use DB data, not token data!
     req.user = {
@@ -133,8 +120,7 @@ export async function authenticateToken(req: AuthenticatedRequest, res: Response
 }
 
 export async function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader?.split(' ')[1];
+  const token = getBearerToken(req.headers['authorization']);
 
   if (!token) {
     next();
@@ -143,20 +129,22 @@ export async function optionalAuth(req: AuthenticatedRequest, res: Response, nex
 
   try {
     const decoded = verifyToken(token);
-    
-    // Verify user exists in database and fetch current data
-    const dbUser = await verifyUserInDatabase(decoded.id);
-    if (dbUser && dbUser.accountStatus === 'active' && dbUser.role === decoded.role) {
+
+    const userService = UserServiceFactory.createUserService(getPool());
+    const verification = await userService.verifyUser(decoded.id, decoded.role);
+
+    if (verification.success && verification.data) {
+      const dbUser = verification.data;
       // Use DB data, not token data!
       req.user = {
         id: dbUser.id,
         email: dbUser.email,
         role: dbUser.role
       };
-    } else if (dbUser && dbUser.accountStatus !== 'active') {
+    } else if (verification.error === 'User account is inactive') {
       console.warn('Token valid but user account inactive:', decoded.id);
-    } else if (dbUser && dbUser.role !== decoded.role) {
-      console.warn('Token valid but user role changed:', decoded.id, 'token role:', decoded.role, 'db role:', dbUser.role);
+    } else if (verification.error === 'Token role is stale. Please re-authenticate.') {
+      console.warn('Token valid but user role changed:', decoded.id, 'token role:', decoded.role);
     } else {
       console.warn('Token valid but user no longer exists:', decoded.id);
     }

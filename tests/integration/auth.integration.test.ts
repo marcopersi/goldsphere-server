@@ -1,9 +1,44 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { generateToken } from '../../src/middleware/auth';
+import { getPool } from '../../src/dbConfig';
 import { setupTestDatabase, teardownTestDatabase } from './db-setup';
 
 let app: any;
+
+async function createTemporaryAdmin(): Promise<{ userId: string; email: string; password: string; token: string }> {
+  const baseAdminLogin = await request(app)
+    .post('/api/auth/login')
+    .send({ email: 'admin@goldsphere.vault', password: 'admin123' })
+    .expect(200);
+
+  const email = `temp-admin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+  const password = 'SecurePass123';
+
+  const createResponse = await request(app)
+    .post('/api/users')
+    .set('Authorization', `Bearer ${baseAdminLogin.body.token}`)
+    .send({
+      email,
+      password,
+      role: 'admin',
+    })
+    .expect(201);
+
+  const userId = createResponse.body.data.id;
+
+  const loginResponse = await request(app)
+    .post('/api/auth/login')
+    .send({ email, password })
+    .expect(200);
+
+  return {
+    userId,
+    email,
+    password,
+    token: loginResponse.body.token,
+  };
+}
 
 describe('Authentication Endpoints', () => {
   
@@ -270,6 +305,56 @@ describe('Authentication Endpoints', () => {
 
       expect(response.body).toHaveProperty('success', false);
       expect(response.body).toHaveProperty('error', 'Token has expired');
+    });
+  });
+
+  describe('tsoa protected route security checks', () => {
+    it('should reject token when user role changed since token issuance', async () => {
+      const tempAdmin = await createTemporaryAdmin();
+      const pool = getPool();
+
+      await pool.query(
+        `UPDATE users SET role = 'customer' WHERE id = $1`,
+        [tempAdmin.userId]
+      );
+
+      try {
+        const response = await request(app)
+          .get('/api/users/blocked')
+          .set('Authorization', `Bearer ${tempAdmin.token}`)
+          .expect(401);
+
+        expect(response.body).toHaveProperty('error');
+      } finally {
+        await pool.query(
+          `DELETE FROM users WHERE id = $1`,
+          [tempAdmin.userId]
+        );
+      }
+    });
+
+    it('should reject token when user account is inactive', async () => {
+      const tempAdmin = await createTemporaryAdmin();
+      const pool = getPool();
+
+      await pool.query(
+        `UPDATE users SET account_status = 'deleted' WHERE id = $1`,
+        [tempAdmin.userId]
+      );
+
+      try {
+        const response = await request(app)
+          .get('/api/users/blocked')
+          .set('Authorization', `Bearer ${tempAdmin.token}`)
+          .expect(401);
+
+        expect(response.body).toHaveProperty('error');
+      } finally {
+        await pool.query(
+          `DELETE FROM users WHERE id = $1`,
+          [tempAdmin.userId]
+        );
+      }
     });
   });
 });

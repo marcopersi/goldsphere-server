@@ -87,6 +87,36 @@ export interface UpdateUserInput {
   birthDate?: Date;
 }
 
+export interface UpdateUserProfileInput {
+  title?: UserTitle | null;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: Date;
+  phone?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
+  address?: {
+    countryId?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+    state?: string | null;
+    street?: string | null;
+    houseNumber?: string | null;
+    addressLine2?: string | null;
+    poBox?: string | null;
+  };
+}
+
+export interface UserReferenceValidationInput {
+  role?: string;
+  title?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
+  countryId?: string | null;
+}
+
 /**
  * User Service Interface
  * 
@@ -147,6 +177,15 @@ export interface IUserService {
   ): Promise<UserOperationResult<UserEntity>>;
 
   /**
+   * Partially update user profile and primary address fields
+   */
+  updateUserProfile(
+    id: string,
+    input: UpdateUserProfileInput,
+    authenticatedUser: AuditTrailUser
+  ): Promise<UserOperationResult<UserWithDetails>>;
+
+  /**
    * Delete user (with dependency checks)
    * @param id User UUID
    * @returns Success status
@@ -205,6 +244,19 @@ export interface IUserService {
    * @returns User entity if valid, error if invalid
    */
   validateCredentials(email: string, password: string): Promise<UserOperationResult<UserEntity>>;
+
+  /**
+   * Validate reference data and enum-like fields for user operations
+   */
+  validateReferenceData(input: UserReferenceValidationInput): Promise<UserOperationResult<void>>;
+
+  /**
+   * Verify auth-relevant user state for middleware checks
+   * - user exists
+   * - account is active
+   * - optional expected role still matches current DB role
+   */
+  verifyUser(userId: string, expectedRole?: string): Promise<UserOperationResult<UserEntity>>;
 
   /**
    * Update last login timestamp

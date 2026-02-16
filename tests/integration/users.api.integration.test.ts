@@ -273,6 +273,8 @@ describe('Users API Integration Tests', () => {
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toHaveProperty('user');
       expect(response.body.data.user.id).toBe(createdUserId);
+      expect(response.body.data).toHaveProperty('profile');
+      expect(response.body.data).toHaveProperty('address');
     });
 
     it('should return 404 for non-existent user', async () => {
@@ -282,6 +284,83 @@ describe('Users API Integration Tests', () => {
         .expect(404);
 
       expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('PATCH /api/users/:id/profile', () => {
+    it('should patch profile and address fields and persist them', async () => {
+      expect(createdUserId).toBeDefined();
+
+      const countryResult = await getPool().query(
+        `SELECT id FROM country WHERE isocode2 = 'DE' LIMIT 1`
+      );
+      const countryId = countryResult.rows[0].id;
+
+      const patchPayload = {
+        firstName: 'Patch',
+        lastName: 'User',
+        birthDate: '1992-04-12',
+        phone: '+41795551234',
+        gender: 'prefer_not_to_say',
+        preferredCurrency: 'CHF',
+        preferredPaymentMethod: 'bank_transfer',
+        address: {
+          countryId,
+          postalCode: '8001',
+          city: 'Zürich',
+          state: 'ZH',
+          street: 'Bahnhofstrasse',
+          houseNumber: '10A',
+          addressLine2: '3rd floor',
+          poBox: 'Postfach 42',
+        },
+      };
+
+      const patchResponse = await request(app)
+        .patch(`/api/users/${createdUserId}/profile`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(patchPayload)
+        .expect(200);
+
+      expect(patchResponse.body).toHaveProperty('success', true);
+      expect(patchResponse.body.data.userId).toBe(createdUserId);
+      expect(patchResponse.body.data.profile.phone).toBe(patchPayload.phone);
+      expect(patchResponse.body.data.profile.gender).toBe(patchPayload.gender);
+      expect(patchResponse.body.data.profile.preferredCurrency).toBe(patchPayload.preferredCurrency);
+      expect(patchResponse.body.data.profile.preferredPaymentMethod).toBe(patchPayload.preferredPaymentMethod);
+      expect(patchResponse.body.data.address.houseNumber).toBe(patchPayload.address.houseNumber);
+      expect(patchResponse.body.data.address.addressLine2).toBe(patchPayload.address.addressLine2);
+      expect(patchResponse.body.data.address.poBox).toBe(patchPayload.address.poBox);
+
+      const detailsResponse = await request(app)
+        .get(`/api/users/${createdUserId}/details`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(detailsResponse.body.data.profile.phone).toBe(patchPayload.phone);
+      expect(detailsResponse.body.data.profile.gender).toBe(patchPayload.gender);
+      expect(detailsResponse.body.data.profile.preferredCurrency).toBe(patchPayload.preferredCurrency);
+      expect(detailsResponse.body.data.profile.preferredPaymentMethod).toBe(patchPayload.preferredPaymentMethod);
+      expect(detailsResponse.body.data.address.houseNumber).toBe(patchPayload.address.houseNumber);
+      expect(detailsResponse.body.data.address.addressLine2).toBe(patchPayload.address.addressLine2);
+      expect(detailsResponse.body.data.address.poBox).toBe(patchPayload.address.poBox);
+    });
+
+    it('should return VALIDATION_ERROR with field list for invalid patch payload', async () => {
+      expect(createdUserId).toBeDefined();
+
+      const response = await request(app)
+        .patch(`/api/users/${createdUserId}/profile`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ phone: '0795551234' })
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.code).toBe('VALIDATION_ERROR');
+      expect(Array.isArray(response.body.details?.fields)).toBe(true);
+      expect(response.body.details.fields.length).toBeGreaterThan(0);
+      expect(response.body.details.fields[0]).toHaveProperty('path');
+      expect(response.body.details.fields[0]).toHaveProperty('message');
     });
   });
 

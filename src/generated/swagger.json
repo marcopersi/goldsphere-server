@@ -8,7 +8,7 @@
 		"responses": {},
 		"schemas": {
 			"UserResponse": {
-				"description": "User response",
+				"description": "User Controller Types\n\nRequest/response contracts for tsoa endpoints.",
 				"properties": {
 					"id": {
 						"type": "string"
@@ -40,7 +40,6 @@
 				"additionalProperties": false
 			},
 			"UserListResponse": {
-				"description": "User list response with pagination",
 				"properties": {
 					"success": {
 						"type": "boolean",
@@ -92,7 +91,6 @@
 				"additionalProperties": false
 			},
 			"UserErrorResponse": {
-				"description": "Error response",
 				"properties": {
 					"success": {
 						"type": "boolean",
@@ -106,6 +104,29 @@
 					},
 					"code": {
 						"type": "string"
+					},
+					"details": {
+						"properties": {
+							"fields": {
+								"items": {
+									"properties": {
+										"message": {
+											"type": "string"
+										},
+										"path": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"message",
+										"path"
+									],
+									"type": "object"
+								},
+								"type": "array"
+							}
+						},
+						"type": "object"
 					}
 				},
 				"required": [
@@ -116,7 +137,6 @@
 				"additionalProperties": false
 			},
 			"BlockedUserResponse": {
-				"description": "Blocked user response",
 				"properties": {
 					"id": {
 						"type": "string"
@@ -150,7 +170,6 @@
 				"additionalProperties": false
 			},
 			"SuccessResponseWrapper_BlockedUserResponse-Array_": {
-				"description": "Success response wrapper",
 				"properties": {
 					"success": {
 						"type": "boolean",
@@ -177,7 +196,6 @@
 				"additionalProperties": false
 			},
 			"SuccessResponseWrapper_UserResponse_": {
-				"description": "Success response wrapper",
 				"properties": {
 					"success": {
 						"type": "boolean",
@@ -201,7 +219,6 @@
 				"additionalProperties": false
 			},
 			"UserProfileData": {
-				"description": "User profile data",
 				"properties": {
 					"title": {
 						"type": "string",
@@ -216,13 +233,28 @@
 					"birthDate": {
 						"type": "string",
 						"format": "date-time"
+					},
+					"phone": {
+						"type": "string",
+						"nullable": true
+					},
+					"gender": {
+						"type": "string",
+						"nullable": true
+					},
+					"preferredCurrency": {
+						"type": "string",
+						"nullable": true
+					},
+					"preferredPaymentMethod": {
+						"type": "string",
+						"nullable": true
 					}
 				},
 				"type": "object",
 				"additionalProperties": false
 			},
 			"UserAddressData": {
-				"description": "User address data",
 				"properties": {
 					"countryId": {
 						"type": "string",
@@ -261,7 +293,6 @@
 				"additionalProperties": false
 			},
 			"VerificationStatusData": {
-				"description": "Verification status data",
 				"properties": {
 					"emailStatus": {
 						"type": "string"
@@ -274,7 +305,6 @@
 				"additionalProperties": false
 			},
 			"UserDetailsResponse": {
-				"description": "User with details response",
 				"properties": {
 					"success": {
 						"type": "boolean",
@@ -329,55 +359,157 @@
 				"type": "object",
 				"additionalProperties": false
 			},
-			"CreateUserRequest": {
-				"description": "Create user request",
+			"UserProfilePatchResponse": {
 				"properties": {
-					"email": {
-						"type": "string",
-						"description": "User email address",
-						"example": "newuser@goldsphere.vault"
-					},
-					"password": {
-						"type": "string",
-						"description": "User password (min 8 chars, letters + numbers)",
-						"example": "SecurePassword123"
-					},
-					"role": {
-						"type": "string",
+					"success": {
+						"type": "boolean",
 						"enum": [
-							"admin",
-							"user",
-							"advisor",
-							"investor"
+							true
 						],
-						"description": "User role",
-						"example": "user"
+						"nullable": false
 					},
+					"data": {
+						"properties": {
+							"verificationStatus": {
+								"allOf": [
+									{
+										"$ref": "#/components/schemas/VerificationStatusData"
+									}
+								],
+								"nullable": true
+							},
+							"address": {
+								"allOf": [
+									{
+										"$ref": "#/components/schemas/UserAddressData"
+									}
+								],
+								"nullable": true
+							},
+							"profile": {
+								"allOf": [
+									{
+										"$ref": "#/components/schemas/UserProfileData"
+									}
+								],
+								"nullable": true
+							},
+							"userId": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"verificationStatus",
+							"address",
+							"profile",
+							"userId"
+						],
+						"type": "object"
+					}
+				},
+				"required": [
+					"success",
+					"data"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PatchUserProfileRequest": {
+				"properties": {
 					"title": {
 						"type": "string",
-						"enum": [
-							"Herr",
-							"Frau",
-							"Divers"
-						],
-						"description": "Personal title",
-						"example": "Herr"
+						"nullable": true
 					},
 					"firstName": {
-						"type": "string",
-						"description": "First name",
-						"example": "Max"
+						"type": "string"
 					},
 					"lastName": {
-						"type": "string",
-						"description": "Last name",
-						"example": "Mustermann"
+						"type": "string"
 					},
 					"birthDate": {
 						"type": "string",
-						"format": "date-time",
-						"description": "Birth date (ISO 8601 format)",
-						"example": "1990-01-15"
+						"format": "date-time"
+					},
+					"phone": {
+						"type": "string",
+						"nullable": true
+					},
+					"gender": {
+						"type": "string",
+						"nullable": true
+					},
+					"preferredCurrency": {
+						"type": "string",
+						"nullable": true
+					},
+					"preferredPaymentMethod": {
+						"type": "string",
+						"nullable": true
+					},
+					"address": {
+						"properties": {
+							"poBox": {
+								"type": "string",
+								"nullable": true
+							},
+							"addressLine2": {
+								"type": "string",
+								"nullable": true
+							},
+							"houseNumber": {
+								"type": "string",
+								"nullable": true
+							},
+							"street": {
+								"type": "string",
+								"nullable": true
+							},
+							"state": {
+								"type": "string",
+								"nullable": true
+							},
+							"city": {
+								"type": "string",
+								"nullable": true
+							},
+							"postalCode": {
+								"type": "string",
+								"nullable": true
+							},
+							"countryId": {
+								"type": "string",
+								"nullable": true
+							}
+						},
+						"type": "object"
+					}
+				},
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CreateUserRequest": {
+				"properties": {
+					"email": {
+						"type": "string"
+					},
+					"password": {
+						"type": "string"
+					},
+					"role": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"firstName": {
+						"type": "string"
+					},
+					"lastName": {
+						"type": "string"
+					},
+					"birthDate": {
+						"type": "string",
+						"format": "date-time"
 					}
 				},
 				"required": [
@@ -388,7 +520,6 @@
 				"additionalProperties": false
 			},
 			"UpdateUserRequest": {
-				"description": "Update user request",
 				"properties": {
 					"email": {
 						"type": "string"
@@ -397,13 +528,7 @@
 						"type": "string"
 					},
 					"role": {
-						"type": "string",
-						"enum": [
-							"admin",
-							"user",
-							"advisor",
-							"investor"
-						]
+						"type": "string"
 					},
 					"emailVerified": {
 						"type": "boolean"
@@ -413,11 +538,7 @@
 					},
 					"title": {
 						"type": "string",
-						"enum": [
-							"Herr",
-							"Frau",
-							"Divers"
-						]
+						"nullable": true
 					},
 					"firstName": {
 						"type": "string"
@@ -434,7 +555,6 @@
 				"additionalProperties": false
 			},
 			"SuccessResponseWrapper_BlockedUserResponse_": {
-				"description": "Success response wrapper",
 				"properties": {
 					"success": {
 						"type": "boolean",
@@ -458,12 +578,9 @@
 				"additionalProperties": false
 			},
 			"BlockUserRequest": {
-				"description": "Block user request",
 				"properties": {
 					"reason": {
-						"type": "string",
-						"description": "Reason for blocking the user",
-						"example": "Violation of terms of service"
+						"type": "string"
 					}
 				},
 				"required": [
@@ -1133,7 +1250,35 @@
 					"code": {
 						"type": "string"
 					},
-					"details": {}
+					"details": {
+						"properties": {
+							"message": {
+								"type": "string"
+							},
+							"field": {
+								"type": "string"
+							},
+							"fields": {
+								"items": {
+									"properties": {
+										"message": {
+											"type": "string"
+										},
+										"path": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"message",
+										"path"
+									],
+									"type": "object"
+								},
+								"type": "array"
+							}
+						},
+						"type": "object"
+					}
 				},
 				"required": [
 					"success",
@@ -6503,6 +6648,93 @@
 						}
 					}
 				]
+			}
+		},
+		"/users/{id}/profile": {
+			"patch": {
+				"operationId": "PatchUserProfile",
+				"responses": {
+					"200": {
+						"description": "User profile patched",
+						"content": {
+							"application/json": {
+								"schema": {
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/UserProfilePatchResponse"
+										},
+										{
+											"$ref": "#/components/schemas/UserErrorResponse"
+										}
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UserErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"description": "Patch user profile fields",
+				"summary": "Patch user profile",
+				"tags": [
+					"Users"
+				],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"description": "User UUID",
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"description": "Profile patch data",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/PatchUserProfileRequest",
+								"description": "Profile patch data"
+							}
+						}
+					}
+				}
 			}
 		},
 		"/users/{id}/block": {

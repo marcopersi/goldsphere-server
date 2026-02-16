@@ -32,10 +32,10 @@ export interface CreateUserProfileData {
   firstName: string;
   lastName: string;
   birthDate: Date;
-  phone?: string;
-  gender?: string;
-  preferredCurrency?: string;
-  preferredPaymentMethod?: string;
+  phone?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
 }
 
 /**
@@ -46,10 +46,10 @@ export interface UpdateUserProfileData {
   firstName?: string;
   lastName?: string;
   birthDate?: Date;
-  phone?: string;
-  gender?: string;
-  preferredCurrency?: string;
-  preferredPaymentMethod?: string;
+  phone?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
 }
 
 /**
@@ -125,10 +125,10 @@ export interface UpdateUserProfileData {
   firstName?: string;
   lastName?: string;
   birthDate?: Date;
-  phone?: string;
-  gender?: string;
-  preferredCurrency?: string;
-  preferredPaymentMethod?: string;
+  phone?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
 }
 
 /**
