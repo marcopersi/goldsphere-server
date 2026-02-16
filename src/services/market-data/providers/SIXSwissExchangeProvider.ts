@@ -77,7 +77,7 @@ export class SIXSwissExchangeProvider implements IMarketDataProvider {
 
   private async fetchMetalPrice(
     sixSymbol: string,
-    currency: string
+    _currency: string
   ): Promise<{ close: number; bid?: number; ask?: number; timestamp: string } | null> {
     try {
       // TODO: Implement actual SIX API/scraping logic

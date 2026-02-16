@@ -181,7 +181,10 @@ export class MarketDataRepositoryMock implements IMarketDataRepository {
     ];
 
     for (const { symbol, price } of mockPrices) {
-      const metalId = this.metals.get(symbol)!;
+      const metalId = this.metals.get(symbol);
+      if (!metalId) {
+        continue;
+      }
       const key = `${metalId}-USD`;
       
       this.prices.set(key, {

@@ -23,7 +23,7 @@ import {
 } from "tsoa";
 import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
-import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
+import { requireAuthenticatedUser } from "../utils/auditTrail";
 import { 
   CustodyServiceFactory, 
   CustodyServiceDTO,
@@ -113,19 +113,6 @@ interface CustodyServiceUpdateRequest {
   currency?: string;
   /** Updated max weight limit */
   maxWeight?: number;
-}
-
-interface CustodyServiceQueryParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  custodianId?: string;
-  minFee?: number;
-  maxFee?: number;
-  paymentFrequency?: PaymentFrequency;
-  currency?: string;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
 }
 
 // ============================================================================

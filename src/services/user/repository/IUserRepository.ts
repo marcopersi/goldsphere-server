@@ -24,8 +24,6 @@ import {
   UpdateVerificationStatusData,
   ListUsersOptions,
   GetUsersResult,
-  BlockUserInput,
-  UnblockUserInput,
 } from '../types';
 import { AuditTrailUser } from '../../../utils/auditTrail';
 

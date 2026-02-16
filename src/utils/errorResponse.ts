@@ -121,7 +121,7 @@ export const ErrorHelpers = {
 /**
  * Express middleware to catch unhandled errors
  */
-export function errorHandler(error: any, req: any, res: Response, next: any): void {
+export function errorHandler(error: any, req: any, res: Response, _next: any): void {
   console.error('Unhandled error:', error);
   
   // Send consistent error response

@@ -80,8 +80,15 @@ export class PortfolioServiceImpl implements IPortfolioService {
       return { success: false, error: validation.error };
     }
 
+    if (!validation.data) {
+      return {
+        success: false,
+        error: { code: PortfolioErrorCode.VALIDATION_ERROR, message: 'Invalid portfolio payload' }
+      };
+    }
+
     try {
-      const { portfolioName, ownerId, description } = validation.data!;
+      const { portfolioName, ownerId, description } = validation.data;
 
       // Check if owner exists
       const ownerExists = await this.portfolioRepository.userExists(ownerId);
@@ -125,6 +132,13 @@ export class PortfolioServiceImpl implements IPortfolioService {
       return { success: false, error: validation.error };
     }
 
+    if (!validation.data) {
+      return {
+        success: false,
+        error: { code: PortfolioErrorCode.VALIDATION_ERROR, message: 'Invalid update payload' }
+      };
+    }
+
     try {
       // Check if portfolio exists
       const existing = await this.portfolioRepository.getById(portfolioId);
@@ -136,10 +150,10 @@ export class PortfolioServiceImpl implements IPortfolioService {
       }
 
       // Check for duplicate name if updating name
-      if (validation.data!.portfolioName) {
+      if (validation.data.portfolioName) {
         const nameExists = await this.portfolioRepository.nameExistsForUser(
           existing.ownerId, 
-          validation.data!.portfolioName, 
+          validation.data.portfolioName, 
           portfolioId
         );
         if (nameExists) {
@@ -151,7 +165,7 @@ export class PortfolioServiceImpl implements IPortfolioService {
       }
 
       // Update portfolio
-      const updated = await this.portfolioRepository.update(portfolioId, validation.data!, authenticatedUser);
+      const updated = await this.portfolioRepository.update(portfolioId, validation.data, authenticatedUser);
       if (!updated) {
         return {
           success: false,

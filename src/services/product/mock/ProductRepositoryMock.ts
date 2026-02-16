@@ -258,11 +258,13 @@ export class ProductRepositoryMock implements IProductRepository {
     }
     
     if (filter.minPrice !== undefined) {
-      filteredProducts = filteredProducts.filter(p => p.price >= filter.minPrice!);
+      const minPrice = filter.minPrice;
+      filteredProducts = filteredProducts.filter(p => p.price >= minPrice);
     }
     
     if (filter.maxPrice !== undefined) {
-      filteredProducts = filteredProducts.filter(p => p.price <= filter.maxPrice!);
+      const maxPrice = filter.maxPrice;
+      filteredProducts = filteredProducts.filter(p => p.price <= maxPrice);
     }
     
     // Sort

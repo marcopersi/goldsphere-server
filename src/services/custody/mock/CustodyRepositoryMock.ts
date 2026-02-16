@@ -69,11 +69,13 @@ export class CustodyRepositoryMock implements ICustodyRepository {
     }
 
     if (options.minFee !== undefined) {
-      filtered = filtered.filter((cs) => parseFloat(cs.fee) >= options.minFee!);
+      const minFee = options.minFee;
+      filtered = filtered.filter((cs) => parseFloat(cs.fee) >= minFee);
     }
 
     if (options.maxFee !== undefined) {
-      filtered = filtered.filter((cs) => parseFloat(cs.fee) <= options.maxFee!);
+      const maxFee = options.maxFee;
+      filtered = filtered.filter((cs) => parseFloat(cs.fee) <= maxFee);
     }
 
     if (options.paymentFrequency) {

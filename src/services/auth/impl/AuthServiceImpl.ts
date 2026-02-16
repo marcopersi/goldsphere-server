@@ -162,11 +162,24 @@ export class AuthServiceImpl implements IAuthService {
     if (!validation.success) {
       return {
         success: false,
-        error: validation.error!,
+        error: validation.error || {
+          code: AuthErrorCode.TOKEN_INVALID,
+          message: 'Invalid token',
+        },
       };
     }
 
-    const payload = validation.data!;
+    if (!validation.data) {
+      return {
+        success: false,
+        error: {
+          code: AuthErrorCode.TOKEN_INVALID,
+          message: 'Invalid token payload',
+        },
+      };
+    }
+
+    const payload = validation.data;
 
     // Verify user still exists and is active
     const user = await this.authRepository.findUserByEmail(payload.email);
@@ -212,11 +225,24 @@ export class AuthServiceImpl implements IAuthService {
     if (!validation.success) {
       return {
         success: false,
-        error: validation.error!,
+        error: validation.error || {
+          code: AuthErrorCode.TOKEN_INVALID,
+          message: 'Invalid token',
+        },
       };
     }
 
-    const payload = validation.data!;
+    if (!validation.data) {
+      return {
+        success: false,
+        error: {
+          code: AuthErrorCode.TOKEN_INVALID,
+          message: 'Invalid token payload',
+        },
+      };
+    }
+
+    const payload = validation.data;
     return {
       success: true,
       data: {

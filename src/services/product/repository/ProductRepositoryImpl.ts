@@ -399,7 +399,12 @@ export class ProductRepositoryImpl implements IProductRepository {
       }
       
       // Re-fetch with joins for complete data
-      return (await this.findById(id))!;
+      const updatedProduct = await this.findById(id);
+      if (!updatedProduct) {
+        throw new Error(`Failed to load updated product: ${id}`);
+      }
+
+      return updatedProduct;
       
     } catch (error) {
       throw error instanceof Error ? error : new Error('Failed to update product');

@@ -21,11 +21,6 @@ import {
 import type { Request as ExpressRequest } from 'express';
 import { AuthServiceFactory } from '../services/auth/AuthServiceFactory';
 import type { IAuthService } from '../services/auth/IAuthService';
-import type { 
-  LoginRequest, 
-  LoginResponse, 
-  AuthUser 
-} from '../services/auth/types/AuthTypes';
 import { AuthErrorCode } from '../services/auth/types/AuthTypes';
 
 // ============================================================================
@@ -159,15 +154,32 @@ export class AuthController extends Controller {
     const result = await this.authService.login({ email, password });
 
     if (!result.success) {
-      const statusCode = getStatusCode(result.error!.code);
+      const error = result.error;
+      if (!error) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: 'Authentication failed'
+        };
+      }
+
+      const statusCode = getStatusCode(error.code);
       this.setStatus(statusCode);
       return {
         success: false,
-        error: result.error!.message
+        error: error.message
       };
     }
 
-    return result.data!;
+    if (!result.data) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: 'Authentication failed'
+      };
+    }
+
+    return result.data;
   }
 
   /**
@@ -226,15 +238,32 @@ export class AuthController extends Controller {
     const result = await this.authService.refreshToken(token);
 
     if (!result.success) {
-      const statusCode = getStatusCode(result.error!.code);
+      const error = result.error;
+      if (!error) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: 'Failed to refresh token',
+        };
+      }
+
+      const statusCode = getStatusCode(error.code);
       this.setStatus(statusCode);
       return {
         success: false,
-        error: result.error!.message,
+        error: error.message,
       };
     }
 
-    return result.data!;
+    if (!result.data) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: 'Failed to refresh token',
+      };
+    }
+
+    return result.data;
   }
 
   /**
@@ -262,14 +291,31 @@ export class AuthController extends Controller {
     const result = await this.authService.getCurrentUser(token);
 
     if (!result.success) {
-      const statusCode = getStatusCode(result.error!.code);
+      const error = result.error;
+      if (!error) {
+        this.setStatus(500);
+        return {
+          success: false,
+          error: 'Failed to fetch current user',
+        };
+      }
+
+      const statusCode = getStatusCode(error.code);
       this.setStatus(statusCode);
       return {
         success: false,
-        error: result.error!.message,
+        error: error.message,
       };
     }
 
-    return result.data!;
+    if (!result.data) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: 'Failed to fetch current user',
+      };
+    }
+
+    return result.data;
   }
 }

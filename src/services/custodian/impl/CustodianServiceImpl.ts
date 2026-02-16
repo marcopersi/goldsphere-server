@@ -6,7 +6,6 @@
 import { ICustodianService } from '../ICustodianService';
 import { ICustodianRepository } from '../repository/ICustodianRepository';
 import {
-  CustodianDTO,
   CreateCustodianDTO,
   UpdateCustodianDTO,
   CustodianResult,

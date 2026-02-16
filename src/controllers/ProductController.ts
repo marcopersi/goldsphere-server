@@ -19,13 +19,11 @@ import {
   SuccessResponse,
   Response,
   Security,
-  Res,
   Request
 } from "tsoa";
-import type { TsoaResponse } from "tsoa";
 import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
-import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
+import { requireAuthenticatedUser } from "../utils/auditTrail";
 import { ProductServiceFactory } from "../services/product";
 import { Metal, ProductTypeEnum } from "@marcopersi/shared";
 import {

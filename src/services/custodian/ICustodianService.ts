@@ -4,7 +4,6 @@
  */
 
 import {
-  CustodianDTO,
   CreateCustodianDTO,
   UpdateCustodianDTO,
   CustodianResult,

@@ -4,7 +4,6 @@
  */
 
 import {
-  CustodyServiceDTO,
   CreateCustodyServiceDTO,
   UpdateCustodyServiceDTO,
   CustodyServiceResult,

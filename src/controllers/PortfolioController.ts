@@ -22,7 +22,7 @@ import {
   Request
 } from "tsoa";
 import { getPool } from "../dbConfig";
-import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
+import { requireAuthenticatedUser } from "../utils/auditTrail";
 import { PortfolioServiceFactory } from "../services/portfolio";
 import {
   PortfolioErrorCode,
@@ -247,7 +247,10 @@ export class PortfolioController extends Controller {
               console.error(`Failed to get positions for portfolio ${portfolio.id}:`, result.error);
               return { ...portfolio, positions: [] as Position[] };
             }
-            return result.data!;
+            if (!result.data) {
+              return { ...portfolio, positions: [] as Position[] };
+            }
+            return result.data;
           } catch (err) {
             console.error(`Exception getting positions for portfolio ${portfolio.id}:`, err);
             return { ...portfolio, positions: [] as Position[] };
@@ -288,13 +291,19 @@ export class PortfolioController extends Controller {
       const result = await getPortfolioService().getPortfolioById(id);
 
       if (!result.success) {
-        this.setStatus(mapErrorCodeToStatus(result.error!.code));
-        throw { success: false, message: result.error!.message };
+        const error = result.error;
+        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
+        throw { success: false, message: error?.message || 'Failed to fetch portfolio' };
+      }
+
+      if (!result.data) {
+        this.setStatus(500);
+        throw { success: false, message: 'Failed to fetch portfolio' };
       }
 
       return {
         success: true,
-        data: { portfolio: result.data! }
+        data: { portfolio: result.data }
       };
     } catch (error) {
       if ((error as { success?: boolean }).success === false) {
@@ -332,13 +341,19 @@ export class PortfolioController extends Controller {
       const result = await getPortfolioService().getPortfolioWithPositions(id);
 
       if (!result.success) {
-        this.setStatus(mapErrorCodeToStatus(result.error!.code));
-        throw { success: false, message: result.error!.message };
+        const error = result.error;
+        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
+        throw { success: false, message: error?.message || 'Failed to fetch portfolio summary' };
+      }
+
+      if (!result.data) {
+        this.setStatus(500);
+        throw { success: false, message: 'Failed to fetch portfolio summary' };
       }
 
       return {
         success: true,
-        data: result.data!
+        data: result.data
       };
     } catch (error) {
       if ((error as { success?: boolean }).success === false) {
@@ -373,14 +388,20 @@ export class PortfolioController extends Controller {
       const result = await getPortfolioService().createPortfolio(requestBody, authenticatedUser);
 
       if (!result.success) {
-        this.setStatus(mapErrorCodeToStatus(result.error!.code));
-        throw { success: false, message: result.error!.message };
+        const error = result.error;
+        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
+        throw { success: false, message: error?.message || 'Failed to create portfolio' };
+      }
+
+      if (!result.data) {
+        this.setStatus(500);
+        throw { success: false, message: 'Failed to create portfolio' };
       }
 
       this.setStatus(201);
       return {
         success: true,
-        data: { portfolio: result.data! }
+        data: { portfolio: result.data }
       };
     } catch (error) {
       if ((error as { success?: boolean }).success === false) {
@@ -425,13 +446,19 @@ export class PortfolioController extends Controller {
       const result = await getPortfolioService().updatePortfolio(id, requestBody, authenticatedUser);
 
       if (!result.success) {
-        this.setStatus(mapErrorCodeToStatus(result.error!.code));
-        throw { success: false, message: result.error!.message };
+        const error = result.error;
+        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
+        throw { success: false, message: error?.message || 'Failed to update portfolio' };
+      }
+
+      if (!result.data) {
+        this.setStatus(500);
+        throw { success: false, message: 'Failed to update portfolio' };
       }
 
       return {
         success: true,
-        data: { portfolio: result.data! }
+        data: { portfolio: result.data }
       };
     } catch (error) {
       if ((error as { success?: boolean }).success === false) {
@@ -475,21 +502,28 @@ export class PortfolioController extends Controller {
       // Check if can delete
       const canDeleteResult = await portfolioService.canDelete(id);
       if (!canDeleteResult.success) {
-        this.setStatus(mapErrorCodeToStatus(canDeleteResult.error!.code));
-        throw { success: false, message: canDeleteResult.error!.message };
+        const error = canDeleteResult.error;
+        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
+        throw { success: false, message: error?.message || 'Failed to validate portfolio deletion' };
       }
 
-      if (!canDeleteResult.data!.canDelete) {
+      if (!canDeleteResult.data) {
+        this.setStatus(500);
+        throw { success: false, message: 'Failed to validate portfolio deletion' };
+      }
+
+      if (!canDeleteResult.data.canDelete) {
         this.setStatus(409);
-        throw { success: false, message: canDeleteResult.data!.reason };
+        throw { success: false, message: canDeleteResult.data.reason };
       }
 
       const authenticatedUser = (request as any).user;
       const result = await portfolioService.deletePortfolio(id, authenticatedUser);
 
       if (!result.success) {
-        this.setStatus(mapErrorCodeToStatus(result.error!.code));
-        throw { success: false, message: result.error!.message };
+        const error = result.error;
+        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
+        throw { success: false, message: error?.message || 'Failed to delete portfolio' };
       }
 
       return {

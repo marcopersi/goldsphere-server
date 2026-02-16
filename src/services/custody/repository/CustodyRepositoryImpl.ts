@@ -212,7 +212,13 @@ export class CustodyRepositoryImpl implements ICustodyRepository {
       data.currencyId, data.minWeight || null, data.maxWeight || null,
       auditUser.id, auditUser.id,
     ]);
-    return (await this.findById(result.rows[0].id))!;
+
+    const created = await this.findById(result.rows[0].id);
+    if (!created) {
+      throw new Error(`Failed to load created custody service: ${result.rows[0].id}`);
+    }
+
+    return created;
   }
 
   async update(id: string, data: {
@@ -243,7 +249,13 @@ export class CustodyRepositoryImpl implements ICustodyRepository {
     values.push(id);
 
     await this.pool.query(`UPDATE custodyService SET ${updates.join(', ')} WHERE id = $${idx}`, values);
-    return (await this.findById(id))!;
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error(`Failed to load updated custody service: ${id}`);
+    }
+
+    return updated;
   }
 
   async delete(id: string, _authenticatedUser: AuditTrailUser): Promise<void> {

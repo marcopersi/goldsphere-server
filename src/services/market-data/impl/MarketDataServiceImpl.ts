@@ -107,8 +107,12 @@ export class MarketDataServiceImpl implements IMarketDataService {
       const currency = query.currency || 'USD';
       const limit = query.limit || 100;
 
+      if (!metalId) {
+        throw new Error('Failed to resolve metalId');
+      }
+
       return await this.repository.getHistoricalPrices(
-        metalId!,
+        metalId,
         startDate,
         endDate,
         currency,

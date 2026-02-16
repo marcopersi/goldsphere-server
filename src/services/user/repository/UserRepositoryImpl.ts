@@ -5,7 +5,7 @@
  * Uses dependency injection for the database pool.
  */
 
-import { Pool, PoolClient } from 'pg';
+import { Pool } from 'pg';
 import { IUserRepository, TransactionCallback } from './IUserRepository';
 import { AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
 import {

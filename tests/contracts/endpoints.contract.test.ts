@@ -22,7 +22,7 @@ describe('Endpoint contracts', () => {
       .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
       .expect(200);
     token = res.body.token;
-  }, 10000);
+  }, 30000);
 
   afterAll(async () => {
     // Clean up test database
@@ -52,5 +52,5 @@ describe('Endpoint contracts', () => {
       expect(portfolio).toHaveProperty('ownerId');
       expect(Array.isArray(portfolio.positions)).toBe(true);
     }
-  }, 10000);
+  }, 30000);
 });

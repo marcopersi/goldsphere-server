@@ -22,7 +22,7 @@ import {
 } from "tsoa";
 import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
-import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
+import { requireAuthenticatedUser } from "../utils/auditTrail";
 import { CustodianServiceFactory, CustodianDTO } from "../services/custodian";
 
 // ============================================================================

@@ -43,7 +43,7 @@ export function requestMetadataMiddleware(req: Request, res: Response, next: Nex
     
     // Add metadata to response
     const metadata: ResponseMetadata = {
-      requestId: req.requestId!,
+      requestId: req.requestId || uuidv4(),
       timestamp: new Date().toISOString(),
       ...(executionTime !== undefined && { executionTime }),
     };
@@ -67,7 +67,7 @@ export function getRequestMetadata(req: Request): ResponseMetadata {
   const executionTime = req.startTime ? Date.now() - req.startTime : undefined;
   
   return {
-    requestId: req.requestId!,
+    requestId: req.requestId || uuidv4(),
     timestamp: new Date().toISOString(),
     ...(executionTime !== undefined && { executionTime }),
   };

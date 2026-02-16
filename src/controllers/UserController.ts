@@ -23,7 +23,7 @@ import {
 } from 'tsoa';
 import type { Request as ExpressRequest } from 'express';
 import { getPool } from '../dbConfig';
-import { requireAuthenticatedUser, AuthenticationError } from '../utils/auditTrail';
+import { requireAuthenticatedUser } from '../utils/auditTrail';
 import { UuidSchema } from '@marcopersi/shared';
 import { 
   UserServiceFactory, 
@@ -303,9 +303,14 @@ export class UserController extends Controller {
       throw new Error(result.error || 'Failed to fetch users');
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      throw new Error('Failed to fetch users');
+    }
+
     return {
       success: true,
-      data: result.data!.users.map(user => ({
+      data: result.data.users.map(user => ({
         id: user.id,
         email: user.email,
         role: user.role,
@@ -313,7 +318,7 @@ export class UserController extends Controller {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })),
-      pagination: result.data!.pagination,
+      pagination: result.data.pagination,
     };
   }
 
@@ -335,9 +340,14 @@ export class UserController extends Controller {
       throw new Error(result.error || 'Failed to fetch blocked users');
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      throw new Error('Failed to fetch blocked users');
+    }
+
     return {
       success: true,
-      data: result.data!.map(user => ({
+      data: result.data.map(user => ({
         id: user.id,
         email: user.email,
         accountStatus: user.accountStatus || 'blocked',
@@ -381,15 +391,23 @@ export class UserController extends Controller {
       };
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: 'Failed to fetch user'
+      };
+    }
+
     return {
       success: true,
       data: {
-        id: result.data!.id,
-        email: result.data!.email,
-        role: result.data!.role,
-        emailVerified: result.data!.emailVerified,
-        createdAt: result.data!.createdAt,
-        updatedAt: result.data!.updatedAt,
+        id: result.data.id,
+        email: result.data.email,
+        role: result.data.role,
+        emailVerified: result.data.emailVerified,
+        createdAt: result.data.createdAt,
+        updatedAt: result.data.updatedAt,
       },
     };
   }
@@ -429,7 +447,15 @@ export class UserController extends Controller {
       };
     }
 
-    const { user, profile, address, verificationStatus } = result.data!;
+    if (!result.data) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: 'Failed to fetch user details'
+      };
+    }
+
+    const { user, profile, address, verificationStatus } = result.data;
 
     return {
       success: true,
@@ -509,14 +535,22 @@ export class UserController extends Controller {
       };
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: 'Failed to create user'
+      };
+    }
+
     this.setStatus(201);
     return {
       success: true,
       data: {
-        id: result.data!.id,
-        email: result.data!.email,
-        role: result.data!.role,
-        createdAt: result.data!.createdAt,
+        id: result.data.id,
+        email: result.data.email,
+        role: result.data.role,
+        createdAt: result.data.createdAt,
       },
       message: 'User created successfully',
     };
@@ -582,14 +616,22 @@ export class UserController extends Controller {
       };
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      return {
+        success: false,
+        error: 'Failed to update user'
+      };
+    }
+
     return {
       success: true,
       data: {
-        id: result.data!.id,
-        email: result.data!.email,
-        role: result.data!.role,
-        emailVerified: result.data!.emailVerified,
-        updatedAt: result.data!.updatedAt,
+        id: result.data.id,
+        email: result.data.email,
+        role: result.data.role,
+        emailVerified: result.data.emailVerified,
+        updatedAt: result.data.updatedAt,
       },
       message: 'User updated successfully',
     };
@@ -636,15 +678,20 @@ export class UserController extends Controller {
       throw new Error(result.error || 'Failed to block user');
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      throw new Error('Failed to block user');
+    }
+
     return {
       success: true,
       data: {
-        id: result.data!.id,
-        email: result.data!.email,
-        accountStatus: result.data!.accountStatus || 'blocked',
-        blockedAt: result.data!.blockedAt,
-        blockedBy: result.data!.blockedBy,
-        blockReason: result.data!.blockReason,
+        id: result.data.id,
+        email: result.data.email,
+        accountStatus: result.data.accountStatus || 'blocked',
+        blockedAt: result.data.blockedAt,
+        blockedBy: result.data.blockedBy,
+        blockReason: result.data.blockReason,
       },
       message: 'User blocked successfully',
     };
@@ -682,12 +729,17 @@ export class UserController extends Controller {
       throw new Error(result.error || 'Failed to unblock user');
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      throw new Error('Failed to unblock user');
+    }
+
     return {
       success: true,
       data: {
-        id: result.data!.id,
-        email: result.data!.email,
-        role: result.data!.role,
+        id: result.data.id,
+        email: result.data.email,
+        role: result.data.role,
       },
       message: 'User unblocked successfully',
     };
@@ -725,12 +777,17 @@ export class UserController extends Controller {
       throw new Error(result.error || 'Failed to soft delete user');
     }
 
+    if (!result.data) {
+      this.setStatus(500);
+      throw new Error('Failed to soft delete user');
+    }
+
     return {
       success: true,
       data: {
-        id: result.data!.id,
-        email: result.data!.email,
-        role: result.data!.role,
+        id: result.data.id,
+        email: result.data.email,
+        role: result.data.role,
       },
       message: 'User soft deleted successfully',
     };
@@ -762,7 +819,7 @@ export class UserController extends Controller {
     
     // Get user email for response message before deletion
     const userResult = await userService.getUserById(id);
-    const userEmail = userResult.success ? userResult.data!.email : 'Unknown';
+    const userEmail = userResult.success && userResult.data ? userResult.data.email : 'Unknown';
 
     const result = await userService.deleteUser(id);
 

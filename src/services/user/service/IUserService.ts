@@ -10,8 +10,6 @@ import {
   UserProfileEntity,
   UserAddressEntity,
   UserVerificationStatusEntity,
-  CreateUserData,
-  UpdateUserData,
   ListUsersOptions,
   GetUsersResult,
   UserRole,
