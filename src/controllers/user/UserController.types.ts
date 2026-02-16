@@ -8,6 +8,10 @@ export interface UserResponse {
   id: string;
   email: string;
   role: string;
+  accountStatus?: string;
+  blockedAt?: Date | null;
+  blockedBy?: string | null;
+  blockReason?: string | null;
   emailVerified?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
