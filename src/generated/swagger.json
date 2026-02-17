@@ -19,6 +19,22 @@
 					"role": {
 						"type": "string"
 					},
+					"accountStatus": {
+						"type": "string"
+					},
+					"blockedAt": {
+						"type": "string",
+						"format": "date-time",
+						"nullable": true
+					},
+					"blockedBy": {
+						"type": "string",
+						"nullable": true
+					},
+					"blockReason": {
+						"type": "string",
+						"nullable": true
+					},
 					"emailVerified": {
 						"type": "boolean"
 					},
