@@ -6,6 +6,9 @@ let app: any;
 
 describe('Position API', () => {
   let authToken: string;
+  let seededUserId: string;
+  let seededPortfolioId: string;
+  let seededProductId: string;
 
   beforeAll(async () => {
     // Setup fresh test database BEFORE importing app
@@ -25,6 +28,38 @@ describe('Position API', () => {
     if (loginResponse.status === 200) {
       authToken = loginResponse.body.data.accessToken;
     }
+
+    const pool = getPool();
+    const userResult = await pool.query(
+      "SELECT id FROM users WHERE email = 'bank.technical@goldsphere.vault' LIMIT 1"
+    );
+    seededUserId = userResult.rows[0]?.id;
+
+    const productResult = await pool.query('SELECT id, price FROM product LIMIT 1');
+    seededProductId = productResult.rows[0]?.id;
+    const productPrice = Number(productResult.rows[0]?.price || 1000);
+
+    let portfolioResult = await pool.query('SELECT id FROM portfolio WHERE ownerid = $1 LIMIT 1', [seededUserId]);
+    if (portfolioResult.rows.length === 0) {
+      portfolioResult = await pool.query(
+        'INSERT INTO portfolio (portfolioname, ownerid, isactive) VALUES ($1, $2, true) RETURNING id',
+        ['Position Integration Portfolio', seededUserId]
+      );
+    }
+    seededPortfolioId = portfolioResult.rows[0].id;
+
+    const existingPosition = await pool.query(
+      'SELECT id FROM position WHERE userid = $1 AND portfolioid = $2 LIMIT 1',
+      [seededUserId, seededPortfolioId]
+    );
+
+    if (existingPosition.rows.length === 0) {
+      await pool.query(
+        `INSERT INTO position (userid, productid, portfolioid, purchasedate, purchaseprice, marketprice, quantity, status)
+         VALUES ($1, $2, $3, NOW(), $4, $4, 1, 'active')`,
+        [seededUserId, seededProductId, seededPortfolioId, productPrice]
+      );
+    }
   });
 
   afterAll(async () => {
@@ -40,21 +75,34 @@ describe('Position API', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('positions');
+      expect(response.body).toHaveProperty('pagination');
+      expect(response.body).not.toHaveProperty('success');
+      expect(response.body).not.toHaveProperty('data');
       expect(Array.isArray(response.body.positions)).toBe(true);
+      expect(response.body.positions.length).toBeGreaterThan(0);
       
-      // Check if positions have custody information
-      if (response.body.positions.length > 0) {
-        const position = response.body.positions[0];
-        expect(position).toHaveProperty('id');
-        expect(position).toHaveProperty('custodyServiceId');
-        
-        // If position has custody, check structure
-        if (position.custody) {
-          expect(position.custody).toHaveProperty('custodyServiceId');
-          expect(position.custody).toHaveProperty('custodyServiceName');
-          expect(position.custody).toHaveProperty('custodianId');
-          expect(position.custody).toHaveProperty('custodianName');
-        }
+      const position = response.body.positions[0];
+      expect(position).toHaveProperty('id');
+      expect(position).toHaveProperty('custodyServiceId');
+      expect(position).toHaveProperty('product');
+
+      expect(position.product).toHaveProperty('type');
+      expect(position.product).toHaveProperty('productTypeId');
+      expect(position.product).toHaveProperty('stockQuantity');
+      expect(typeof position.product.stockQuantity).toBe('number');
+      expect(position.product.stockQuantity).not.toBeNull();
+
+      if (position.product.year !== undefined) {
+        expect(position.product.year).not.toBeNull();
+        expect(typeof position.product.year).toBe('number');
+      }
+      
+      // If position has custody, check structure
+      if (position.custody) {
+        expect(position.custody).toHaveProperty('custodyServiceId');
+        expect(position.custody).toHaveProperty('custodyServiceName');
+        expect(position.custody).toHaveProperty('custodianId');
+        expect(position.custody).toHaveProperty('custodianName');
       }
     });
 
@@ -65,10 +113,14 @@ describe('Position API', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('positions');
+      expect(response.body).toHaveProperty('pagination');
       
       // All positions should have custodyServiceId field (can be null)
       response.body.positions.forEach((position: any) => {
         expect(position).toHaveProperty('custodyServiceId');
+        expect(position).toHaveProperty('product');
+        expect(position.product).toHaveProperty('stockQuantity');
+        expect(typeof position.product.stockQuantity).toBe('number');
         // custodyServiceId can be null, but field must exist
       });
     });

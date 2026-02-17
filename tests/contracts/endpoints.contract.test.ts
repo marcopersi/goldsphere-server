@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { setupTestDatabase, teardownTestDatabase } from '../integration/db-setup';
+import { getPool } from '../../src/dbConfig';
 
 /**
  * Contract tests to ensure critical endpoints exist and respond.
@@ -133,6 +134,29 @@ describe('Endpoint contracts', () => {
     expect(isIsoTimestamp(custodian.updatedAt)).toBe(true);
   };
 
+  const assertPositionProductContract = (product: any): void => {
+    expect(product).toHaveProperty('id');
+    expect(product).toHaveProperty('name');
+    expect(product).toHaveProperty('type');
+    expect(product).toHaveProperty('productTypeId');
+    expect(product).toHaveProperty('metal');
+    expect(product).toHaveProperty('metalId');
+    expect(product).toHaveProperty('price');
+    expect(product).toHaveProperty('currency');
+    expect(product).toHaveProperty('stockQuantity');
+    expect(product).toHaveProperty('minimumOrderQuantity');
+
+    expect(typeof product.type).toBe('string');
+    expect(typeof product.productTypeId).toBe('string');
+    expect(typeof product.stockQuantity).toBe('number');
+    expect(product.stockQuantity).not.toBeNull();
+
+    if (product.year !== undefined) {
+      expect(product.year).not.toBeNull();
+      expect(typeof product.year).toBe('number');
+    }
+  };
+
   beforeAll(async () => {
     // Setup fresh test database BEFORE importing app
     await setupTestDatabase();
@@ -145,6 +169,41 @@ describe('Endpoint contracts', () => {
       .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
       .expect(200);
     token = res.body.data.accessToken;
+
+    const pool = getPool();
+    const userResult = await pool.query(
+      "SELECT id FROM users WHERE email = 'bank.technical@goldsphere.vault' LIMIT 1"
+    );
+    const userId = userResult.rows[0]?.id;
+
+    const productResult = await pool.query('SELECT id, price FROM product LIMIT 1');
+    const productId = productResult.rows[0]?.id;
+    const productPrice = Number(productResult.rows[0]?.price || 1000);
+
+    if (userId && productId) {
+      let portfolioResult = await pool.query('SELECT id FROM portfolio WHERE ownerid = $1 LIMIT 1', [userId]);
+
+      if (portfolioResult.rows.length === 0) {
+        portfolioResult = await pool.query(
+          'INSERT INTO portfolio (portfolioname, ownerid, isactive) VALUES ($1, $2, true) RETURNING id',
+          ['Contract Position Portfolio', userId]
+        );
+      }
+
+      const portfolioId = portfolioResult.rows[0].id;
+      const positionResult = await pool.query(
+        'SELECT id FROM position WHERE userid = $1 AND portfolioid = $2 LIMIT 1',
+        [userId, portfolioId]
+      );
+
+      if (positionResult.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO position (userid, productid, portfolioid, purchasedate, purchaseprice, marketprice, quantity, status)
+           VALUES ($1, $2, $3, NOW(), $4, $4, 1, 'active')`,
+          [userId, productId, portfolioId, productPrice]
+        );
+      }
+    }
   }, 30000);
 
   afterAll(async () => {
@@ -346,6 +405,31 @@ describe('Endpoint contracts', () => {
     expect(detailRes.body).toHaveProperty('data');
     assertTransactionContract(detailRes.body.data);
     expect(detailRes.body.data).toHaveProperty('analysis');
+  }, 30000);
+
+  it('GET /api/positions returns strict envelope + product contract', async () => {
+    const res = await request(app)
+      .get('/api/positions?page=1&limit=20')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body).toHaveProperty('positions');
+    expect(res.body).toHaveProperty('pagination');
+    expect(Array.isArray(res.body.positions)).toBe(true);
+    expect(res.body.positions.length).toBeGreaterThan(0);
+
+    expect(res.body).not.toHaveProperty('success');
+    expect(res.body).not.toHaveProperty('data');
+
+    expect(res.body.pagination).toHaveProperty('page');
+    expect(res.body.pagination).toHaveProperty('limit');
+    expect(res.body.pagination).toHaveProperty('total');
+    expect(res.body.pagination).toHaveProperty('totalPages');
+
+    const position = res.body.positions[0];
+    expect(position).toHaveProperty('id');
+    expect(position).toHaveProperty('product');
+    assertPositionProductContract(position.product);
   }, 30000);
 
   it('GET /api/users returns strict user list contract', async () => {

@@ -14,173 +14,19 @@ import {
   Security
 } from "tsoa";
 import { getPool } from "../dbConfig";
-import { PositionSchema } from "@marcopersi/shared";
-import { PRODUCT_SELECT_QUERY } from "../services/portfolio/repository/PortfolioQueries";
 import { createLogger } from "../utils/logger";
+import {
+  mapDatabaseRowToPosition,
+  toSchemaCompatiblePosition
+} from "./positions/PositionDataMapper";
+import type {
+  PositionResponse,
+  PositionsErrorResponse,
+  PositionsListResponse,
+  PositionsPaginationInfo
+} from "./positions/PositionsTypes";
 
 const logger = createLogger("PositionsController");
-
-// Interfaces for responses
-interface PositionsErrorResponse {
-  success: false;
-  error: string;
-  details?: string;
-}
-
-interface PositionsPaginationInfo {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
-interface PositionsProductInfo {
-  id: string;
-  name: string;
-  type: string;
-  productTypeId: string;
-  metal: { id: string; name: string; symbol: string };
-  metalId: string;
-  weight: number;
-  weightUnit: string;
-  purity: number;
-  price: number;
-  currency: string;
-  producer: string;
-  producerId: string;
-  country: string | null;
-  countryId?: string;
-  year?: number;
-  description: string;
-  imageUrl: string | null;
-  inStock: boolean;
-  minimumOrderQuantity: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface PositionsCustodyInfo {
-  custodyServiceId: string;
-  custodyServiceName: string;
-  custodianId: string;
-  custodianName: string;
-  fee: number;
-  paymentFrequency: string;
-}
-
-interface PositionDetail {
-  id: string;
-  userId: string;
-  productId: string;
-  portfolioId: string;
-  product: PositionsProductInfo;
-  purchaseDate: Date;
-  purchasePrice: number;
-  marketPrice: number;
-  quantity: number;
-  custodyServiceId: string | null;
-  custody: PositionsCustodyInfo | null;
-  status: string;
-  notes: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface PositionsListResponse {
-  positions: PositionDetail[];
-  pagination: PositionsPaginationInfo;
-  filters?: {
-    status: string;
-  };
-}
-
-// Helper function to fetch full product data for a position
-const fetchProductForPosition = async (productId: string): Promise<PositionsProductInfo> => {
-  const result = await getPool().query(PRODUCT_SELECT_QUERY, [productId]);
-  if (result.rows.length === 0) {
-    throw new Error(`Product not found: ${productId}`);
-  }
-
-  const row = result.rows[0];
-  return {
-    id: row.id,
-    name: row.productname,
-    type: row.producttype,
-    productTypeId: row.producttypeid,
-    metal: { id: row.metal_id, name: row.metalname, symbol: row.metal_symbol },
-    metalId: row.metalid,
-    weight: Number.parseFloat(row.fineweight) || 0,
-    weightUnit: row.unitofmeasure,
-    purity: Number.parseFloat(row.purity) || 0.999,
-    price: Number.parseFloat(row.price) || 0,
-    currency: row.currency,
-    producer: row.producer,
-    producerId: row.producerid,
-    country: row.country || null,
-    countryId: row.countryid || undefined,
-    year: row.productyear || undefined,
-    description: row.description || "",
-    imageUrl: row.imageurl ? `/api/products/${row.id}/image` : null,
-    inStock: row.instock ?? true,
-    minimumOrderQuantity: row.minimumorderquantity || 1,
-    createdAt: row.createdat || new Date(),
-    updatedAt: row.updatedat || new Date()
-  };
-};
-
-// Helper function to convert database row to Position object
-const mapDatabaseRowToPosition = async (row: any): Promise<PositionDetail> => {
-  const product = await fetchProductForPosition(row.productid);
-
-  // Fetch custody information if custodyServiceId exists
-  let custody: PositionsCustodyInfo | null = null;
-  if (row.custodyserviceid) {
-    const custodyQuery = `
-      SELECT 
-        cs.id as custodyServiceId,
-        cs.custodyServiceName,
-        c.id as custodianId,
-        c.custodianName,
-        cs.fee,
-        cs.paymentFrequency
-      FROM custodyService cs
-      JOIN custodian c ON cs.custodianId = c.id
-      WHERE cs.id = $1
-    `;
-    const custodyResult = await getPool().query(custodyQuery, [row.custodyserviceid]);
-    if (custodyResult.rows.length > 0) {
-      const custodyRow = custodyResult.rows[0];
-      custody = {
-        custodyServiceId: custodyRow.custodyserviceid,
-        custodyServiceName: custodyRow.custodyservicename,
-        custodianId: custodyRow.custodianid,
-        custodianName: custodyRow.custodianname,
-        fee: Number.parseFloat(custodyRow.fee) || 0,
-        paymentFrequency: custodyRow.paymentfrequency
-      };
-    }
-  }
-
-  return {
-    id: row.id,
-    userId: row.userid,
-    productId: row.productid,
-    portfolioId: row.portfolioid,
-    product: product,
-    purchaseDate: row.purchasedate || new Date(),
-    purchasePrice: Number.parseFloat(row.purchaseprice) || 0,
-    marketPrice: Number.parseFloat(row.marketprice) || 0,
-    quantity: Number.parseFloat(row.quantity) || 0,
-    custodyServiceId: row.custodyserviceid || null,
-    custody: custody,
-    status: row.status || "active",
-    notes: row.notes || "",
-    createdAt: row.createdat || new Date(),
-    updatedAt: row.updatedat || new Date()
-  };
-};
 
 @Route("positions")
 @Tags("Positions")
@@ -238,7 +84,7 @@ export class PositionsController extends Controller {
       );
 
       const positions = await Promise.all(
-        result.rows.map((row) => mapDatabaseRowToPosition(row))
+        result.rows.map((row) => mapDatabaseRowToPosition(row as Record<string, unknown>))
       );
 
       const pagination: PositionsPaginationInfo = {
@@ -286,7 +132,7 @@ export class PositionsController extends Controller {
       );
 
       const positions = await Promise.all(
-        result.rows.map((row) => mapDatabaseRowToPosition(row))
+        result.rows.map((row) => mapDatabaseRowToPosition(row as Record<string, unknown>))
       );
 
       const pagination: PositionsPaginationInfo = {
@@ -324,7 +170,7 @@ export class PositionsController extends Controller {
   @Response<PositionsErrorResponse>(500, "Internal server error")
   public async getPosition(
     @Path() id: string
-  ): Promise<any> {
+  ): Promise<PositionResponse | PositionsErrorResponse> {
     try {
       const result = await getPool().query("SELECT * FROM position WHERE id = $1", [id]);
 
@@ -337,10 +183,8 @@ export class PositionsController extends Controller {
       }
 
       // Convert the result to a proper Position object
-      const position = await mapDatabaseRowToPosition(result.rows[0]);
-
-      // Validate the response with schema from @marcopersi/shared
-      const validatedPosition = PositionSchema.parse(position);
+      const position = await mapDatabaseRowToPosition(result.rows[0] as Record<string, unknown>);
+      const validatedPosition = toSchemaCompatiblePosition(position);
 
       this.setStatus(200);
       return validatedPosition;

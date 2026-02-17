@@ -78,6 +78,7 @@ export const PRODUCT_SELECT_QUERY = `
     product.description,
     product.imageFilename AS imageurl,
     product.inStock,
+    product.stockQuantity,
     product.minimumOrderQuantity,
     product.createdat,
     product.updatedat

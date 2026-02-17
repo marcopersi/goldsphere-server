@@ -2978,11 +2978,14 @@
 						"type": "string"
 					},
 					"imageUrl": {
-						"type": "string",
-						"nullable": true
+						"type": "string"
 					},
 					"inStock": {
 						"type": "boolean"
+					},
+					"stockQuantity": {
+						"type": "number",
+						"format": "double"
 					},
 					"minimumOrderQuantity": {
 						"type": "number",
@@ -3015,6 +3018,7 @@
 					"description",
 					"imageUrl",
 					"inStock",
+					"stockQuantity",
 					"minimumOrderQuantity",
 					"createdAt",
 					"updatedAt"
@@ -3220,168 +3224,6 @@
 				"required": [
 					"success",
 					"error"
-				],
-				"type": "object",
-				"additionalProperties": false
-			},
-			"PortfolioSummary": {
-				"properties": {
-					"id": {
-						"type": "string"
-					},
-					"portfolioName": {
-						"type": "string"
-					},
-					"ownerId": {
-						"type": "string"
-					},
-					"ownerDisplayName": {
-						"type": "string"
-					},
-					"ownerName": {
-						"type": "string"
-					},
-					"ownerEmail": {
-						"type": "string"
-					},
-					"description": {
-						"type": "string",
-						"nullable": true
-					},
-					"isActive": {
-						"type": "boolean"
-					},
-					"totalValue": {
-						"type": "number",
-						"format": "double"
-					},
-					"totalCost": {
-						"type": "number",
-						"format": "double"
-					},
-					"totalGainLoss": {
-						"type": "number",
-						"format": "double"
-					},
-					"totalGainLossPercentage": {
-						"type": "number",
-						"format": "double"
-					},
-					"positionCount": {
-						"type": "number",
-						"format": "double"
-					},
-					"lastUpdated": {
-						"type": "string",
-						"format": "date-time"
-					},
-					"createdAt": {
-						"type": "string",
-						"format": "date-time"
-					},
-					"updatedAt": {
-						"type": "string",
-						"format": "date-time"
-					}
-				},
-				"required": [
-					"id",
-					"portfolioName",
-					"ownerId",
-					"isActive",
-					"totalValue",
-					"totalCost",
-					"totalGainLoss",
-					"totalGainLossPercentage",
-					"positionCount",
-					"lastUpdated",
-					"createdAt",
-					"updatedAt"
-				],
-				"type": "object",
-				"additionalProperties": false
-			},
-			"PortfolioListResponse": {
-				"properties": {
-					"success": {
-						"type": "boolean",
-						"enum": [
-							true
-						],
-						"nullable": false
-					},
-					"data": {
-						"properties": {
-							"pagination": {
-								"properties": {
-									"totalPages": {
-										"type": "number",
-										"format": "double"
-									},
-									"total": {
-										"type": "number",
-										"format": "double"
-									},
-									"limit": {
-										"type": "number",
-										"format": "double"
-									},
-									"page": {
-										"type": "number",
-										"format": "double"
-									}
-								},
-								"required": [
-									"totalPages",
-									"total",
-									"limit",
-									"page"
-								],
-								"type": "object"
-							},
-							"portfolios": {
-								"items": {
-									"$ref": "#/components/schemas/PortfolioSummary"
-								},
-								"type": "array"
-							}
-						},
-						"required": [
-							"pagination",
-							"portfolios"
-						],
-						"type": "object"
-					}
-				},
-				"required": [
-					"success",
-					"data"
-				],
-				"type": "object",
-				"additionalProperties": false
-			},
-			"PortfolioErrorResponse": {
-				"properties": {
-					"success": {
-						"type": "boolean",
-						"enum": [
-							false
-						],
-						"nullable": false
-					},
-					"error": {
-						"type": "string"
-					},
-					"message": {
-						"type": "string"
-					},
-					"errors": {
-						"items": {},
-						"type": "array"
-					}
-				},
-				"required": [
-					"success"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -3638,6 +3480,171 @@
 					"id"
 				],
 				"type": "object"
+			},
+			"PositionResponse": {
+				"$ref": "#/components/schemas/infer_typeofPositionSchema_"
+			},
+			"PortfolioSummary": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"portfolioName": {
+						"type": "string"
+					},
+					"ownerId": {
+						"type": "string"
+					},
+					"ownerDisplayName": {
+						"type": "string"
+					},
+					"ownerName": {
+						"type": "string"
+					},
+					"ownerEmail": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string",
+						"nullable": true
+					},
+					"isActive": {
+						"type": "boolean"
+					},
+					"totalValue": {
+						"type": "number",
+						"format": "double"
+					},
+					"totalCost": {
+						"type": "number",
+						"format": "double"
+					},
+					"totalGainLoss": {
+						"type": "number",
+						"format": "double"
+					},
+					"totalGainLossPercentage": {
+						"type": "number",
+						"format": "double"
+					},
+					"positionCount": {
+						"type": "number",
+						"format": "double"
+					},
+					"lastUpdated": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"updatedAt": {
+						"type": "string",
+						"format": "date-time"
+					}
+				},
+				"required": [
+					"id",
+					"portfolioName",
+					"ownerId",
+					"isActive",
+					"totalValue",
+					"totalCost",
+					"totalGainLoss",
+					"totalGainLossPercentage",
+					"positionCount",
+					"lastUpdated",
+					"createdAt",
+					"updatedAt"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PortfolioListResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"data": {
+						"properties": {
+							"pagination": {
+								"properties": {
+									"totalPages": {
+										"type": "number",
+										"format": "double"
+									},
+									"total": {
+										"type": "number",
+										"format": "double"
+									},
+									"limit": {
+										"type": "number",
+										"format": "double"
+									},
+									"page": {
+										"type": "number",
+										"format": "double"
+									}
+								},
+								"required": [
+									"totalPages",
+									"total",
+									"limit",
+									"page"
+								],
+								"type": "object"
+							},
+							"portfolios": {
+								"items": {
+									"$ref": "#/components/schemas/PortfolioSummary"
+								},
+								"type": "array"
+							}
+						},
+						"required": [
+							"pagination",
+							"portfolios"
+						],
+						"type": "object"
+					}
+				},
+				"required": [
+					"success",
+					"data"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"PortfolioErrorResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							false
+						],
+						"nullable": false
+					},
+					"error": {
+						"type": "string"
+					},
+					"message": {
+						"type": "string"
+					},
+					"errors": {
+						"items": {},
+						"type": "array"
+					}
+				},
+				"required": [
+					"success"
+				],
+				"type": "object",
+				"additionalProperties": false
 			},
 			"Position": {
 				"$ref": "#/components/schemas/infer_typeofPositionSchema_"
@@ -9932,7 +9939,16 @@
 						"description": "Position retrieved successfully",
 						"content": {
 							"application/json": {
-								"schema": {}
+								"schema": {
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/PositionResponse"
+										},
+										{
+											"$ref": "#/components/schemas/PositionsErrorResponse"
+										}
+									]
+								}
 							}
 						}
 					},

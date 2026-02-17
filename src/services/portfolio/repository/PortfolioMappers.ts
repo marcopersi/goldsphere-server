@@ -8,37 +8,7 @@ import { Pool } from 'pg';
 import { PositionSchema } from '@marcopersi/shared';
 import { PortfolioSummary, Position } from '../types/PortfolioTypes';
 import { PRODUCT_SELECT_QUERY, CUSTODY_SELECT_QUERY } from './PortfolioQueries';
-import { createLogger } from '../../../utils/logger';
-import { getRequiredEnvVar } from '../../../config/environment';
-
-const logger = createLogger('PortfolioMappers');
-
-function configureBaseURL(): string {
-  const configuredBaseUrl = getRequiredEnvVar('APP_BASE_URL');
-
-  let composedUrl: URL;
-  try {
-    composedUrl = new URL(configuredBaseUrl);
-  } catch {
-    logger.error('Invalid APP_BASE_URL. Unable to build product image URL.', {
-      configuredBaseUrl,
-    });
-    throw new Error(`Invalid APP_BASE_URL: ${configuredBaseUrl}`);
-  }
-
-  const configuredPort = process.env.PORT;
-  if (configuredPort) {
-    composedUrl.port = configuredPort;
-  }
-
-  const finalBaseUrl = composedUrl.toString().endsWith('/')
-    ? composedUrl.toString().slice(0, -1)
-    : composedUrl.toString();
-
-  logger.debug('Configured API base URL', { fullUrl: finalBaseUrl });
-
-  return finalBaseUrl;
-}
+import { getApiBaseUrl } from '../../../utils/getApiBaseUrl';
 
 /**
  * Map database row to PortfolioSummary
@@ -104,7 +74,7 @@ async function fetchProductForPosition(pool: Pool, productId: string) {
   }
 
   const row = result.rows[0];
-  const apiBaseUrl = configureBaseURL();
+  const apiBaseUrl = getApiBaseUrl();
   const imageUrl = `${apiBaseUrl}/api/products/${row.id}/image`;
 
   return {
@@ -123,7 +93,7 @@ async function fetchProductForPosition(pool: Pool, productId: string) {
     currency: row.currency,
     country: row.country || undefined,
     countryId: row.countryid || undefined,
-    year: row.productyear || undefined,
+    year: row.productyear ?? undefined,
     description: row.description || '',
     imageUrl,
     inStock: row.instock ?? true,

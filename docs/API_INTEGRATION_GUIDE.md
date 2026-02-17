@@ -409,7 +409,7 @@ Authorization: Bearer <your-jwt-token>
 
 ### Response Format
 
-All API responses follow this structure:
+Most API responses follow this structure:
 
 ```json
 {
@@ -418,6 +418,11 @@ All API responses follow this structure:
   "message": "Operation successful"
 }
 ```
+
+**Envelope strategy (stabilized in v1):**
+- `GET /api/products` and most CRUD/reference endpoints use `{ success, data, message }`
+- `GET /api/positions`, `GET /api/positions/{id}`, and `GET /api/positions/portfolios/{portfolioId}/positions` use the legacy direct payload format (`{ positions, pagination }` for lists, raw position object for detail)
+- This split is intentional for backward compatibility in API `1.x`; any envelope harmonization is a breaking change and must be released as `2.x`
 
 **For collection endpoints (lists), the response uses a standardized pagination structure:**
 
