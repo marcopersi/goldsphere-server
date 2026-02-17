@@ -24,6 +24,7 @@ export class TokenService implements ITokenService {
 
   async generateJwtToken(user: UserEntity, profile: UserProfileEntity): Promise<{
     token: string;
+    expiresIn: number;
     expiresAt: string;
   }> {
     try {
@@ -38,22 +39,21 @@ export class TokenService implements ITokenService {
         expiresIn: this.jwtExpirationTime,
       } as jwt.SignOptions);
 
-      // Calculate expiration timestamp
-      const expiresAt = new Date();
-      if (this.jwtExpirationTime.endsWith('h')) {
-        const hours = Number.parseInt(this.jwtExpirationTime.slice(0, -1));
-        expiresAt.setHours(expiresAt.getHours() + hours);
-      } else if (this.jwtExpirationTime.endsWith('d')) {
-        const days = Number.parseInt(this.jwtExpirationTime.slice(0, -1));
-        expiresAt.setDate(expiresAt.getDate() + days);
-      } else {
-        // Default to 24 hours if format is unclear
-        expiresAt.setHours(expiresAt.getHours() + 24);
+      const decoded = jwt.decode(token) as jwt.JwtPayload | null;
+      if (!decoded || typeof decoded.exp !== 'number') {
+        throw new Error('Unable to decode token expiration metadata');
       }
+
+      const issuedAtSeconds = typeof decoded.iat === 'number'
+        ? decoded.iat
+        : Math.floor(Date.now() / 1000);
+      const expiresIn = Math.max(0, decoded.exp - issuedAtSeconds);
+      const expiresAt = new Date(decoded.exp * 1000).toISOString();
 
       return {
         token,
-        expiresAt: expiresAt.toISOString(),
+        expiresIn,
+        expiresAt,
       };
     } catch (error) {
       console.error('Error generating JWT token:', error);

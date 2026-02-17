@@ -1210,6 +1210,12 @@
 					"role": {
 						"type": "string"
 					},
+					"firstName": {
+						"type": "string"
+					},
+					"lastName": {
+						"type": "string"
+					},
 					"profile": {
 						"$ref": "#/components/schemas/UserProfile"
 					}
@@ -1218,6 +1224,8 @@
 					"id",
 					"email",
 					"role",
+					"firstName",
+					"lastName",
 					"profile"
 				],
 				"type": "object",
@@ -1238,6 +1246,10 @@
 					"token": {
 						"type": "string"
 					},
+					"expiresIn": {
+						"type": "number",
+						"format": "double"
+					},
 					"expiresAt": {
 						"type": "string"
 					}
@@ -1246,7 +1258,7 @@
 					"success",
 					"user",
 					"token",
-					"expiresAt"
+					"expiresIn"
 				],
 				"type": "object",
 				"additionalProperties": false

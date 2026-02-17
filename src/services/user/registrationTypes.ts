@@ -80,6 +80,8 @@ export interface RegisteredUser {
   id: string;
   email: string;
   role: string;
+  firstName: string;
+  lastName: string;
   profile: UserProfile;
 }
 
@@ -87,7 +89,8 @@ export interface EnhancedRegistrationResponse {
   success: true;
   user: RegisteredUser;
   token: string;
-  expiresAt: string;
+  expiresIn: number;
+  expiresAt?: string;
 }
 
 export interface ValidationError {

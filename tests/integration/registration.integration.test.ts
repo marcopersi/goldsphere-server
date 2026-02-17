@@ -91,6 +91,8 @@ describe('Enhanced User Registration API', () => {
           user: {
             email: testData.personalInfo.email,
             role: 'customer',
+            firstName: testData.personalInfo.firstName,
+            lastName: testData.personalInfo.lastName,
             profile: {
               title: testData.personalInfo.title,
               firstName: testData.personalInfo.firstName,
@@ -116,10 +118,12 @@ describe('Enhanced User Registration API', () => {
             },
           },
           token: expect.any(String),
+          expiresIn: expect.any(Number),
           expiresAt: expect.any(String),
         });
 
         expect(response.body.user.id).toBeDefined();
+        expect(response.body.expiresIn).toBeGreaterThan(0);
         expect(response.body.user.profile.birthDate).toMatch(/^1990-05-1[45]$/);
         expect(response.body.user.profile.createdAt).toBeDefined();
         expect(new Date(response.body.expiresAt)).toBeInstanceOf(Date);

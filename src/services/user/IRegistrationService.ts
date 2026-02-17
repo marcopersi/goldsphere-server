@@ -124,6 +124,7 @@ export interface ITokenService {
    */
   generateJwtToken(user: UserEntity, profile: UserProfileEntity): Promise<{
     token: string;
+    expiresIn: number;
     expiresAt: string;
   }>;
 

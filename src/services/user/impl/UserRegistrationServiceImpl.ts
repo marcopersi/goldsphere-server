@@ -149,10 +149,10 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
       }
 
       // Step 6: Generate JWT token
-      const { token, expiresAt } = await this.tokenService.generateJwtToken(result.user, result.profile);
+      const { token, expiresIn, expiresAt } = await this.tokenService.generateJwtToken(result.user, result.profile);
 
       // Step 7: Return success response
-      return this.createSuccessResponse(result.user, result.profile, result.address, token, expiresAt);
+      return this.createSuccessResponse(result.user, result.profile, result.address, token, expiresIn, expiresAt);
 
     } catch (error) {
       console.error('User registration failed:', error);
@@ -218,6 +218,7 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
     profile: UserProfileEntity,
     address: UserAddressEntity,
     token: string,
+    expiresIn: number,
     expiresAt: string
   ): EnhancedRegistrationResponse {
     return {
@@ -226,6 +227,8 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
         id: user.id,
         email: user.email,
         role: user.role,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
         profile: {
           title: profile.title,
           firstName: profile.firstName,
@@ -253,6 +256,7 @@ export class UserRegistrationServiceImpl implements IUserRegistrationService {
         },
       },
       token,
+      expiresIn,
       expiresAt,
     };
   }
