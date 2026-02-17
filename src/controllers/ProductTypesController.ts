@@ -25,6 +25,12 @@ import { createLogger } from "../utils/logger";
 
 const logger = createLogger("ProductTypesController");
 
+function createHttpError(status: number, message: string): Error & { status: number } {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  return error;
+}
+
 interface ProductTypesErrorResponse {
   success: false;
   error: string;
@@ -147,12 +153,15 @@ export class ProductTypesController extends Controller {
       };
     } catch (error) {
       logger.error("Failed to fetch product type", error, { id });
-      if ((error as Error).message.includes("not found")) {
-        this.setStatus(404);
-        throw new Error("Product type not found");
+      const httpError = error as Error & { status?: number };
+      if (typeof httpError.status === "number") {
+        throw httpError;
       }
-      this.setStatus(500);
-      throw new Error("Failed to fetch product type");
+
+      if ((error as Error).message.includes("not found")) {
+        throw createHttpError(404, "Product type not found");
+      }
+      throw createHttpError(500, "Failed to fetch product type");
     }
   }
 }

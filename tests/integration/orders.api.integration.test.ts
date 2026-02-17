@@ -125,8 +125,7 @@ describe("Orders API", () => {
         .get("/api/orders")
         .set("Authorization", `Bearer ${authToken}`);
 
-      // Should succeed or handle gracefully
-      expect([200, 500].includes(response.status)).toBe(true);
+      expect(response.status).toBe(200);
       
       if (response.status === 200) {
         expect(Array.isArray(response.body.orders)).toBe(true);
@@ -228,7 +227,7 @@ describe("Orders API", () => {
         .send(invalidOrder);
 
       // Should reject invalid data
-      expect([400, 422, 500].includes(response.status)).toBe(true);
+      expect([400, 422].includes(response.status)).toBe(true);
     });
   });
 
@@ -251,7 +250,7 @@ describe("Orders API", () => {
         .set("Authorization", `Bearer ${authToken}`);
 
       // Should handle invalid ID gracefully
-      expect([404, 400, 500].includes(response.status)).toBe(true);
+      expect([404, 400].includes(response.status)).toBe(true);
     });
   });
 
@@ -909,16 +908,12 @@ describe("Orders API", () => {
       try {
         const response = await request(app)
           .get(`/api/orders/${orderId}/detailed`)
-          .set('Authorization', `Bearer ${authToken}`);
+          .set('Authorization', `Bearer ${authToken}`)
+          .expect(200);
 
-        // Endpoint may return 500 if product/custody joins fail for pending orders
-        if (response.status === 200) {
-          expect(response.body).toHaveProperty('success', true);
-          expect(response.body).toHaveProperty('data');
-          expect(response.body.data).toHaveProperty('id', orderId);
-        } else {
-          expect([200, 500]).toContain(response.status);
-        }
+        expect(response.body).toHaveProperty('success', true);
+        expect(response.body).toHaveProperty('data');
+        expect(response.body.data).toHaveProperty('id', orderId);
       } finally {
         await pool.query('DELETE FROM order_items WHERE orderid = $1', [orderId]);
         await pool.query('DELETE FROM orders WHERE id = $1', [orderId]);
@@ -928,9 +923,8 @@ describe("Orders API", () => {
     it('should return 404 for non-existent order', async () => {
       const response = await request(app)
         .get('/api/orders/00000000-0000-0000-0000-000000000000/detailed')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect([404, 500]).toContain(response.status);
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(404);
     });
   });
 
@@ -969,7 +963,7 @@ describe("Orders API", () => {
         .post('/api/orders/00000000-0000-0000-0000-000000000000/cancel')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 });

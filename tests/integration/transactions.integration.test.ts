@@ -109,7 +109,7 @@ describe('Transactions API', () => {
           notes: 'Integration test transaction'
         });
 
-      // May succeed (201) or fail if position doesn't support transactions
+      // May succeed (201) or fail with expected client/not-found errors
       if (response.status === 201) {
         expect(response.body).toHaveProperty('success', true);
         expect(response.body).toHaveProperty('data');
@@ -120,7 +120,7 @@ describe('Transactions API', () => {
           await pool.query('DELETE FROM transactions WHERE id = $1', [txId]);
         }
       } else {
-        expect([201, 400, 404, 500]).toContain(response.status);
+        expect([201, 400, 404]).toContain(response.status);
       }
     });
 
@@ -171,7 +171,7 @@ describe('Transactions API', () => {
         expect(response.body).toHaveProperty('success', true);
         expect(response.body).toHaveProperty('data');
       } else {
-        expect([200, 404, 500]).toContain(response.status);
+        expect([200, 404]).toContain(response.status);
       }
     });
 
@@ -180,7 +180,7 @@ describe('Transactions API', () => {
         .get('/api/transactions/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
 
     it('should return 400 for invalid UUID', async () => {
@@ -188,7 +188,7 @@ describe('Transactions API', () => {
         .get('/api/transactions/invalid-uuid')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([400, 500]).toContain(response.status);
+      expect(response.status).toBe(400);
     });
   });
 });

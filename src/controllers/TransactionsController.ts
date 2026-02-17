@@ -17,11 +17,39 @@ import {
   Request
 } from "tsoa";
 import { z } from "zod";
-import { Transaction } from "@marcopersi/shared";
 import { getPool } from "../dbConfig";
 import { createLogger } from "../utils/logger";
 
 const logger = createLogger("TransactionsController");
+
+function toIsoTimestamp(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value !== "string") {
+    throw new TypeError("Invalid timestamp value type");
+  }
+
+  const raw = value.trim();
+  const parsedDirect = new Date(raw);
+  if (!Number.isNaN(parsedDirect.getTime())) {
+    return parsedDirect.toISOString();
+  }
+
+  const timestampPattern = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?$/;
+  const match = timestampPattern.exec(raw);
+  if (match) {
+    const milliseconds = (match[3] || "").padEnd(3, "0").slice(0, 3);
+    const isoCandidate = `${match[1]}T${match[2]}.${milliseconds}Z`;
+    const parsed = new Date(isoCandidate);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+
+  throw new Error(`Invalid timestamp format: ${raw}`);
+}
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -88,7 +116,17 @@ interface TransactionsSummary {
   totalFees: number;
 }
 
-interface TransactionItem extends Transaction {
+interface TransactionItem {
+  id: string;
+  positionId: string;
+  userId: string;
+  type: "buy" | "sell";
+  date: Date;
+  quantity: number;
+  price: number;
+  fees: number;
+  notes?: string;
+  createdAt: Date;
   total: number;
   productId?: string;
   productName?: string;
@@ -140,12 +178,12 @@ interface TransactionCreateResponse {
     positionId: string;
     userId: string;
     type: string;
-    date: string;
+    date: Date;
     quantity: number;
     price: number;
     fees: number;
     notes?: string;
-    createdAt: string;
+    createdAt: Date;
     total: number;
     productInfo?: ProductInfo;
     summary: {
@@ -158,6 +196,65 @@ interface TransactionCreateResponse {
       };
     };
   };
+  message: string;
+  timestamp: string;
+}
+
+interface TransactionDetailPosition {
+  productId: string;
+  purchaseDate: Date;
+  purchasePrice: number;
+  currentQuantity: number;
+}
+
+interface TransactionDetailProduct {
+  productId: string;
+  productName: string;
+  type: string;
+  metal: string;
+  weight: number;
+  weightUnit: string;
+  purity: number;
+  currentMarketPrice: number;
+  currency: string;
+  producer: string;
+}
+
+interface TransactionDetailComparedToPosition {
+  positionPurchaseValue: number;
+  transactionPremium: number;
+  transactionPremiumPercent: number;
+}
+
+interface TransactionDetailAnalysis {
+  transactionValue: number;
+  feesPercentage: number;
+  currentMarketValue: number;
+  valueChange: number;
+  valueChangePercent: number;
+  comparedToPosition?: TransactionDetailComparedToPosition;
+}
+
+interface TransactionDetailData {
+  id: string;
+  positionId: string;
+  userId: string;
+  type: string;
+  date: Date;
+  quantity: number;
+  price: number;
+  fees: number;
+  notes?: string;
+  createdAt: Date;
+  total: number;
+  position?: TransactionDetailPosition;
+  product?: TransactionDetailProduct;
+  analysis: TransactionDetailAnalysis;
+}
+
+interface TransactionDetailResponse {
+  success: true;
+  data: TransactionDetailData;
   message: string;
   timestamp: string;
 }
@@ -344,12 +441,12 @@ export class TransactionsController extends Controller {
         positionId: row.positionid,
         userId: row.userid,
         type: row.type,
-        date: row.date,
+        date: new Date(toIsoTimestamp(row.date)),
         quantity: Number.parseFloat(row.quantity) || 0,
         price: Number.parseFloat(row.price) || 0,
         fees: Number.parseFloat(row.fees) || 0,
         notes: row.notes,
-        createdAt: row.createdat,
+        createdAt: new Date(toIsoTimestamp(row.createdat)),
         total: Number.parseFloat(row.total) || 0,
         productId: row.productid || undefined,
         productName: row.name || "Unknown Product"
@@ -522,12 +619,12 @@ export class TransactionsController extends Controller {
           positionId: transaction.positionid,
           userId: transaction.userid,
           type: transaction.type,
-          date: transaction.date,
+          date: new Date(toIsoTimestamp(transaction.date)),
           quantity: Number.parseFloat(transaction.quantity) || 0,
           price: Number.parseFloat(transaction.price) || 0,
           fees: Number.parseFloat(transaction.fees) || 0,
           notes: transaction.notes,
-          createdAt: transaction.createdat,
+          createdAt: new Date(toIsoTimestamp(transaction.createdat)),
           total: transactionTotal,
           productInfo: product.productname
             ? {
@@ -577,7 +674,7 @@ export class TransactionsController extends Controller {
   @Response<TransactionsErrorResponse>(400, "Invalid transaction ID")
   @Response<TransactionsErrorResponse>(404, "Transaction not found")
   @Response<TransactionsErrorResponse>(500, "Internal server error")
-  public async getTransaction(@Path() id: string): Promise<any> {
+  public async getTransaction(@Path() id: string): Promise<TransactionDetailResponse | TransactionsErrorResponse> {
     try {
       // Validate UUID
       const paramValidationResult = UuidPathSchema.safeParse({ id });
@@ -613,8 +710,8 @@ export class TransactionsController extends Controller {
           pr.price as currentMarketPrice,
           pt.producttypename as productType,
           m.name as metal,
-          pr.fineweight as productWeight,
-          pr.unitofmeasure,
+          pr.weight as productWeight,
+          pr.weightunit,
           pr.purity,
           pr.currency as productCurrency,
           prod.producername as producer
@@ -649,22 +746,22 @@ export class TransactionsController extends Controller {
       const currentMarketValue = (Number.parseFloat(row.currentmarketprice) || 0) * transactionQuantity;
       const positionPurchaseValue = (Number.parseFloat(row.positionpurchaseprice) || 0) * transactionQuantity;
 
-      const enrichedResponse = {
+      const enrichedResponse: TransactionDetailData = {
         id: row.id,
         positionId: row.positionid,
         userId: row.userid,
         type: row.type,
-        date: row.date,
+        date: new Date(toIsoTimestamp(row.date)),
         quantity: transactionQuantity,
         price: transactionPrice,
         fees: transactionFees,
         notes: row.notes,
-        createdAt: row.createdat,
+        createdAt: new Date(toIsoTimestamp(row.createdat)),
         total: transactionTotal,
         position: row.productid
           ? {
               productId: row.productid,
-              purchaseDate: row.positionpurchasedate,
+              purchaseDate: new Date(toIsoTimestamp(row.positionpurchasedate)),
               purchasePrice: Number.parseFloat(row.positionpurchaseprice) || 0,
               currentQuantity: Number.parseFloat(row.positionquantity) || 0
             }
@@ -676,7 +773,7 @@ export class TransactionsController extends Controller {
               type: row.producttype,
               metal: row.metal,
               weight: Number.parseFloat(row.productweight) || 0,
-              weightUnit: row.unitofmeasure,
+              weightUnit: row.weightunit,
               purity: Number.parseFloat(row.purity) || 0,
               currentMarketPrice: Number.parseFloat(row.currentmarketprice) || 0,
               currency: row.productcurrency,

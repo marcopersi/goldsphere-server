@@ -43,7 +43,12 @@ type PaymentFrequency = "monthly" | "quarterly" | "annual" | "onetime";
 interface CustodyErrorResponse {
   success: false;
   error: string;
-  details?: unknown;
+  details?: {
+    fields?: Array<{
+      path: string;
+      message: string;
+    }>;
+  };
 }
 
 interface CustodyPaginationInfo {

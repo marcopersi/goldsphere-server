@@ -25,6 +25,12 @@ import { createLogger } from "../utils/logger";
 
 const logger = createLogger("MetalsController");
 
+function createHttpError(status: number, message: string): Error & { status: number } {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  return error;
+}
+
 interface MetalsErrorResponse {
   success: false;
   error: string;
@@ -143,12 +149,15 @@ export class MetalsController extends Controller {
       };
     } catch (error) {
       logger.error("Failed to fetch metal", error, { id });
-      if ((error as Error).message.includes("not found")) {
-        this.setStatus(404);
-        throw new Error("Metal not found");
+      const httpError = error as Error & { status?: number };
+      if (typeof httpError.status === "number") {
+        throw httpError;
       }
-      this.setStatus(500);
-      throw new Error("Failed to fetch metal");
+
+      if ((error as Error).message.includes("not found")) {
+        throw createHttpError(404, "Metal not found");
+      }
+      throw createHttpError(500, "Failed to fetch metal");
     }
   }
 }

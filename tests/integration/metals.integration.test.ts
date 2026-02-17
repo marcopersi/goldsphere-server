@@ -56,7 +56,7 @@ describe('Metals API', () => {
       const response = await request(app)
         .get('/api/metals/00000000-0000-0000-0000-000000000000');
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 

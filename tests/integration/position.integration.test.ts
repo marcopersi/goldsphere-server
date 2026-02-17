@@ -130,7 +130,7 @@ describe('Position API', () => {
         .get('/api/positions/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 });

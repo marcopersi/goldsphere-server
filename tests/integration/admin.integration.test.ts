@@ -112,8 +112,7 @@ describe('Admin API', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .attach('image', pngBuffer, { filename: 'test.png', contentType: 'image/png' });
 
-      // tsoa converts thrown Error to 500 even with setStatus(400)
-      expect([400, 500]).toContain(response.status);
+      expect(response.status).toBe(400);
       expect(response.body.error || response.body.message).toBeTruthy();
     });
 
@@ -126,8 +125,7 @@ describe('Admin API', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .attach('image', pngBuffer, { filename: 'test.png', contentType: 'image/png' });
 
-      // tsoa converts thrown Error to 500 even with setStatus(404)
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
       expect(response.body.error || response.body.message).toBeTruthy();
     });
 
@@ -136,8 +134,7 @@ describe('Admin API', () => {
         .post(`/api/admin/products/${testProductId}/image`)
         .set('Authorization', `Bearer ${adminToken}`);
 
-      // tsoa may return 400 (validation) or 500 (thrown error)
-      expect([400, 500]).toContain(response.status);
+      expect(response.status).toBe(400);
     });
   });
 
@@ -174,8 +171,7 @@ describe('Admin API', () => {
           .post('/api/admin/products/load-images')
           .set('Authorization', `Bearer ${adminToken}`);
 
-        // Endpoint may return 200 or 500 depending on DB column naming
-        expect([200, 500]).toContain(response.status);
+        expect(response.status).toBe(200);
         if (response.status === 200) {
           expect(response.body).toHaveProperty('message');
           expect(response.body).toHaveProperty('results');
@@ -200,8 +196,7 @@ describe('Admin API', () => {
           .post('/api/admin/products/load-images')
           .set('Authorization', `Bearer ${adminToken}`);
 
-        // tsoa converts thrown Error to 500 even with setStatus(404)
-        expect([404, 500]).toContain(response.status);
+        expect(response.status).toBe(404);
       } finally {
         if (originalDir) {
           process.env.PRODUCT_IMAGES_DIR = originalDir;
@@ -221,8 +216,7 @@ describe('Admin API', () => {
           .post('/api/admin/products/load-images')
           .set('Authorization', `Bearer ${adminToken}`);
 
-        // Endpoint may return 200 or 500 depending on DB column naming
-        expect([200, 500]).toContain(response.status);
+        expect(response.status).toBe(200);
         if (response.status === 200) {
           expect(response.body.message).toContain('0 images');
           expect(response.body.results).toEqual([]);

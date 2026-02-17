@@ -50,8 +50,8 @@ describe('Payments API', () => {
       if (response.status === 201 || response.status === 200) {
         expect(response.body).toHaveProperty('success', true);
       } else {
-        // Accept 400 (validation), 500 (Stripe not configured), 502 (external error)
-        expect([200, 201, 400, 500, 502]).toContain(response.status);
+        // Accept 400 (validation) and 502 (external provider/config error)
+        expect([200, 201, 400, 502]).toContain(response.status);
       }
     });
   });
@@ -72,7 +72,7 @@ describe('Payments API', () => {
         .send({});
 
       // Stripe not configured or intent doesn't exist
-      expect([400, 404, 500]).toContain(response.status);
+      expect([400, 404, 502]).toContain(response.status);
     });
   });
 
@@ -89,7 +89,7 @@ describe('Payments API', () => {
         .get('/api/payments/intent/pi_nonexistent')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([400, 404, 500]).toContain(response.status);
+      expect([400, 404, 502]).toContain(response.status);
     });
   });
 
@@ -112,7 +112,7 @@ describe('Payments API', () => {
       if (response.status === 200) {
         expect(response.body).toHaveProperty('success', true);
       } else {
-        expect([200, 400, 500]).toContain(response.status);
+        expect([200, 400, 502]).toContain(response.status);
       }
     });
   });

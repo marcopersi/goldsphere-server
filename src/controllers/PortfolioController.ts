@@ -121,6 +121,12 @@ function mapErrorCodeToStatus(code: PortfolioErrorCode): number {
   }
 }
 
+function createHttpError(status: number, message: string): Error & { status: number } {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  return error;
+}
+
 // ============================================================================
 // Controller
 // ============================================================================
@@ -284,21 +290,21 @@ export class PortfolioController extends Controller {
       // Basic UUID validation
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(id)) {
-        this.setStatus(400);
-        throw { success: false, message: "Invalid portfolio ID format" };
+        throw createHttpError(400, "Invalid portfolio ID format");
       }
 
       const result = await getPortfolioService().getPortfolioById(id);
 
       if (!result.success) {
         const error = result.error;
-        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
-        throw { success: false, message: error?.message || 'Failed to fetch portfolio' };
+        throw createHttpError(
+          mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR),
+          error?.message || "Failed to fetch portfolio"
+        );
       }
 
       if (!result.data) {
-        this.setStatus(500);
-        throw { success: false, message: 'Failed to fetch portfolio' };
+        throw createHttpError(500, "Failed to fetch portfolio");
       }
 
       return {
@@ -306,15 +312,11 @@ export class PortfolioController extends Controller {
         data: { portfolio: result.data }
       };
     } catch (error) {
-      if ((error as { success?: boolean }).success === false) {
-        throw error;
+      const httpError = error as Error & { status?: number };
+      if (typeof httpError.status === "number") {
+        throw httpError;
       }
-      this.setStatus(500);
-      throw {
-        success: false,
-        message: "Failed to fetch portfolio",
-        error: (error as Error).message
-      };
+      throw createHttpError(500, "Failed to fetch portfolio");
     }
   }
 
@@ -438,8 +440,7 @@ export class PortfolioController extends Controller {
       // Basic UUID validation
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(id)) {
-        this.setStatus(400);
-        throw { success: false, message: "Invalid portfolio ID format" };
+        throw createHttpError(400, "Invalid portfolio ID format");
       }
 
       const authenticatedUser = (request as any).user;
@@ -447,13 +448,14 @@ export class PortfolioController extends Controller {
 
       if (!result.success) {
         const error = result.error;
-        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
-        throw { success: false, message: error?.message || 'Failed to update portfolio' };
+        throw createHttpError(
+          mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR),
+          error?.message || "Failed to update portfolio"
+        );
       }
 
       if (!result.data) {
-        this.setStatus(500);
-        throw { success: false, message: 'Failed to update portfolio' };
+        throw createHttpError(500, "Failed to update portfolio");
       }
 
       return {
@@ -461,15 +463,11 @@ export class PortfolioController extends Controller {
         data: { portfolio: result.data }
       };
     } catch (error) {
-      if ((error as { success?: boolean }).success === false) {
-        throw error;
+      const httpError = error as Error & { status?: number };
+      if (typeof httpError.status === "number") {
+        throw httpError;
       }
-      this.setStatus(500);
-      throw {
-        success: false,
-        message: "Failed to update portfolio",
-        error: (error as Error).message
-      };
+      throw createHttpError(500, "Failed to update portfolio");
     }
   }
 
@@ -493,8 +491,7 @@ export class PortfolioController extends Controller {
       // Basic UUID validation
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(id)) {
-        this.setStatus(400);
-        throw { success: false, message: "Invalid portfolio ID format" };
+        throw createHttpError(400, "Invalid portfolio ID format");
       }
 
       const portfolioService = getPortfolioService();
@@ -503,18 +500,18 @@ export class PortfolioController extends Controller {
       const canDeleteResult = await portfolioService.canDelete(id);
       if (!canDeleteResult.success) {
         const error = canDeleteResult.error;
-        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
-        throw { success: false, message: error?.message || 'Failed to validate portfolio deletion' };
+        throw createHttpError(
+          mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR),
+          error?.message || "Failed to validate portfolio deletion"
+        );
       }
 
       if (!canDeleteResult.data) {
-        this.setStatus(500);
-        throw { success: false, message: 'Failed to validate portfolio deletion' };
+        throw createHttpError(500, "Failed to validate portfolio deletion");
       }
 
       if (!canDeleteResult.data.canDelete) {
-        this.setStatus(409);
-        throw { success: false, message: canDeleteResult.data.reason };
+        throw createHttpError(409, canDeleteResult.data.reason || "Portfolio cannot be deleted");
       }
 
       const authenticatedUser = (request as any).user;
@@ -522,8 +519,10 @@ export class PortfolioController extends Controller {
 
       if (!result.success) {
         const error = result.error;
-        this.setStatus(mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR));
-        throw { success: false, message: error?.message || 'Failed to delete portfolio' };
+        throw createHttpError(
+          mapErrorCodeToStatus(error?.code || PortfolioErrorCode.INTERNAL_ERROR),
+          error?.message || "Failed to delete portfolio"
+        );
       }
 
       return {
@@ -531,15 +530,11 @@ export class PortfolioController extends Controller {
         message: "Portfolio deleted successfully"
       };
     } catch (error) {
-      if ((error as { success?: boolean }).success === false) {
-        throw error;
+      const httpError = error as Error & { status?: number };
+      if (typeof httpError.status === "number") {
+        throw httpError;
       }
-      this.setStatus(500);
-      throw {
-        success: false,
-        message: "Failed to delete portfolio",
-        error: (error as Error).message
-      };
+      throw createHttpError(500, "Failed to delete portfolio");
     }
   }
 }

@@ -209,12 +209,12 @@ describe('Custody Service Integration Tests', () => {
       expect(response.body.success).toBe(false);
     });
 
-    it('should return 400 or 500 for invalid UUID format', async () => {
+    it('should return 400 for invalid UUID format', async () => {
       const response = await request(app)
         .get('/api/custody/custodyServices/invalid-uuid')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([400, 500]).toContain(response.status);
+      expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
     });
   });
@@ -359,7 +359,7 @@ describe('Custody Service Integration Tests', () => {
         .delete(`/api/custody/custodyServices/${serviceId}`)
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([200, 409, 500]).toContain(response.status);
+      expect([200, 409]).toContain(response.status);
     });
   });
 });

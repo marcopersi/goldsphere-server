@@ -47,8 +47,7 @@ describe('Currencies API', () => {
       const response = await request(app)
         .get('/api/currencies/00000000-0000-0000-0000-000000000000');
 
-      // Controller throws — tsoa returns 500 (no graceful 404 handling)
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 

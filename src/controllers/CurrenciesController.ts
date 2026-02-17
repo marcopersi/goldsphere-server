@@ -8,6 +8,12 @@ import { createLogger } from "../utils/logger";
 
 const logger = createLogger("CurrenciesController");
 
+function createHttpError(status: number, message: string): Error & { status: number } {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  return error;
+}
+
 interface Currency {
   id: string;
   isoCode2: string;
@@ -133,8 +139,7 @@ export class CurrenciesController extends Controller {
       );
 
       if (result.rows.length === 0) {
-        this.setStatus(404);
-        throw new Error("Currency not found");
+        throw createHttpError(404, "Currency not found");
       }
 
       return {
@@ -147,12 +152,11 @@ export class CurrenciesController extends Controller {
       };
     } catch (error) {
       logger.error("Failed to fetch currency", error, { id });
-      if ((error as Error).message.includes("not found")) {
-        this.setStatus(404);
-        throw new Error("Currency not found");
+      const httpError = error as Error & { status?: number };
+      if (typeof httpError.status === "number") {
+        throw httpError;
       }
-      this.setStatus(500);
-      throw new Error("Failed to fetch currency");
+      throw createHttpError(500, "Failed to fetch currency");
     }
   }
 }

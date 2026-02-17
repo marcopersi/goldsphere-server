@@ -575,7 +575,7 @@ describe('Users API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ reason: 'Test' });
 
-      expect([404, 400, 500]).toContain(response.status);
+      expect([404, 400]).toContain(response.status);
     });
   });
 

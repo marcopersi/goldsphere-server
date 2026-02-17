@@ -167,7 +167,7 @@ describe('Portfolio API', () => {
         .get('/api/portfolios/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 
@@ -191,12 +191,11 @@ describe('Portfolio API', () => {
           .get(`/api/portfolios/${portfolioId}/summary`)
           .set('Authorization', `Bearer ${authToken}`);
 
-        // May return 200 or 500 depending on data enrichment
         if (response.status === 200) {
           expect(response.body).toHaveProperty('success', true);
           expect(response.body).toHaveProperty('data');
         } else {
-          expect([200, 404, 500]).toContain(response.status);
+          expect([200, 404]).toContain(response.status);
         }
       } finally {
         if (portfolioId) {
@@ -233,7 +232,7 @@ describe('Portfolio API', () => {
         if (response.status === 200) {
           expect(response.body).toHaveProperty('success', true);
         } else {
-          expect([200, 500]).toContain(response.status);
+          expect(response.status).toBe(200);
         }
       } finally {
         if (portfolioId) {
@@ -248,7 +247,7 @@ describe('Portfolio API', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ portfolioName: 'Nope' });
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 
@@ -273,8 +272,7 @@ describe('Portfolio API', () => {
       if (response.status === 200) {
         expect(response.body).toHaveProperty('success', true);
       } else {
-        // May return 409 if has positions, or 500
-        expect([200, 409, 500]).toContain(response.status);
+        expect([200, 409]).toContain(response.status);
       }
     });
 
@@ -283,7 +281,7 @@ describe('Portfolio API', () => {
         .delete('/api/portfolios/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 });

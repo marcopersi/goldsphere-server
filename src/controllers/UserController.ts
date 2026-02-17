@@ -64,6 +64,12 @@ import type {
 @Tags('Users')
 export class UserController extends Controller {
 
+  private createHttpError(status: number, message: string): Error & { status: number } {
+    const error = new Error(message) as Error & { status: number };
+    error.status = status;
+    return error;
+  }
+
   /**
    * List all users with pagination, filtering, and sorting
    * @summary Get all users
@@ -536,13 +542,11 @@ export class UserController extends Controller {
   ): Promise<SuccessResponseWrapper<BlockedUserResponse>> {
     const idValidation = UuidSchema.safeParse(id);
     if (!idValidation.success) {
-      this.setStatus(400);
-      throw new Error('Invalid user ID format');
+      throw this.createHttpError(400, 'Invalid user ID format');
     }
 
     if (!body.reason || body.reason.trim().length === 0) {
-      this.setStatus(400);
-      throw new Error('Block reason is required');
+      throw this.createHttpError(400, 'Block reason is required');
     }
 
     const authenticatedUser = requireAuthenticatedUser(request);
@@ -553,13 +557,11 @@ export class UserController extends Controller {
 
     if (!result.success) {
       const status = mapErrorCodeToStatus(result.errorCode);
-      this.setStatus(status);
-      throw new Error(result.error || 'Failed to block user');
+      throw this.createHttpError(status, result.error || 'Failed to block user');
     }
 
     if (!result.data) {
-      this.setStatus(500);
-      throw new Error('Failed to block user');
+      throw this.createHttpError(500, 'Failed to block user');
     }
 
     return {
@@ -586,8 +588,7 @@ export class UserController extends Controller {
   ): Promise<SuccessResponseWrapper<UserResponse>> {
     const idValidation = UuidSchema.safeParse(id);
     if (!idValidation.success) {
-      this.setStatus(400);
-      throw new Error('Invalid user ID format');
+      throw this.createHttpError(400, 'Invalid user ID format');
     }
 
     const authenticatedUser = requireAuthenticatedUser(request);
@@ -597,13 +598,11 @@ export class UserController extends Controller {
 
     if (!result.success) {
       const status = mapErrorCodeToStatus(result.errorCode);
-      this.setStatus(status);
-      throw new Error(result.error || 'Failed to unblock user');
+      throw this.createHttpError(status, result.error || 'Failed to unblock user');
     }
 
     if (!result.data) {
-      this.setStatus(500);
-      throw new Error('Failed to unblock user');
+      throw this.createHttpError(500, 'Failed to unblock user');
     }
 
     return {
@@ -630,8 +629,7 @@ export class UserController extends Controller {
   ): Promise<SuccessResponseWrapper<UserResponse>> {
     const idValidation = UuidSchema.safeParse(id);
     if (!idValidation.success) {
-      this.setStatus(400);
-      throw new Error('Invalid user ID format');
+      throw this.createHttpError(400, 'Invalid user ID format');
     }
 
     const authenticatedUser = requireAuthenticatedUser(request);
@@ -641,13 +639,11 @@ export class UserController extends Controller {
 
     if (!result.success) {
       const status = mapErrorCodeToStatus(result.errorCode);
-      this.setStatus(status);
-      throw new Error(result.error || 'Failed to soft delete user');
+      throw this.createHttpError(status, result.error || 'Failed to soft delete user');
     }
 
     if (!result.data) {
-      this.setStatus(500);
-      throw new Error('Failed to soft delete user');
+      throw this.createHttpError(500, 'Failed to soft delete user');
     }
 
     return {

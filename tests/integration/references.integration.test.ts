@@ -108,17 +108,13 @@ describe("References API", () => {
       }
     });
 
-    it("should handle database errors gracefully", async () => {
-      // This test ensures the endpoint handles database connection issues
+    it("should return reference data successfully", async () => {
       const response = await request(app)
         .get("/api/references/");
 
-      // Either success or graceful error handling
-      expect([200, 500].includes(response.status)).toBe(true);
-      
-      if (response.status === 500) {
-        expect(response.body).toHaveProperty('error');
-      }
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
     });
   });
 });

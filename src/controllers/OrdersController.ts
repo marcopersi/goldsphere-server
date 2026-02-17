@@ -27,6 +27,12 @@ import { getPool } from "../dbConfig";
 import { OrderServiceFactory } from "../services/order";
 import { ProductServiceFactory } from "../services/product";
 import { CalculationServiceFactory } from "../services/calculation";
+import type {
+  Order,
+  OrderItem,
+  OrderItemProduct,
+  OrderCustodyService,
+} from "../services/order/types/OrderTypes";
 import { createLogger } from "../utils/logger";
 import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
 
@@ -59,7 +65,7 @@ interface OrdersPaginationInfo {
 
 interface OrdersListResponse {
   success: true;
-  orders: any[];
+  orders: OrderResponse[];
   pagination: OrdersPaginationInfo;
   user?: {
     id: string;
@@ -68,8 +74,99 @@ interface OrdersListResponse {
 
 interface OrderDetailResponse {
   success: true;
-  data: any;
+  data: OrderResponse;
   message?: string;
+}
+
+interface DetailedOrderCustodianResponse {
+  name: string;
+  email: string | null;
+}
+
+interface DetailedOrderCustodyServiceResponse {
+  id: string;
+  name: string;
+  fee: number;
+  paymentFrequency: string;
+  currency: string;
+  custodian: DetailedOrderCustodianResponse;
+}
+
+interface DetailedOrderUserResponse {
+  email: string | null;
+}
+
+interface DetailedOrderData {
+  id: string;
+  userId: string;
+  type: string;
+  status: string;
+  paymentStatus: string;
+  items: OrderItemResponse[];
+  subtotal: number;
+  totalAmount: number;
+  user: DetailedOrderUserResponse;
+  custodyService: DetailedOrderCustodyServiceResponse | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface DetailedOrderResponse {
+  success: true;
+  data: DetailedOrderData;
+  message: string;
+}
+
+interface OrderItemProductResponse {
+  name: string;
+  currentPrice: number;
+  currency: string;
+  weight: number;
+  weightUnit: string;
+  purity: number;
+  year: number | null;
+  type: string;
+  metal: string;
+  country: string | null;
+  producer: string;
+}
+
+interface OrderItemResponse {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  product?: OrderItemProductResponse;
+}
+
+interface OrderCustodyServiceResponse {
+  id: string;
+  name: string;
+  fee: number;
+  paymentFrequency: string;
+  currency: string;
+  custodian: {
+    id: string;
+    name: string;
+  };
+}
+
+interface OrderResponse {
+  id: string;
+  userId: string;
+  type: string;
+  status: string;
+  orderNumber: string;
+  items: OrderItemResponse[];
+  currency: string;
+  subtotal: number;
+  taxes: number;
+  totalAmount: number;
+  custodyService?: OrderCustodyServiceResponse | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface OrdersAdminStatistics {
@@ -84,7 +181,7 @@ interface OrdersAdminStatistics {
 
 interface OrdersAdminResponse {
   success: true;
-  orders: any[];
+  orders: OrderResponse[];
   pagination: OrdersPaginationInfo;
   statistics: OrdersAdminStatistics;
   filters?: {
@@ -95,6 +192,68 @@ interface OrdersAdminResponse {
   adminContext: {
     requestedBy: string;
     role: string;
+  };
+}
+
+function mapOrderItemProductToResponse(product: OrderItemProduct): OrderItemProductResponse {
+  return {
+    name: product.name,
+    currentPrice: product.currentPrice,
+    currency: product.currency,
+    weight: product.weight,
+    weightUnit: product.weightUnit,
+    purity: product.purity,
+    year: product.year,
+    type: product.type,
+    metal: product.metal,
+    country: product.country,
+    producer: product.producer,
+  };
+}
+
+function mapOrderItemToResponse(item: OrderItem): OrderItemResponse {
+  return {
+    id: item.id,
+    productId: item.productId,
+    productName: item.productName,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    totalPrice: item.totalPrice,
+    product: item.product ? mapOrderItemProductToResponse(item.product) : undefined,
+  };
+}
+
+function mapOrderCustodyServiceToResponse(custodyService: OrderCustodyService): OrderCustodyServiceResponse {
+  return {
+    id: custodyService.id,
+    name: custodyService.name,
+    fee: custodyService.fee,
+    paymentFrequency: custodyService.paymentFrequency,
+    currency: custodyService.currency,
+    custodian: {
+      id: custodyService.custodian.id,
+      name: custodyService.custodian.name,
+    },
+  };
+}
+
+function mapOrderToResponse(order: Order): OrderResponse {
+  return {
+    id: order.id,
+    userId: order.userId,
+    type: order.type,
+    status: order.status,
+    orderNumber: order.orderNumber,
+    items: order.items.map(mapOrderItemToResponse),
+    currency: order.currency,
+    subtotal: order.subtotal,
+    taxes: order.taxes,
+    totalAmount: order.totalAmount,
+    custodyService: order.custodyService
+      ? mapOrderCustodyServiceToResponse(order.custodyService)
+      : order.custodyService,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
   };
 }
 
@@ -196,11 +355,12 @@ export class OrdersController extends Controller {
         status: status as string,
         type: type as string
       });
+      const mappedOrders = ordersResult.orders.map(mapOrderToResponse);
 
       this.setStatus(200);
       return {
         success: true,
-        orders: ordersResult.orders,
+        orders: mappedOrders,
         pagination: ordersResult.pagination,
         user: effectiveUserId ? { id: effectiveUserId } : undefined
       };
@@ -255,6 +415,7 @@ export class OrdersController extends Controller {
         status: status as string,
         type: type as string
       });
+      const mappedOrders = ordersResult.orders.map(mapOrderToResponse);
 
       // Build WHERE clause for stats query
       let whereConditions: string[] = [];
@@ -301,7 +462,7 @@ export class OrdersController extends Controller {
       this.setStatus(200);
       return {
         success: true,
-        orders: ordersResult.orders,
+        orders: mappedOrders,
         pagination: ordersResult.pagination,
         statistics: {
           totalOrders: Number.parseInt(stats.totalorders),
@@ -362,12 +523,13 @@ export class OrdersController extends Controller {
         status: status as string,
         type: type as string
       });
+      const mappedOrders = ordersResult.orders.map(mapOrderToResponse);
 
       // Return enhanced data
       this.setStatus(200);
       return {
         success: true,
-        orders: ordersResult.orders,
+        orders: mappedOrders,
         pagination: ordersResult.pagination,
         user: {
           id: authenticatedUser.id
@@ -493,7 +655,7 @@ export class OrdersController extends Controller {
       this.setStatus(200);
       return {
         success: true,
-        data: order,
+        data: mapOrderToResponse(order),
         message: "Order retrieved successfully"
       };
     } catch (error) {
@@ -520,7 +682,7 @@ export class OrdersController extends Controller {
   public async getOrderDetailed(
     @Request() request: any,
     @Path() id: string
-  ): Promise<any> {
+  ): Promise<DetailedOrderResponse | OrdersErrorResponse> {
     try {
       requireAuthenticatedUser(request);
 
@@ -582,11 +744,10 @@ export class OrdersController extends Controller {
           curr.isocode3 as custody_service_currency,
           
           -- Custodian information
-          cust.custodianname as custodian_name,
-          cust.contactemail as custodian_email
+          cust.custodianname as custodian_name
         FROM orders o
         LEFT JOIN users u ON o.userid = u.id
-        LEFT JOIN orderitem oi ON o.id = oi.orderid
+        LEFT JOIN order_items oi ON o.id = oi.orderid
         LEFT JOIN product p ON oi.productid = p.id
         LEFT JOIN producttype pt ON p.producttypeid = pt.id
         LEFT JOIN metal m ON p.metalid = m.id
@@ -612,7 +773,7 @@ export class OrdersController extends Controller {
       const firstRow = result.rows[0];
 
       // Build items array from rows (multiple rows if multiple items)
-      const items = result.rows.map((row) => ({
+      const items: OrderItemResponse[] = result.rows.map((row) => ({
         id: row.item_id,
         productId: row.item_product_id,
         productName: row.item_product_name || row.product_name,
@@ -637,7 +798,7 @@ export class OrdersController extends Controller {
       // Calculate totals
       const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
 
-      const detailedOrder = {
+      const detailedOrder: DetailedOrderData = {
         id: firstRow.order_id,
         userId: firstRow.order_user_id,
         type: firstRow.order_type,
@@ -647,7 +808,7 @@ export class OrdersController extends Controller {
         subtotal,
         totalAmount: subtotal,
         user: {
-          email: firstRow.user_email
+          email: firstRow.user_email || null
         },
         custodyService: firstRow.custody_service_id
           ? {
@@ -658,7 +819,7 @@ export class OrdersController extends Controller {
               currency: firstRow.custody_service_currency,
               custodian: {
                 name: firstRow.custodian_name,
-                email: firstRow.custodian_email
+                email: null
               }
             }
           : null,
@@ -950,7 +1111,7 @@ export class OrdersController extends Controller {
       try {
         // Delete order items first
         const deleteItemsResult = await getPool().query(
-          "DELETE FROM orderitem WHERE orderid = $1",
+          "DELETE FROM order_items WHERE orderid = $1",
           [id]
         );
 

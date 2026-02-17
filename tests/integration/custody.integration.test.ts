@@ -82,8 +82,8 @@ describe("Custody Management API", () => {
           description: "Test custodian for testing purposes"
         });
 
-      // Should either succeed or fail with a meaningful error (not validation error)
-      expect([200, 201, 400, 409, 500]).toContain(validResponse.status);
+      // Should either succeed or fail with a meaningful error (not internal server error)
+      expect([200, 201, 400, 409]).toContain(validResponse.status);
     });
   });
 
@@ -106,8 +106,7 @@ describe("Custody Management API", () => {
         .get("/api/custody")
         .set("Authorization", `Bearer ${authToken}`);
 
-      // Accept both 200 (success) and 500 (if no custody services exist yet)
-      expect([200, 500]).toContain(response.status);
+      expect(response.status).toBe(200);
       
       if (response.status === 200) {
         expect(response.body.success).toBe(true);
@@ -144,8 +143,8 @@ describe("Custody Management API", () => {
           maxWeight: 1000
         });
 
-      // Should either succeed or fail with a meaningful error (not validation error)
-      expect([200, 201, 400, 409, 500]).toContain(validResponse.status);
+      // Should either succeed or fail with a meaningful error (not internal server error)
+      expect([200, 201, 400, 409]).toContain(validResponse.status);
     });
   });
 
@@ -228,10 +227,10 @@ describe("Custody Management API", () => {
 
     it('should return 404 for non-existent custodian', async () => {
       const response = await request(app)
-        .get('/api/custodians/custodians/00000000-0000-0000-0000-000000000000')
+        .get('/api/custodians/custodians/11111111-1111-4111-8111-111111111111')
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
   });
 

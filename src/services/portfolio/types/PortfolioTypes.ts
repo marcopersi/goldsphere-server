@@ -83,9 +83,9 @@ export interface PortfolioSummary {
   totalGainLoss: number;
   totalGainLossPercentage: number;
   positionCount: number;
-  lastUpdated: string | Date;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  lastUpdated: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // ============================================================================

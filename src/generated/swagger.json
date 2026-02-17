@@ -959,7 +959,8 @@
 								"format": "double"
 							},
 							"createdAt": {
-								"type": "string"
+								"type": "string",
+								"format": "date-time"
 							},
 							"notes": {
 								"type": "string"
@@ -977,7 +978,8 @@
 								"format": "double"
 							},
 							"date": {
-								"type": "string"
+								"type": "string",
+								"format": "date-time"
 							},
 							"type": {
 								"type": "string"
@@ -1060,6 +1062,238 @@
 					"date",
 					"quantity",
 					"price"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TransactionDetailPosition": {
+				"properties": {
+					"productId": {
+						"type": "string"
+					},
+					"purchaseDate": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"purchasePrice": {
+						"type": "number",
+						"format": "double"
+					},
+					"currentQuantity": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"productId",
+					"purchaseDate",
+					"purchasePrice",
+					"currentQuantity"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TransactionDetailProduct": {
+				"properties": {
+					"productId": {
+						"type": "string"
+					},
+					"productName": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string"
+					},
+					"metal": {
+						"type": "string"
+					},
+					"weight": {
+						"type": "number",
+						"format": "double"
+					},
+					"weightUnit": {
+						"type": "string"
+					},
+					"purity": {
+						"type": "number",
+						"format": "double"
+					},
+					"currentMarketPrice": {
+						"type": "number",
+						"format": "double"
+					},
+					"currency": {
+						"type": "string"
+					},
+					"producer": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"productId",
+					"productName",
+					"type",
+					"metal",
+					"weight",
+					"weightUnit",
+					"purity",
+					"currentMarketPrice",
+					"currency",
+					"producer"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TransactionDetailComparedToPosition": {
+				"properties": {
+					"positionPurchaseValue": {
+						"type": "number",
+						"format": "double"
+					},
+					"transactionPremium": {
+						"type": "number",
+						"format": "double"
+					},
+					"transactionPremiumPercent": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"positionPurchaseValue",
+					"transactionPremium",
+					"transactionPremiumPercent"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TransactionDetailAnalysis": {
+				"properties": {
+					"transactionValue": {
+						"type": "number",
+						"format": "double"
+					},
+					"feesPercentage": {
+						"type": "number",
+						"format": "double"
+					},
+					"currentMarketValue": {
+						"type": "number",
+						"format": "double"
+					},
+					"valueChange": {
+						"type": "number",
+						"format": "double"
+					},
+					"valueChangePercent": {
+						"type": "number",
+						"format": "double"
+					},
+					"comparedToPosition": {
+						"$ref": "#/components/schemas/TransactionDetailComparedToPosition"
+					}
+				},
+				"required": [
+					"transactionValue",
+					"feesPercentage",
+					"currentMarketValue",
+					"valueChange",
+					"valueChangePercent"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TransactionDetailData": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"positionId": {
+						"type": "string"
+					},
+					"userId": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string"
+					},
+					"date": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"quantity": {
+						"type": "number",
+						"format": "double"
+					},
+					"price": {
+						"type": "number",
+						"format": "double"
+					},
+					"fees": {
+						"type": "number",
+						"format": "double"
+					},
+					"notes": {
+						"type": "string"
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"total": {
+						"type": "number",
+						"format": "double"
+					},
+					"position": {
+						"$ref": "#/components/schemas/TransactionDetailPosition"
+					},
+					"product": {
+						"$ref": "#/components/schemas/TransactionDetailProduct"
+					},
+					"analysis": {
+						"$ref": "#/components/schemas/TransactionDetailAnalysis"
+					}
+				},
+				"required": [
+					"id",
+					"positionId",
+					"userId",
+					"type",
+					"date",
+					"quantity",
+					"price",
+					"fees",
+					"createdAt",
+					"total",
+					"analysis"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TransactionDetailResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"data": {
+						"$ref": "#/components/schemas/TransactionDetailData"
+					},
+					"message": {
+						"type": "string"
+					},
+					"timestamp": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"success",
+					"data",
+					"message",
+					"timestamp"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -3038,37 +3272,16 @@
 						"format": "double"
 					},
 					"lastUpdated": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "string",
-								"format": "date-time"
-							}
-						]
+						"type": "string",
+						"format": "date-time"
 					},
 					"createdAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "string",
-								"format": "date-time"
-							}
-						]
+						"type": "string",
+						"format": "date-time"
 					},
 					"updatedAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "string",
-								"format": "date-time"
-							}
-						]
+						"type": "string",
+						"format": "date-time"
 					}
 				},
 				"required": [
@@ -3477,37 +3690,16 @@
 						"format": "double"
 					},
 					"lastUpdated": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "string",
-								"format": "date-time"
-							}
-						]
+						"type": "string",
+						"format": "date-time"
 					},
 					"createdAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "string",
-								"format": "date-time"
-							}
-						]
+						"type": "string",
+						"format": "date-time"
 					},
 					"updatedAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "string",
-								"format": "date-time"
-							}
-						]
+						"type": "string",
+						"format": "date-time"
 					},
 					"positions": {
 						"items": {
@@ -4267,6 +4459,217 @@
 			"ListPaymentMethodsResponse": {
 				"$ref": "#/components/schemas/infer_typeofListPaymentMethodsResponseSchema_"
 			},
+			"OrderItemProductResponse": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"currentPrice": {
+						"type": "number",
+						"format": "double"
+					},
+					"currency": {
+						"type": "string"
+					},
+					"weight": {
+						"type": "number",
+						"format": "double"
+					},
+					"weightUnit": {
+						"type": "string"
+					},
+					"purity": {
+						"type": "number",
+						"format": "double"
+					},
+					"year": {
+						"type": "number",
+						"format": "double",
+						"nullable": true
+					},
+					"type": {
+						"type": "string"
+					},
+					"metal": {
+						"type": "string"
+					},
+					"country": {
+						"type": "string",
+						"nullable": true
+					},
+					"producer": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"name",
+					"currentPrice",
+					"currency",
+					"weight",
+					"weightUnit",
+					"purity",
+					"year",
+					"type",
+					"metal",
+					"country",
+					"producer"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"OrderItemResponse": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"productId": {
+						"type": "string"
+					},
+					"productName": {
+						"type": "string"
+					},
+					"quantity": {
+						"type": "number",
+						"format": "double"
+					},
+					"unitPrice": {
+						"type": "number",
+						"format": "double"
+					},
+					"totalPrice": {
+						"type": "number",
+						"format": "double"
+					},
+					"product": {
+						"$ref": "#/components/schemas/OrderItemProductResponse"
+					}
+				},
+				"required": [
+					"id",
+					"productId",
+					"productName",
+					"quantity",
+					"unitPrice",
+					"totalPrice"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"OrderCustodyServiceResponse": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"fee": {
+						"type": "number",
+						"format": "double"
+					},
+					"paymentFrequency": {
+						"type": "string"
+					},
+					"currency": {
+						"type": "string"
+					},
+					"custodian": {
+						"properties": {
+							"name": {
+								"type": "string"
+							},
+							"id": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"name",
+							"id"
+						],
+						"type": "object"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"fee",
+					"paymentFrequency",
+					"currency",
+					"custodian"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"OrderResponse": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"userId": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string"
+					},
+					"orderNumber": {
+						"type": "string"
+					},
+					"items": {
+						"items": {
+							"$ref": "#/components/schemas/OrderItemResponse"
+						},
+						"type": "array"
+					},
+					"currency": {
+						"type": "string"
+					},
+					"subtotal": {
+						"type": "number",
+						"format": "double"
+					},
+					"taxes": {
+						"type": "number",
+						"format": "double"
+					},
+					"totalAmount": {
+						"type": "number",
+						"format": "double"
+					},
+					"custodyService": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/OrderCustodyServiceResponse"
+							}
+						],
+						"nullable": true
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"type",
+					"status",
+					"orderNumber",
+					"items",
+					"currency",
+					"subtotal",
+					"taxes",
+					"totalAmount",
+					"createdAt",
+					"updatedAt"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
 			"OrdersPaginationInfo": {
 				"properties": {
 					"page": {
@@ -4313,7 +4716,9 @@
 						"nullable": false
 					},
 					"orders": {
-						"items": {},
+						"items": {
+							"$ref": "#/components/schemas/OrderResponse"
+						},
 						"type": "array"
 					},
 					"pagination": {
@@ -4415,7 +4820,9 @@
 						"nullable": false
 					},
 					"orders": {
-						"items": {},
+						"items": {
+							"$ref": "#/components/schemas/OrderResponse"
+						},
 						"type": "array"
 					},
 					"pagination": {
@@ -4542,7 +4949,9 @@
 						],
 						"nullable": false
 					},
-					"data": {},
+					"data": {
+						"$ref": "#/components/schemas/OrderResponse"
+					},
 					"message": {
 						"type": "string"
 					}
@@ -4550,6 +4959,161 @@
 				"required": [
 					"success",
 					"data"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"DetailedOrderUserResponse": {
+				"properties": {
+					"email": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"email"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"DetailedOrderCustodianResponse": {
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"email": {
+						"type": "string",
+						"nullable": true
+					}
+				},
+				"required": [
+					"name",
+					"email"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"DetailedOrderCustodyServiceResponse": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"fee": {
+						"type": "number",
+						"format": "double"
+					},
+					"paymentFrequency": {
+						"type": "string"
+					},
+					"currency": {
+						"type": "string"
+					},
+					"custodian": {
+						"$ref": "#/components/schemas/DetailedOrderCustodianResponse"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"fee",
+					"paymentFrequency",
+					"currency",
+					"custodian"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"DetailedOrderData": {
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"userId": {
+						"type": "string"
+					},
+					"type": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string"
+					},
+					"paymentStatus": {
+						"type": "string"
+					},
+					"items": {
+						"items": {
+							"$ref": "#/components/schemas/OrderItemResponse"
+						},
+						"type": "array"
+					},
+					"subtotal": {
+						"type": "number",
+						"format": "double"
+					},
+					"totalAmount": {
+						"type": "number",
+						"format": "double"
+					},
+					"user": {
+						"$ref": "#/components/schemas/DetailedOrderUserResponse"
+					},
+					"custodyService": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/DetailedOrderCustodyServiceResponse"
+							}
+						],
+						"nullable": true
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"updatedAt": {
+						"type": "string",
+						"format": "date-time"
+					}
+				},
+				"required": [
+					"id",
+					"userId",
+					"type",
+					"status",
+					"paymentStatus",
+					"items",
+					"subtotal",
+					"totalAmount",
+					"user",
+					"custodyService",
+					"createdAt",
+					"updatedAt"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"DetailedOrderResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"data": {
+						"$ref": "#/components/schemas/DetailedOrderData"
+					},
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"success",
+					"data",
+					"message"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -5354,7 +5918,29 @@
 					"error": {
 						"type": "string"
 					},
-					"details": {}
+					"details": {
+						"properties": {
+							"fields": {
+								"items": {
+									"properties": {
+										"message": {
+											"type": "string"
+										},
+										"path": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"message",
+										"path"
+									],
+									"type": "object"
+								},
+								"type": "array"
+							}
+						},
+						"type": "object"
+					}
 				},
 				"required": [
 					"success",
@@ -5669,7 +6255,29 @@
 					"error": {
 						"type": "string"
 					},
-					"details": {}
+					"details": {
+						"properties": {
+							"fields": {
+								"items": {
+									"properties": {
+										"message": {
+											"type": "string"
+										},
+										"path": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"message",
+										"path"
+									],
+									"type": "object"
+								},
+								"type": "array"
+							}
+						},
+						"type": "object"
+					}
 				},
 				"required": [
 					"success",
@@ -7387,7 +7995,16 @@
 						"description": "Transaction retrieved successfully",
 						"content": {
 							"application/json": {
-								"schema": {}
+								"schema": {
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/TransactionDetailResponse"
+										},
+										{
+											"$ref": "#/components/schemas/TransactionsErrorResponse"
+										}
+									]
+								}
 							}
 						}
 					},
@@ -10959,7 +11576,16 @@
 						"description": "Detailed order retrieved successfully",
 						"content": {
 							"application/json": {
-								"schema": {}
+								"schema": {
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/DetailedOrderResponse"
+										},
+										{
+											"$ref": "#/components/schemas/OrdersErrorResponse"
+										}
+									]
+								}
 							}
 						}
 					},

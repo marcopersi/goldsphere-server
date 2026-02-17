@@ -306,8 +306,7 @@ describe('Market Data API', () => {
       const response = await request(app)
         .get('/api/market-data/price/INVALID_METAL');
 
-      // Should return 404 or 500, not crash
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('success', false);
     });
 

@@ -32,7 +32,12 @@ import { CustodianServiceFactory, CustodianDTO } from "../services/custodian";
 interface CustodianErrorResponse {
   success: false;
   error: string;
-  details?: unknown;
+  details?: {
+    fields?: Array<{
+      path: string;
+      message: string;
+    }>;
+  };
 }
 
 interface CustodianListResponse {
@@ -89,6 +94,12 @@ function mapSortBy(sortBy: string | undefined): "custodianName" | "createdAt" | 
   if (sortBy === "updatedAt") return "createdAt";
   if (sortBy === "custodianName" || sortBy === "createdAt") return sortBy;
   return undefined;
+}
+
+function createHttpError(status: number, message: string): Error & { status: number } {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  return error;
 }
 
 // ============================================================================
@@ -231,13 +242,12 @@ export class CustodiansController extends Controller {
 
     if (!result.success || !result.data) {
       if (result.error?.includes("not found")) {
-        this.setStatus(404);
+        throw createHttpError(404, result.error || "Failed to fetch custodian");
       } else if (result.error?.includes("Invalid")) {
-        this.setStatus(400);
+        throw createHttpError(400, result.error || "Failed to fetch custodian");
       } else {
-        this.setStatus(500);
+        throw createHttpError(500, result.error || "Failed to fetch custodian");
       }
-      throw new Error(result.error || "Failed to fetch custodian");
     }
 
     return {
@@ -267,13 +277,12 @@ export class CustodiansController extends Controller {
 
     if (!result.success || !result.data) {
       if (result.error?.includes("not found")) {
-        this.setStatus(404);
+        throw createHttpError(404, result.error || "Failed to update custodian");
       } else if (result.error?.includes("Invalid")) {
-        this.setStatus(400);
+        throw createHttpError(400, result.error || "Failed to update custodian");
       } else {
-        this.setStatus(500);
+        throw createHttpError(500, result.error || "Failed to update custodian");
       }
-      throw new Error(result.error || "Failed to update custodian");
     }
 
     return {
@@ -302,15 +311,14 @@ export class CustodiansController extends Controller {
 
     if (!result.success) {
       if (result.error?.includes("not found")) {
-        this.setStatus(404);
+        throw createHttpError(404, result.error || "Failed to delete custodian");
       } else if (result.error?.includes("Cannot delete")) {
-        this.setStatus(409);
+        throw createHttpError(409, result.error || "Failed to delete custodian");
       } else if (result.error?.includes("Invalid")) {
-        this.setStatus(400);
+        throw createHttpError(400, result.error || "Failed to delete custodian");
       } else {
-        this.setStatus(500);
+        throw createHttpError(500, result.error || "Failed to delete custodian");
       }
-      throw new Error(result.error || "Failed to delete custodian");
     }
 
     return {

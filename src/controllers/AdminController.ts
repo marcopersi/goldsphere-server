@@ -64,6 +64,12 @@ function isValidUuid(id: string): boolean {
   return uuidRegex.test(id);
 }
 
+function throwHttpError(status: number, message: string): never {
+  const error = new Error(message) as Error & { status: number };
+  error.status = status;
+  throw error;
+}
+
 // ============================================================================
 // Controller
 // ============================================================================
@@ -89,14 +95,12 @@ export class AdminController extends Controller {
     @UploadedFile() image: Express.Multer.File
   ): Promise<ImageUploadResponse> {
     if (!image) {
-      this.setStatus(400);
-      throw new Error("No image file provided");
+      throwHttpError(400, "No image file provided");
     }
 
     // Validate product ID format
     if (!isValidUuid(id)) {
-      this.setStatus(400);
-      throw new Error("Invalid product ID format");
+      throwHttpError(400, "Invalid product ID format");
     }
 
     const { buffer, mimetype, originalname } = image;
@@ -108,8 +112,7 @@ export class AdminController extends Controller {
     );
 
     if (productExists.rows.length === 0) {
-      this.setStatus(404);
-      throw new Error("Product not found");
+      throwHttpError(404, "Product not found");
     }
 
     await getPool().query(
@@ -140,8 +143,7 @@ export class AdminController extends Controller {
     const imagesDir = process.env.PRODUCT_IMAGES_DIR || path.join(process.cwd(), "initdb", "images");
 
     if (!fs.existsSync(imagesDir)) {
-      this.setStatus(404);
-      throw new Error("Images directory not found");
+      throwHttpError(404, "Images directory not found");
     }
 
     const files = fs.readdirSync(imagesDir);
@@ -202,8 +204,7 @@ export class AdminController extends Controller {
     @UploadedFile() csv: Express.Multer.File
   ): Promise<CsvImportResponse> {
     if (!csv) {
-      this.setStatus(400);
-      throw new Error("No CSV file provided");
+      throwHttpError(400, "No CSV file provided");
     }
 
     // Parse CSV from buffer
@@ -211,8 +212,7 @@ export class AdminController extends Controller {
     const lines = csvContent.split("\n");
     
     if (lines.length < 2) {
-      this.setStatus(400);
-      throw new Error("CSV file is empty or has no data rows");
+      throwHttpError(400, "CSV file is empty or has no data rows");
     }
 
     // Parse header
