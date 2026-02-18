@@ -56,6 +56,7 @@ import type {
   UserProfilePatchResponse,
   UserResponse,
 } from './user/UserController.types';
+import { normalizePagination } from '../utils/paginationResponse';
 // ============================================================================
 // Controller
 // ============================================================================
@@ -124,7 +125,7 @@ export class UserController extends Controller {
     return {
       success: true,
       data: result.data.users.map(mapUserResponse),
-      pagination: result.data.pagination,
+      pagination: normalizePagination(result.data.pagination),
     };
   }
 

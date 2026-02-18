@@ -35,6 +35,7 @@ import type {
 } from "../services/order/types/OrderTypes";
 import { createLogger } from "../utils/logger";
 import { requireAuthenticatedUser, AuthenticationError } from "../utils/auditTrail";
+import { normalizePagination } from "../utils/paginationResponse";
 
 const logger = createLogger("OrdersController");
 
@@ -60,7 +61,7 @@ interface OrdersPaginationInfo {
   total: number;
   totalPages: number;
   hasNext: boolean;
-  hasPrevious: boolean;
+  hasPrev: boolean;
 }
 
 interface OrdersListResponse {
@@ -361,7 +362,7 @@ export class OrdersController extends Controller {
       return {
         success: true,
         orders: mappedOrders,
-        pagination: ordersResult.pagination,
+        pagination: normalizePagination(ordersResult.pagination),
         user: effectiveUserId ? { id: effectiveUserId } : undefined
       };
     } catch (error) {
@@ -463,7 +464,7 @@ export class OrdersController extends Controller {
       return {
         success: true,
         orders: mappedOrders,
-        pagination: ordersResult.pagination,
+        pagination: normalizePagination(ordersResult.pagination),
         statistics: {
           totalOrders: Number.parseInt(stats.totalorders),
           pendingOrders: Number.parseInt(stats.pendingorders),
@@ -530,7 +531,7 @@ export class OrdersController extends Controller {
       return {
         success: true,
         orders: mappedOrders,
-        pagination: ordersResult.pagination,
+        pagination: normalizePagination(ordersResult.pagination),
         user: {
           id: authenticatedUser.id
         }

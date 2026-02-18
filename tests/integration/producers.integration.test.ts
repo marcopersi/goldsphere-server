@@ -77,7 +77,7 @@ describe('Producers API', () => {
       expect(response.body.data.pagination).toHaveProperty('total');
       expect(response.body.data.pagination).toHaveProperty('totalPages');
       expect(response.body.data.pagination).toHaveProperty('hasNext');
-      expect(response.body.data.pagination).toHaveProperty('hasPrevious');
+      expect(response.body.data.pagination).toHaveProperty('hasPrev');
 
       // Verify producer structure if any exist
       if (response.body.data.items.length > 0) {

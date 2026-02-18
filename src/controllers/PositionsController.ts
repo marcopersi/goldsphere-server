@@ -7,18 +7,22 @@ import {
   Get,
   Path,
   Query,
+  Request,
   Response,
   Route,
   SuccessResponse,
   Tags,
   Security
 } from "tsoa";
+import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
 import { createLogger } from "../utils/logger";
+import { requireAuthenticatedUser } from "../utils/auditTrail";
 import {
   mapDatabaseRowToPosition,
   toSchemaCompatiblePosition
 } from "./positions/PositionDataMapper";
+import { normalizePagination } from "../utils/paginationResponse";
 import type {
   PositionResponse,
   PositionsErrorResponse,
@@ -27,6 +31,10 @@ import type {
 } from "./positions/PositionsTypes";
 
 const logger = createLogger("PositionsController");
+
+function isAdminRole(role: string): boolean {
+  return role === "admin";
+}
 
 @Route("positions")
 @Tags("Positions")
@@ -43,11 +51,15 @@ export class PositionsController extends Controller {
   @Response<PositionsErrorResponse>(400, "Invalid request parameters")
   @Response<PositionsErrorResponse>(500, "Internal server error")
   public async getPositions(
+    @Request() request: ExpressRequest,
     @Query() page = 1,
     @Query() limit = 20,
     @Query() status = "active"
   ): Promise<PositionsListResponse | PositionsErrorResponse> {
     try {
+      const authenticatedUser = requireAuthenticatedUser(request);
+      const isAdmin = isAdminRole(authenticatedUser.role);
+
       // Validate parameters
       const validatedPage = Math.max(1, page);
       const validatedLimit = Math.min(100, Math.max(1, limit));
@@ -62,39 +74,47 @@ export class PositionsController extends Controller {
         };
       }
 
-      // Build WHERE clause based on status
-      let whereClause = "";
-      if (status === "active") {
-        whereClause = "WHERE status = 'active'";
-      } else if (status === "closed") {
-        whereClause = "WHERE status = 'closed'";
+      // Build WHERE clause based on role + status
+      const whereConditions: string[] = [];
+      const queryParams: Array<string | number> = [];
+
+      if (!isAdmin) {
+        queryParams.push(authenticatedUser.id);
+        whereConditions.push(`userid = $${queryParams.length}`);
       }
-      // For 'all' status, whereClause remains empty
+
+      if (status === "active") {
+        whereConditions.push("status = 'active'");
+      } else if (status === "closed") {
+        whereConditions.push("status = 'closed'");
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
       // Get total count
       const countResult = await getPool().query(
-        `SELECT COUNT(*) as total FROM position ${whereClause}`
+        `SELECT COUNT(*) as total FROM position ${whereClause}`,
+        queryParams
       );
       const total = Number.parseInt(countResult.rows[0]?.total || "0", 10);
 
       // Get positions
+      const positionsParams = [...queryParams, validatedLimit, offset];
       const result = await getPool().query(
-        `SELECT * FROM position ${whereClause} ORDER BY createdat DESC LIMIT $1 OFFSET $2`,
-        [validatedLimit, offset]
+        `SELECT * FROM position ${whereClause} ORDER BY createdat DESC LIMIT $${positionsParams.length - 1} OFFSET $${positionsParams.length}`,
+        positionsParams
       );
 
       const positions = await Promise.all(
         result.rows.map((row) => mapDatabaseRowToPosition(row as Record<string, unknown>))
       );
 
-      const pagination: PositionsPaginationInfo = {
+      const pagination: PositionsPaginationInfo = normalizePagination({
         page: validatedPage,
         limit: validatedLimit,
         total,
-        totalPages: Math.max(1, Math.ceil(total / validatedLimit)),
-        hasNext: offset + positions.length < total,
-        hasPrev: validatedPage > 1
-      };
+        totalPages: Math.max(1, Math.ceil(total / validatedLimit))
+      });
 
       this.setStatus(200);
       return {
@@ -123,26 +143,36 @@ export class PositionsController extends Controller {
   @SuccessResponse(200, "Portfolio positions retrieved successfully")
   @Response<PositionsErrorResponse>(500, "Internal server error")
   public async getPortfolioPositions(
+    @Request() request: ExpressRequest,
     @Path() portfolioId: string
   ): Promise<PositionsListResponse | PositionsErrorResponse> {
     try {
+      const authenticatedUser = requireAuthenticatedUser(request);
+      const isAdmin = isAdminRole(authenticatedUser.role);
+
+      const queryParams: string[] = [portfolioId];
+      let whereClause = "WHERE portfolioId = $1";
+
+      if (!isAdmin) {
+        queryParams.push(authenticatedUser.id);
+        whereClause += " AND userId = $2";
+      }
+
       const result = await getPool().query(
-        `SELECT * FROM position WHERE portfolioId = $1 ORDER BY createdat DESC`,
-        [portfolioId]
+        `SELECT * FROM position ${whereClause} ORDER BY createdat DESC`,
+        queryParams
       );
 
       const positions = await Promise.all(
         result.rows.map((row) => mapDatabaseRowToPosition(row as Record<string, unknown>))
       );
 
-      const pagination: PositionsPaginationInfo = {
+      const pagination: PositionsPaginationInfo = normalizePagination({
         page: 1,
-        limit: result.rows.length,
+        limit: Math.max(1, result.rows.length),
         total: result.rows.length,
-        totalPages: Math.max(1, Math.ceil(result.rows.length / 10)),
-        hasNext: false,
-        hasPrev: false
-      };
+        totalPages: Math.max(1, Math.ceil(result.rows.length / 10))
+      });
 
       this.setStatus(200);
       return {
@@ -169,10 +199,22 @@ export class PositionsController extends Controller {
   @Response<PositionsErrorResponse>(404, "Position not found")
   @Response<PositionsErrorResponse>(500, "Internal server error")
   public async getPosition(
+    @Request() request: ExpressRequest,
     @Path() id: string
   ): Promise<PositionResponse | PositionsErrorResponse> {
     try {
-      const result = await getPool().query("SELECT * FROM position WHERE id = $1", [id]);
+      const authenticatedUser = requireAuthenticatedUser(request);
+      const isAdmin = isAdminRole(authenticatedUser.role);
+
+      const queryParams: string[] = [id];
+      let whereClause = "WHERE id = $1";
+
+      if (!isAdmin) {
+        queryParams.push(authenticatedUser.id);
+        whereClause += " AND userId = $2";
+      }
+
+      const result = await getPool().query(`SELECT * FROM position ${whereClause}`, queryParams);
 
       if (result.rows.length === 0) {
         this.setStatus(404);

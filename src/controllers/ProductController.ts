@@ -26,6 +26,7 @@ import { getPool } from "../dbConfig";
 import { requireAuthenticatedUser } from "../utils/auditTrail";
 import { ProductServiceFactory } from "../services/product";
 import { Metal, ProductTypeEnum } from "@marcopersi/shared";
+import { normalizePagination } from "../utils/paginationResponse";
 import {
   ProductManagementResponse,
   ProductPriceDTO,
@@ -78,6 +79,8 @@ interface ProductListApiResponse {
       limit: number;
       total: number;
       totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
     };
   };
   message: string;
@@ -318,12 +321,7 @@ export class ProductController extends Controller {
         success: true,
         data: {
           items: transformedItems,
-          pagination: {
-            page: result.pagination.page,
-            limit: result.pagination.limit,
-            total: result.pagination.total,
-            totalPages: result.pagination.totalPages
-          }
+          pagination: normalizePagination(result.pagination)
         },
         message: `Found ${result.pagination.total} products`
       };

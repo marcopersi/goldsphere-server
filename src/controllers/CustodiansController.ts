@@ -24,6 +24,7 @@ import type { Request as ExpressRequest } from "express";
 import { getPool } from "../dbConfig";
 import { requireAuthenticatedUser } from "../utils/auditTrail";
 import { CustodianServiceFactory, CustodianDTO } from "../services/custodian";
+import { normalizePagination } from "../utils/paginationResponse";
 
 // ============================================================================
 // Request/Response Interfaces
@@ -47,12 +48,12 @@ interface CustodianListResponse {
 }
 
 interface CustodianPaginationInfo {
-  currentPage: number;
-  itemsPerPage: number;
-  totalItems: number;
+  page: number;
+  limit: number;
+  total: number;
   totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
 interface CustodianPaginatedResponse {
@@ -130,7 +131,7 @@ export class CustodiansController extends Controller {
     return {
       success: true,
       data: result.data.custodians,
-      total: result.data.pagination.totalItems
+      total: normalizePagination(result.data.pagination).total
     };
   }
 
@@ -188,7 +189,7 @@ export class CustodiansController extends Controller {
       success: true,
       data: {
         custodians: result.data.custodians,
-        pagination: result.data.pagination
+        pagination: normalizePagination(result.data.pagination)
       }
     };
   }

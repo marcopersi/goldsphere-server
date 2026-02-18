@@ -7,8 +7,9 @@ import { IAuthRepository } from '../repository/IAuthRepository';
 import { AuthUserRecord } from '../types';
 
 export class AuthRepositoryMock implements IAuthRepository {
-  private users: Map<string, AuthUserRecord> = new Map();
-  private lastLoginUpdates: Map<string, Date> = new Map();
+  private readonly users: Map<string, AuthUserRecord> = new Map();
+  private readonly lastLoginUpdates: Map<string, Date> = new Map();
+  private readonly revokedTokens: Set<string> = new Set();
 
   constructor(initialUsers?: AuthUserRecord[]) {
     if (initialUsers) {
@@ -33,6 +34,14 @@ export class AuthRepositoryMock implements IAuthRepository {
     return false;
   }
 
+  async revokeToken(token: string, _expiresAt: Date): Promise<void> {
+    this.revokedTokens.add(token);
+  }
+
+  async isTokenRevoked(token: string): Promise<boolean> {
+    return this.revokedTokens.has(token);
+  }
+
   // Test helper methods
   addUser(user: AuthUserRecord): void {
     this.users.set(user.email, user);
@@ -49,5 +58,6 @@ export class AuthRepositoryMock implements IAuthRepository {
   clear(): void {
     this.users.clear();
     this.lastLoginUpdates.clear();
+    this.revokedTokens.clear();
   }
 }

@@ -29,6 +29,7 @@ import {
   CustodyServiceDTO,
   CustodianWithServices
 } from "../services/custody";
+import { normalizePagination } from "../utils/paginationResponse";
 
 // ============================================================================
 // Type Aliases
@@ -52,12 +53,12 @@ interface CustodyErrorResponse {
 }
 
 interface CustodyPaginationInfo {
-  currentPage: number;
-  itemsPerPage: number;
-  totalItems: number;
+  page: number;
+  limit: number;
+  total: number;
   totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
 interface CustodyServiceListResponse {
@@ -211,7 +212,7 @@ export class CustodyServiceController extends Controller {
       success: true,
       data: {
         custodyServices: result.data.custodyServices,
-        pagination: result.data.pagination
+        pagination: normalizePagination(result.data.pagination)
       }
     };
   }

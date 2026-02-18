@@ -318,7 +318,7 @@ describe('Endpoint contracts', () => {
     expect(pagination).toHaveProperty('total');
     expect(pagination).toHaveProperty('totalPages');
     expect(pagination).toHaveProperty('hasNext');
-    expect(pagination).toHaveProperty('hasPrevious');
+    expect(pagination).toHaveProperty('hasPrev');
 
     if (res.body.orders.length > 0) {
       assertOrderContract(res.body.orders[0]);
@@ -443,8 +443,10 @@ describe('Endpoint contracts', () => {
     expect(res.body).toHaveProperty('pagination');
     expect(res.body.pagination).toHaveProperty('page');
     expect(res.body.pagination).toHaveProperty('limit');
-    expect(res.body.pagination).toHaveProperty('totalCount');
+    expect(res.body.pagination).toHaveProperty('total');
     expect(res.body.pagination).toHaveProperty('totalPages');
+    expect(res.body.pagination).toHaveProperty('hasNext');
+    expect(res.body.pagination).toHaveProperty('hasPrev');
 
     if (res.body.data.length > 0) {
       assertUserContract(res.body.data[0]);
@@ -461,10 +463,12 @@ describe('Endpoint contracts', () => {
     expect(res.body).toHaveProperty('data');
     expect(Array.isArray(res.body.data.custodyServices)).toBe(true);
     expect(res.body.data).toHaveProperty('pagination');
-    expect(res.body.data.pagination).toHaveProperty('currentPage');
-    expect(res.body.data.pagination).toHaveProperty('itemsPerPage');
-    expect(res.body.data.pagination).toHaveProperty('totalItems');
+    expect(res.body.data.pagination).toHaveProperty('page');
+    expect(res.body.data.pagination).toHaveProperty('limit');
+    expect(res.body.data.pagination).toHaveProperty('total');
     expect(res.body.data.pagination).toHaveProperty('totalPages');
+    expect(res.body.data.pagination).toHaveProperty('hasNext');
+    expect(res.body.data.pagination).toHaveProperty('hasPrev');
 
     if (res.body.data.custodyServices.length > 0) {
       assertCustodyServiceContract(res.body.data.custodyServices[0]);
@@ -481,10 +485,12 @@ describe('Endpoint contracts', () => {
     expect(res.body).toHaveProperty('data');
     expect(Array.isArray(res.body.data.custodians)).toBe(true);
     expect(res.body.data).toHaveProperty('pagination');
-    expect(res.body.data.pagination).toHaveProperty('currentPage');
-    expect(res.body.data.pagination).toHaveProperty('itemsPerPage');
-    expect(res.body.data.pagination).toHaveProperty('totalItems');
+    expect(res.body.data.pagination).toHaveProperty('page');
+    expect(res.body.data.pagination).toHaveProperty('limit');
+    expect(res.body.data.pagination).toHaveProperty('total');
     expect(res.body.data.pagination).toHaveProperty('totalPages');
+    expect(res.body.data.pagination).toHaveProperty('hasNext');
+    expect(res.body.data.pagination).toHaveProperty('hasPrev');
 
     if (res.body.data.custodians.length > 0) {
       assertCustodianContract(res.body.data.custodians[0]);

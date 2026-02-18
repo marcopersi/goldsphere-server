@@ -31,6 +31,7 @@ import {
   Position
 } from "../services/portfolio/types/PortfolioTypes";
 import * as express from "express";
+import { normalizePagination } from "../utils/paginationResponse";
 
 // ============================================================================
 // Response Interfaces
@@ -52,6 +53,8 @@ interface PortfolioListResponse {
       limit: number;
       total: number;
       totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
     };
   };
 }
@@ -210,9 +213,14 @@ export class PortfolioController extends Controller {
 
       const result = await getPortfolioService().getAllPortfolios(cleanOptions);
 
+      const normalizedResult = {
+        ...result,
+        pagination: normalizePagination(result.pagination)
+      };
+
       return {
         success: true,
-        data: result
+        data: normalizedResult
       };
     } catch (error) {
       this.setStatus(500);

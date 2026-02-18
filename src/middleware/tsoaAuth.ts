@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import { getPool } from '../dbConfig';
 import { UserErrorCode, UserServiceFactory } from '../services/user';
 import { AUTH_ERROR_CODES } from '../services/auth/contract/AuthErrorFactory';
+import { AuthRepositoryImpl } from '../services/auth/repository/AuthRepositoryImpl';
 
 const envJwtSecret = process.env.JWT_SECRET;
 
@@ -72,7 +73,7 @@ async function verifyAuthenticatedUser(decoded: AuthenticatedUser): Promise<Auth
 
 function rethrowKnownAuthError(error: unknown): never {
   if (!error || !(error instanceof Error)) {
-    throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'Invalid or expired token');
+    throw createAuthSecurityError(500, AUTH_ERROR_CODES.AUTH_INTERNAL_ERROR, 'Authentication service unavailable');
   }
 
   const authError = error as Partial<AuthSecurityError>;
@@ -84,7 +85,11 @@ function rethrowKnownAuthError(error: unknown): never {
     throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Token has expired');
   }
 
-  throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'Invalid or expired token');
+  if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.NotBeforeError) {
+    throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'Invalid or expired token');
+  }
+
+  throw createAuthSecurityError(500, AUTH_ERROR_CODES.AUTH_INTERNAL_ERROR, 'Authentication service unavailable');
 }
 
 /**
@@ -104,6 +109,12 @@ export async function expressAuthentication(
 
   try {
     const token = getBearerToken(request.headers.authorization);
+    const authRepository = new AuthRepositoryImpl(getPool());
+    const revoked = await authRepository.isTokenRevoked(token);
+    if (revoked) {
+      throw createAuthSecurityError(401, AUTH_ERROR_CODES.AUTH_TOKEN_INVALID, 'Token has been revoked');
+    }
+
     const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
     const authenticatedUser = await verifyAuthenticatedUser(decoded);
 

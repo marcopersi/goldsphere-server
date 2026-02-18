@@ -72,11 +72,17 @@
 					},
 					"pagination": {
 						"properties": {
+							"hasPrev": {
+								"type": "boolean"
+							},
+							"hasNext": {
+								"type": "boolean"
+							},
 							"totalPages": {
 								"type": "number",
 								"format": "double"
 							},
-							"totalCount": {
+							"total": {
 								"type": "number",
 								"format": "double"
 							},
@@ -90,8 +96,10 @@
 							}
 						},
 						"required": [
+							"hasPrev",
+							"hasNext",
 							"totalPages",
-							"totalCount",
+							"total",
 							"limit",
 							"page"
 						],
@@ -2035,7 +2043,7 @@
 				"type": "object",
 				"additionalProperties": false
 			},
-			"PaginationResponse": {
+			"StandardPagination": {
 				"properties": {
 					"page": {
 						"type": "number",
@@ -2056,7 +2064,7 @@
 					"hasNext": {
 						"type": "boolean"
 					},
-					"hasPrevious": {
+					"hasPrev": {
 						"type": "boolean"
 					}
 				},
@@ -2066,7 +2074,7 @@
 					"total",
 					"totalPages",
 					"hasNext",
-					"hasPrevious"
+					"hasPrev"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -2083,7 +2091,7 @@
 					"data": {
 						"properties": {
 							"pagination": {
-								"$ref": "#/components/schemas/PaginationResponse"
+								"$ref": "#/components/schemas/StandardPagination"
 							},
 							"items": {
 								"items": {
@@ -2285,6 +2293,12 @@
 						"properties": {
 							"pagination": {
 								"properties": {
+									"hasPrev": {
+										"type": "boolean"
+									},
+									"hasNext": {
+										"type": "boolean"
+									},
 									"totalPages": {
 										"type": "number",
 										"format": "double"
@@ -2303,6 +2317,8 @@
 									}
 								},
 								"required": [
+									"hasPrev",
+									"hasNext",
 									"totalPages",
 									"total",
 									"limit",
@@ -2764,7 +2780,7 @@
 					"hasNext": {
 						"type": "boolean"
 					},
-					"hasPrevious": {
+					"hasPrev": {
 						"type": "boolean"
 					}
 				},
@@ -2774,7 +2790,7 @@
 					"total",
 					"totalPages",
 					"hasNext",
-					"hasPrevious"
+					"hasPrev"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -3574,6 +3590,12 @@
 						"properties": {
 							"pagination": {
 								"properties": {
+									"hasPrev": {
+										"type": "boolean"
+									},
+									"hasNext": {
+										"type": "boolean"
+									},
 									"totalPages": {
 										"type": "number",
 										"format": "double"
@@ -3592,6 +3614,8 @@
 									}
 								},
 								"required": [
+									"hasPrev",
+									"hasNext",
 									"totalPages",
 									"total",
 									"limit",
@@ -4698,7 +4722,7 @@
 					"hasNext": {
 						"type": "boolean"
 					},
-					"hasPrevious": {
+					"hasPrev": {
 						"type": "boolean"
 					}
 				},
@@ -4708,7 +4732,7 @@
 					"total",
 					"totalPages",
 					"hasNext",
-					"hasPrevious"
+					"hasPrev"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -5325,7 +5349,7 @@
 					"data": {
 						"properties": {
 							"pagination": {
-								"$ref": "#/components/schemas/PaginationResponse"
+								"$ref": "#/components/schemas/StandardPagination"
 							},
 							"items": {
 								"items": {
@@ -5958,15 +5982,15 @@
 			},
 			"CustodyPaginationInfo": {
 				"properties": {
-					"currentPage": {
+					"page": {
 						"type": "number",
 						"format": "double"
 					},
-					"itemsPerPage": {
+					"limit": {
 						"type": "number",
 						"format": "double"
 					},
-					"totalItems": {
+					"total": {
 						"type": "number",
 						"format": "double"
 					},
@@ -5974,20 +5998,20 @@
 						"type": "number",
 						"format": "double"
 					},
-					"hasNextPage": {
+					"hasNext": {
 						"type": "boolean"
 					},
-					"hasPreviousPage": {
+					"hasPrev": {
 						"type": "boolean"
 					}
 				},
 				"required": [
-					"currentPage",
-					"itemsPerPage",
-					"totalItems",
+					"page",
+					"limit",
+					"total",
 					"totalPages",
-					"hasNextPage",
-					"hasPreviousPage"
+					"hasNext",
+					"hasPrev"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -6295,15 +6319,15 @@
 			},
 			"CustodianPaginationInfo": {
 				"properties": {
-					"currentPage": {
+					"page": {
 						"type": "number",
 						"format": "double"
 					},
-					"itemsPerPage": {
+					"limit": {
 						"type": "number",
 						"format": "double"
 					},
-					"totalItems": {
+					"total": {
 						"type": "number",
 						"format": "double"
 					},
@@ -6311,20 +6335,20 @@
 						"type": "number",
 						"format": "double"
 					},
-					"hasNextPage": {
+					"hasNext": {
 						"type": "boolean"
 					},
-					"hasPreviousPage": {
+					"hasPrev": {
 						"type": "boolean"
 					}
 				},
 				"required": [
-					"currentPage",
-					"itemsPerPage",
-					"totalItems",
+					"page",
+					"limit",
+					"total",
 					"totalPages",
-					"hasNextPage",
-					"hasPreviousPage"
+					"hasNext",
+					"hasPrev"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -6782,6 +6806,34 @@
 			},
 			"UserSuccessResponse": {
 				"$ref": "#/components/schemas/infer_typeofUserSuccessResponseSchema_"
+			},
+			"LogoutSuccessResponse": {
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [
+							true
+						],
+						"nullable": false
+					},
+					"data": {
+						"properties": {
+							"message": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"message"
+						],
+						"type": "object"
+					}
+				},
+				"required": [
+					"success",
+					"data"
+				],
+				"type": "object",
+				"additionalProperties": false
 			},
 			"ImageUploadResponse": {
 				"properties": {
@@ -14187,6 +14239,61 @@
 				},
 				"description": "Get current authenticated user info",
 				"summary": "Get current user",
+				"tags": [
+					"Authentication"
+				],
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"description": "Bearer token header",
+						"in": "header",
+						"name": "Authorization",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/auth/logout": {
+			"post": {
+				"operationId": "Logout",
+				"responses": {
+					"200": {
+						"description": "Logout successful",
+						"content": {
+							"application/json": {
+								"schema": {
+									"anyOf": [
+										{
+											"$ref": "#/components/schemas/LogoutSuccessResponse"
+										},
+										{
+											"$ref": "#/components/schemas/AuthErrorResponse"
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Invalid or expired token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AuthErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"description": "Logout current user and invalidate JWT token",
+				"summary": "Logout",
 				"tags": [
 					"Authentication"
 				],

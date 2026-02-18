@@ -31,4 +31,9 @@ export interface IAuthService {
    * Get current user from token
    */
   getCurrentUser(token: string): Promise<AuthResult<AuthUser>>;
+
+  /**
+   * Logout user by revoking current token
+   */
+  logout(token: string): Promise<AuthResult<{ message: string }>>;
 }

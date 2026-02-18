@@ -267,6 +267,66 @@ describe('Authentication Endpoints', () => {
     });
   });
 
+  describe('POST /api/auth/logout', () => {
+    it('should logout and invalidate current token', async () => {
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
+        .expect(200);
+
+      const token = loginResponse.body.data.accessToken;
+
+      const logoutResponse = await request(app)
+        .post('/api/auth/logout')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(logoutResponse.body).toHaveProperty('success', true);
+      expect(logoutResponse.body).toHaveProperty('data.message', 'Logout successful');
+
+      const meAfterLogout = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(401);
+
+      expect(meAfterLogout.body).toHaveProperty('success', false);
+      expect(meAfterLogout.body).toHaveProperty('code', 'AUTH_TOKEN_INVALID');
+    });
+
+    it('should reject logout without token', async () => {
+      const response = await request(app)
+        .post('/api/auth/logout')
+        .expect(401);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('code', 'AUTH_TOKEN_INVALID');
+    });
+
+    it('should recover when revocation storage is missing', async () => {
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'bank.technical@goldsphere.vault', password: 'GoldspherePassword' })
+        .expect(200);
+
+      const token = loginResponse.body.data.accessToken;
+      const pool = getPool();
+
+      await pool.query('DROP TABLE IF EXISTS auth_revoked_tokens');
+
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+
+      const tableExists = await pool.query(
+        `SELECT to_regclass('public.auth_revoked_tokens') AS table_name`
+      );
+      expect(tableExists.rows[0]?.table_name).toBe('auth_revoked_tokens');
+    });
+  });
+
   describe('tsoa protected route security checks', () => {
     it('should reject token when user role changed since token issuance', async () => {
       const tempAdmin = await createTemporaryAdmin();

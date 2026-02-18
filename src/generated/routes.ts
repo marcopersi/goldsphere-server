@@ -77,7 +77,7 @@ const models: TsoaRoute.Models = {
         "properties": {
             "success": {"dataType":"enum","enums":[true],"required":true},
             "data": {"dataType":"array","array":{"dataType":"refObject","ref":"UserResponse"},"required":true},
-            "pagination": {"dataType":"nestedObjectLiteral","nestedProperties":{"totalPages":{"dataType":"double","required":true},"totalCount":{"dataType":"double","required":true},"limit":{"dataType":"double","required":true},"page":{"dataType":"double","required":true}},"required":true},
+            "pagination": {"dataType":"nestedObjectLiteral","nestedProperties":{"hasPrev":{"dataType":"boolean","required":true},"hasNext":{"dataType":"boolean","required":true},"totalPages":{"dataType":"double","required":true},"total":{"dataType":"double","required":true},"limit":{"dataType":"double","required":true},"page":{"dataType":"double","required":true}},"required":true},
         },
         "additionalProperties": false,
     },
@@ -651,7 +651,7 @@ const models: TsoaRoute.Models = {
         "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "PaginationResponse": {
+    "StandardPagination": {
         "dataType": "refObject",
         "properties": {
             "page": {"dataType":"double","required":true},
@@ -659,7 +659,7 @@ const models: TsoaRoute.Models = {
             "total": {"dataType":"double","required":true},
             "totalPages": {"dataType":"double","required":true},
             "hasNext": {"dataType":"boolean","required":true},
-            "hasPrevious": {"dataType":"boolean","required":true},
+            "hasPrev": {"dataType":"boolean","required":true},
         },
         "additionalProperties": false,
     },
@@ -668,7 +668,7 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "success": {"dataType":"enum","enums":[true],"required":true},
-            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"ref":"PaginationResponse","required":true},"items":{"dataType":"array","array":{"dataType":"refObject","ref":"ProductTypeResponse"},"required":true}},"required":true},
+            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"ref":"StandardPagination","required":true},"items":{"dataType":"array","array":{"dataType":"refObject","ref":"ProductTypeResponse"},"required":true}},"required":true},
         },
         "additionalProperties": false,
     },
@@ -731,7 +731,7 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "success": {"dataType":"boolean","required":true},
-            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"dataType":"nestedObjectLiteral","nestedProperties":{"totalPages":{"dataType":"double","required":true},"total":{"dataType":"double","required":true},"limit":{"dataType":"double","required":true},"page":{"dataType":"double","required":true}},"required":true},"items":{"dataType":"array","array":{"dataType":"refObject","ref":"ProductApiResponse"},"required":true}},"required":true},
+            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"dataType":"nestedObjectLiteral","nestedProperties":{"hasPrev":{"dataType":"boolean","required":true},"hasNext":{"dataType":"boolean","required":true},"totalPages":{"dataType":"double","required":true},"total":{"dataType":"double","required":true},"limit":{"dataType":"double","required":true},"page":{"dataType":"double","required":true}},"required":true},"items":{"dataType":"array","array":{"dataType":"refObject","ref":"ProductApiResponse"},"required":true}},"required":true},
             "message": {"dataType":"string","required":true},
         },
         "additionalProperties": false,
@@ -902,7 +902,7 @@ const models: TsoaRoute.Models = {
             "total": {"dataType":"double","required":true},
             "totalPages": {"dataType":"double","required":true},
             "hasNext": {"dataType":"boolean","required":true},
-            "hasPrevious": {"dataType":"boolean","required":true},
+            "hasPrev": {"dataType":"boolean","required":true},
         },
         "additionalProperties": false,
     },
@@ -1081,7 +1081,7 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "success": {"dataType":"enum","enums":[true],"required":true},
-            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"dataType":"nestedObjectLiteral","nestedProperties":{"totalPages":{"dataType":"double","required":true},"total":{"dataType":"double","required":true},"limit":{"dataType":"double","required":true},"page":{"dataType":"double","required":true}},"required":true},"portfolios":{"dataType":"array","array":{"dataType":"refObject","ref":"PortfolioSummary"},"required":true}},"required":true},
+            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"dataType":"nestedObjectLiteral","nestedProperties":{"hasPrev":{"dataType":"boolean","required":true},"hasNext":{"dataType":"boolean","required":true},"totalPages":{"dataType":"double","required":true},"total":{"dataType":"double","required":true},"limit":{"dataType":"double","required":true},"page":{"dataType":"double","required":true}},"required":true},"portfolios":{"dataType":"array","array":{"dataType":"refObject","ref":"PortfolioSummary"},"required":true}},"required":true},
         },
         "additionalProperties": false,
     },
@@ -1334,7 +1334,7 @@ const models: TsoaRoute.Models = {
             "total": {"dataType":"double","required":true},
             "totalPages": {"dataType":"double","required":true},
             "hasNext": {"dataType":"boolean","required":true},
-            "hasPrevious": {"dataType":"boolean","required":true},
+            "hasPrev": {"dataType":"boolean","required":true},
         },
         "additionalProperties": false,
     },
@@ -1553,7 +1553,7 @@ const models: TsoaRoute.Models = {
         "dataType": "refObject",
         "properties": {
             "success": {"dataType":"enum","enums":[true],"required":true},
-            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"ref":"PaginationResponse","required":true},"items":{"dataType":"array","array":{"dataType":"refObject","ref":"MetalResponse"},"required":true}},"required":true},
+            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"pagination":{"ref":"StandardPagination","required":true},"items":{"dataType":"array","array":{"dataType":"refObject","ref":"MetalResponse"},"required":true}},"required":true},
         },
         "additionalProperties": false,
     },
@@ -1777,12 +1777,12 @@ const models: TsoaRoute.Models = {
     "CustodyPaginationInfo": {
         "dataType": "refObject",
         "properties": {
-            "currentPage": {"dataType":"double","required":true},
-            "itemsPerPage": {"dataType":"double","required":true},
-            "totalItems": {"dataType":"double","required":true},
+            "page": {"dataType":"double","required":true},
+            "limit": {"dataType":"double","required":true},
+            "total": {"dataType":"double","required":true},
             "totalPages": {"dataType":"double","required":true},
-            "hasNextPage": {"dataType":"boolean","required":true},
-            "hasPreviousPage": {"dataType":"boolean","required":true},
+            "hasNext": {"dataType":"boolean","required":true},
+            "hasPrev": {"dataType":"boolean","required":true},
         },
         "additionalProperties": false,
     },
@@ -1899,12 +1899,12 @@ const models: TsoaRoute.Models = {
     "CustodianPaginationInfo": {
         "dataType": "refObject",
         "properties": {
-            "currentPage": {"dataType":"double","required":true},
-            "itemsPerPage": {"dataType":"double","required":true},
-            "totalItems": {"dataType":"double","required":true},
+            "page": {"dataType":"double","required":true},
+            "limit": {"dataType":"double","required":true},
+            "total": {"dataType":"double","required":true},
             "totalPages": {"dataType":"double","required":true},
-            "hasNextPage": {"dataType":"boolean","required":true},
-            "hasPreviousPage": {"dataType":"boolean","required":true},
+            "hasNext": {"dataType":"boolean","required":true},
+            "hasPrev": {"dataType":"boolean","required":true},
         },
         "additionalProperties": false,
     },
@@ -2066,6 +2066,15 @@ const models: TsoaRoute.Models = {
     "UserSuccessResponse": {
         "dataType": "refAlias",
         "type": {"ref":"infer_typeofUserSuccessResponseSchema_","validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "LogoutSuccessResponse": {
+        "dataType": "refObject",
+        "properties": {
+            "success": {"dataType":"enum","enums":[true],"required":true},
+            "data": {"dataType":"nestedObjectLiteral","nestedProperties":{"message":{"dataType":"string","required":true}},"required":true},
+        },
+        "additionalProperties": false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ImageUploadResponse": {
@@ -3339,6 +3348,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPositionsController_getPositions: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"request","name":"request","required":true,"dataType":"object"},
                 page: {"default":1,"in":"query","name":"page","dataType":"double"},
                 limit: {"default":20,"in":"query","name":"limit","dataType":"double"},
                 status: {"default":"active","in":"query","name":"status","dataType":"string"},
@@ -3372,6 +3382,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPositionsController_getPortfolioPositions: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"request","name":"request","required":true,"dataType":"object"},
                 portfolioId: {"in":"path","name":"portfolioId","required":true,"dataType":"string"},
         };
         app.get('/api/positions/portfolios/:portfolioId/positions',
@@ -3403,6 +3414,7 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
         });
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsPositionsController_getPosition: Record<string, TsoaRoute.ParameterSchema> = {
+                request: {"in":"request","name":"request","required":true,"dataType":"object"},
                 id: {"in":"path","name":"id","required":true,"dataType":"string"},
         };
         app.get('/api/positions/:id',
@@ -5355,6 +5367,37 @@ export function RegisterRoutes(app: Router,opts?:{multer?:ReturnType<typeof mult
 
               await templateService.apiHandler({
                 methodName: 'getCurrentUser',
+                controller,
+                response,
+                next,
+                validatedArgs,
+                successStatus: 200,
+              });
+            } catch (err) {
+                return next(err);
+            }
+        });
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        const argsAuthController_logout: Record<string, TsoaRoute.ParameterSchema> = {
+                authorization: {"in":"header","name":"Authorization","dataType":"string"},
+        };
+        app.post('/api/auth/logout',
+            authenticateMiddleware([{"bearerAuth":[]}]),
+            ...(fetchMiddlewares<RequestHandler>(AuthController)),
+            ...(fetchMiddlewares<RequestHandler>(AuthController.prototype.logout)),
+
+            async function AuthController_logout(request: ExRequest, response: ExResponse, next: any) {
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({ args: argsAuthController_logout, request, response });
+
+                const controller = new AuthController();
+
+              await templateService.apiHandler({
+                methodName: 'logout',
                 controller,
                 response,
                 next,

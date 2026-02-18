@@ -10,12 +10,20 @@ import { EmailServiceMock } from './mock/EmailServiceMock';
 import { EmailServiceConfig } from './types/EmailTypes';
 
 export class EmailServiceFactory {
+  private static shouldUseMockEmailService(): boolean {
+    return process.env.NODE_ENV === 'test';
+  }
+
   /**
    * Create production Email service with nodemailer
    * @param baseUrl Base URL for verification links
    * @param fromEmail From email address
    */
   static create(baseUrl: string, fromEmail: string): IEmailService {
+    if (this.shouldUseMockEmailService()) {
+      return new EmailServiceMock();
+    }
+
     const config: EmailServiceConfig = {
       baseUrl,
       fromEmail
@@ -28,6 +36,10 @@ export class EmailServiceFactory {
    * Create Email service with custom configuration
    */
   static createWithConfig(config: EmailServiceConfig): IEmailService {
+    if (this.shouldUseMockEmailService()) {
+      return new EmailServiceMock();
+    }
+
     return new EmailServiceImpl(config);
   }
 

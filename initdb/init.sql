@@ -29,6 +29,15 @@ SET row_security = off;
 \echo 'Loading market data schema...'
 \i /docker-entrypoint-initdb.d/05-market-data.sql
 
+\echo 'Applying user enum migrations...'
+\i /docker-entrypoint-initdb.d/06-user-enums.sql
+
+\echo 'Applying market data price type migrations...'
+\i /docker-entrypoint-initdb.d/07-market-data-price-types.sql
+
+\echo 'Applying user account status migration...'
+\i /docker-entrypoint-initdb.d/08-user-account-status.sql
+
 \echo 'GoldSphere database initialization complete!'
 
 -- Create some useful indexes for performance

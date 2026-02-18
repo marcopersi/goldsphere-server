@@ -57,6 +57,13 @@ export interface LoginRequestBody {
   password?: string;
 }
 
+interface LogoutSuccessResponse {
+  success: true;
+  data: {
+    message: string;
+  };
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -246,5 +253,43 @@ export class AuthController extends Controller {
         user: result.data,
       },
     });
+  }
+
+  /**
+   * Logout current user and invalidate JWT token
+   * @summary Logout
+   * @param authorization Bearer token header
+   */
+  @Post('logout')
+  @Security('bearerAuth')
+  @SuccessResponse(200, 'Logout successful')
+  @Response<AuthErrorResponse>(401, 'Invalid or expired token')
+  public async logout(
+    @Header('Authorization') authorization?: string
+  ): Promise<LogoutSuccessResponse | AuthErrorResponse> {
+    const token = authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      const code = AUTH_ERROR_CODES.AUTH_TOKEN_INVALID;
+      this.setStatus(401);
+      return createAuthError(code, 'No token provided');
+    }
+
+    const result = await this.authService.logout(token);
+
+    if (!result.success || !result.data) {
+      const error = result.error;
+      const code = getCanonicalCode(error?.code);
+      const errorResponse = createAuthError(code, error?.message || 'Failed to logout');
+      this.setStatus(getAuthHttpStatus(code));
+      return errorResponse;
+    }
+
+    return {
+      success: true,
+      data: {
+        message: result.data.message,
+      },
+    };
   }
 }

@@ -220,6 +220,27 @@ describe('AuthService', () => {
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(AuthErrorCode.TOKEN_EXPIRED);
     });
+
+    it('should return internal error when revocation lookup fails', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const loginResult = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      const token = loginResult.data!.data.accessToken;
+      jest
+        .spyOn(mockRepository, 'isTokenRevoked')
+        .mockRejectedValueOnce(new Error('relation "auth_revoked_tokens" does not exist'));
+
+      const result = await authService.validateToken(token);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.INTERNAL_ERROR);
+      expect(result.error?.message).toContain('Failed to validate token revocation state');
+    });
   });
 
   describe('refreshToken', () => {
@@ -294,6 +315,35 @@ describe('AuthService', () => {
 
     it('should return error for invalid token', async () => {
       const result = await authService.getCurrentUser('invalid-token');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe(AuthErrorCode.TOKEN_INVALID);
+    });
+  });
+
+  describe('logout', () => {
+    it('should revoke token and return success', async () => {
+      const testUser = await createTestUser();
+      mockRepository.addUser(testUser);
+
+      const loginResult = await authService.login({
+        email: 'test@goldsphere.vault',
+        password: testPassword,
+      });
+
+      const token = loginResult.data!.data.accessToken;
+      const logoutResult = await authService.logout(token);
+
+      expect(logoutResult.success).toBe(true);
+      expect(logoutResult.data?.message).toBe('Logout successful');
+
+      const validateAfterLogout = await authService.validateToken(token);
+      expect(validateAfterLogout.success).toBe(false);
+      expect(validateAfterLogout.error?.code).toBe(AuthErrorCode.TOKEN_INVALID);
+    });
+
+    it('should return error for invalid token logout', async () => {
+      const result = await authService.logout('invalid-token');
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(AuthErrorCode.TOKEN_INVALID);

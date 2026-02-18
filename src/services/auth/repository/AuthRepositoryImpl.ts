@@ -4,11 +4,31 @@
  */
 
 import { Pool } from 'pg';
+import { createHash } from 'node:crypto';
 import { IAuthRepository } from './IAuthRepository';
 import { AuthUserRecord } from '../types';
 
 export class AuthRepositoryImpl implements IAuthRepository {
   constructor(private readonly pool: Pool) {}
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async ensureRevocationTable(): Promise<void> {
+    await this.pool.query(
+      `CREATE TABLE IF NOT EXISTS auth_revoked_tokens (
+        token_hash VARCHAR(64) PRIMARY KEY,
+        expires_at TIMESTAMP NOT NULL,
+        revoked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`
+    );
+
+    await this.pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_auth_revoked_tokens_expires_at
+       ON auth_revoked_tokens(expires_at)`
+    );
+  }
 
   async findUserByEmail(email: string): Promise<AuthUserRecord | null> {
     let result;
@@ -86,6 +106,37 @@ export class AuthRepositoryImpl implements IAuthRepository {
     );
 
     // Users exist = active (no status column in current schema)
+    return result.rows.length > 0;
+  }
+
+  async revokeToken(token: string, expiresAt: Date): Promise<void> {
+    await this.ensureRevocationTable();
+
+    const tokenHash = this.hashToken(token);
+
+    await this.pool.query(
+      `INSERT INTO auth_revoked_tokens (token_hash, expires_at)
+       VALUES ($1, $2)
+       ON CONFLICT (token_hash)
+       DO UPDATE SET expires_at = EXCLUDED.expires_at, revoked_at = CURRENT_TIMESTAMP`,
+      [tokenHash, expiresAt]
+    );
+  }
+
+  async isTokenRevoked(token: string): Promise<boolean> {
+    await this.ensureRevocationTable();
+
+    const tokenHash = this.hashToken(token);
+
+    const result = await this.pool.query(
+      `SELECT 1
+       FROM auth_revoked_tokens
+       WHERE token_hash = $1
+         AND expires_at > CURRENT_TIMESTAMP
+       LIMIT 1`,
+      [tokenHash]
+    );
+
     return result.rows.length > 0;
   }
 }

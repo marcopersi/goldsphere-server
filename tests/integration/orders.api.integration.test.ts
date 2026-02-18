@@ -164,7 +164,7 @@ describe("Orders API", () => {
       expect(pagination).toHaveProperty('total');
       expect(pagination).toHaveProperty('totalPages');
       expect(pagination).toHaveProperty('hasNext');
-      expect(pagination).toHaveProperty('hasPrevious');
+      expect(pagination).toHaveProperty('hasPrev');
       
       // If there are orders, validate order structure
       if (response.body.orders.length > 0) {

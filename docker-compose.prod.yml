@@ -5,6 +5,20 @@
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d
 
 services:
+  initdb-assets:
+    image: ghcr.io/marcopersi/goldsphere-server:${APP_VERSION:-latest}
+    container_name: goldsphere-initdb-assets
+    restart: "no"
+    command: >
+      sh -c "
+        rm -rf /initdb/* &&
+        cp -a /app/initdb/. /initdb/
+      "
+    volumes:
+      - initdb_assets:/initdb
+    networks:
+      - pg-network
+
   postgres:
     image: postgres:16-alpine
     container_name: postgres-goldsphere-db
@@ -17,7 +31,10 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_goldsphere_data:/var/lib/postgresql/data
-      - ./initdb:/docker-entrypoint-initdb.d
+      - initdb_assets:/docker-entrypoint-initdb.d:ro
+    depends_on:
+      initdb-assets:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
@@ -43,8 +60,10 @@ services:
         psql -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/init.sql
       "
     volumes:
-      - ./initdb:/docker-entrypoint-initdb.d
+      - initdb_assets:/docker-entrypoint-initdb.d:ro
     depends_on:
+      initdb-assets:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     networks:
@@ -82,7 +101,7 @@ services:
       db-init:
         condition: service_completed_successfully
     volumes:
-      - ./initdb/images:/app/initdb/images:ro
+      - initdb_assets:/app/initdb:ro
     networks:
       - pg-network
 
@@ -160,6 +179,7 @@ services:
       - pg-network
 
 volumes:
+  initdb_assets:
   postgres_goldsphere_data:
   pgadmin_goldsphere_data:
 

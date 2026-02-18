@@ -50,8 +50,10 @@ describe('Users API Integration Tests', () => {
       expect(Array.isArray(response.body.data)).toBe(true);
       expect(response.body.pagination).toHaveProperty('page');
       expect(response.body.pagination).toHaveProperty('limit');
-      expect(response.body.pagination).toHaveProperty('totalCount');
+      expect(response.body.pagination).toHaveProperty('total');
       expect(response.body.pagination).toHaveProperty('totalPages');
+      expect(response.body.pagination).toHaveProperty('hasNext');
+      expect(response.body.pagination).toHaveProperty('hasPrev');
     });
 
     it('should support custom pagination', async () => {

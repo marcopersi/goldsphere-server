@@ -212,6 +212,27 @@ export class AuthServiceImpl implements IAuthService {
 
   async validateToken(token: string): Promise<AuthResult<TokenPayload>> {
     try {
+      const revoked = await this.authRepository.isTokenRevoked(token);
+      if (revoked) {
+        return {
+          success: false,
+          error: {
+            code: AuthErrorCode.TOKEN_INVALID,
+            message: 'Token has been revoked',
+          },
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: AuthErrorCode.INTERNAL_ERROR,
+          message: `Failed to validate token revocation state: ${(error as Error).message}`,
+        },
+      };
+    }
+
+    try {
       const decoded = jwt.verify(token, this.jwtSecret) as TokenPayload;
       return {
         success: true,
@@ -227,11 +248,20 @@ export class AuthServiceImpl implements IAuthService {
           },
         };
       }
+        if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.NotBeforeError) {
+          return {
+            success: false,
+            error: {
+              code: AuthErrorCode.TOKEN_INVALID,
+              message: 'Invalid token',
+            },
+          };
+        }
       return {
         success: false,
         error: {
-          code: AuthErrorCode.TOKEN_INVALID,
-          message: 'Invalid token',
+            code: AuthErrorCode.INTERNAL_ERROR,
+            message: `Token verification failed: ${(error as Error).message}`,
         },
       };
     }
@@ -368,6 +398,33 @@ export class AuthServiceImpl implements IAuthService {
         },
       };
     }
+  }
+
+  async logout(token: string): Promise<AuthResult<{ message: string }>> {
+    const validation = await this.validateToken(token);
+
+    if (!validation.success || !validation.data) {
+      return {
+        success: false,
+        error: validation.error || {
+          code: AuthErrorCode.TOKEN_INVALID,
+          message: 'Invalid token',
+        },
+      };
+    }
+
+    const expiresAt = validation.data.exp
+      ? new Date(validation.data.exp * 1000)
+      : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.authRepository.revokeToken(token, expiresAt);
+
+    return {
+      success: true,
+      data: {
+        message: 'Logout successful',
+      },
+    };
   }
 }
 

@@ -88,7 +88,7 @@ interface PaginationInfo {
   total: number;
   totalPages: number;
   hasNext: boolean;
-  hasPrevious: boolean;
+  hasPrev: boolean;
 }
 
 interface ProducersListResponse {
@@ -218,7 +218,7 @@ export class ProducersController extends Controller {
             total,
             totalPages,
             hasNext: qPage < totalPages,
-            hasPrevious: qPage > 1
+            hasPrev: qPage > 1
           }
         }
       };

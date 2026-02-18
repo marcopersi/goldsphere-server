@@ -154,6 +154,40 @@ describe('Enhanced User Registration API', () => {
         expect(response.body.success).toBe(true);
         expect(response.body.user.profile.title).toBeNull();
       });
+
+      it('should support autonomous register-login-logout flow', async () => {
+        const testData = await generateValidRegistrationData();
+
+        await request(app)
+          .post('/api/auth/register')
+          .send(testData)
+          .expect(201);
+
+        const loginResponse = await request(app)
+          .post('/api/auth/login')
+          .send({
+            email: testData.personalInfo.email,
+            password: testData.personalInfo.password,
+          })
+          .expect(200);
+
+        const token = loginResponse.body.data.accessToken;
+        expect(typeof token).toBe('string');
+        expect(token.length).toBeGreaterThan(20);
+
+        const logoutResponse = await request(app)
+          .post('/api/auth/logout')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200);
+
+        expect(logoutResponse.body).toHaveProperty('success', true);
+        expect(logoutResponse.body).toHaveProperty('data.message', 'Logout successful');
+
+        await request(app)
+          .get('/api/auth/me')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(401);
+      });
     });
 
     describe('Validation Errors', () => {

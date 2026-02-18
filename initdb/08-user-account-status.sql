@@ -165,6 +165,22 @@ WHERE
 -- STEP 8: Grant necessary permissions (if needed)
 -- =============================================================================
 
+-- =============================================================================
+-- STEP 9: Token revocation table for logout support
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS auth_revoked_tokens (
+  token_hash VARCHAR(64) PRIMARY KEY,
+  expires_at TIMESTAMP NOT NULL,
+  revoked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_revoked_tokens_expires_at
+  ON auth_revoked_tokens(expires_at);
+
+COMMENT ON TABLE auth_revoked_tokens IS
+  'Stores SHA-256 hashes of revoked JWT tokens until token expiration for logout invalidation.';
+
 -- Grant permissions to application role (adjust role name as needed)
 -- GRANT SELECT, INSERT, UPDATE ON users TO app_role;
 -- GRANT USAGE ON TYPE account_status TO app_role;
@@ -180,4 +196,5 @@ BEGIN
     RAISE NOTICE 'Migration 08-user-account-status.sql completed successfully';
     RAISE NOTICE 'Added account_status, blocking fields, and extended profile fields to users table';
     RAISE NOTICE 'Created indexes: idx_users_account_status, idx_users_phone_number, idx_users_blocked_info, idx_users_preferences';
+  RAISE NOTICE 'Created auth token revocation table: auth_revoked_tokens';
 END $$;

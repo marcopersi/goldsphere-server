@@ -16,12 +16,12 @@ import {
   SuccessResponse,
   Tags
 } from "tsoa";
-import type { PaginationResponse } from "@marcopersi/shared";
 import { getPool } from "../dbConfig";
 import { ReferenceServiceFactory } from "../services/reference";
 import type { IReferenceService } from "../services/reference/IReferenceService";
 import type { MetalResponse } from "../services/reference/types/ReferenceTypes";
 import { createLogger } from "../utils/logger";
+import { normalizePagination, type StandardPagination } from "../utils/paginationResponse";
 
 const logger = createLogger("MetalsController");
 
@@ -45,7 +45,7 @@ interface MetalsListResponse {
   success: true;
   data: {
     items: MetalResponse[];
-    pagination: PaginationResponse;
+    pagination: StandardPagination;
   };
 }
 
@@ -73,7 +73,7 @@ export class MetalsController extends Controller {
         success: true,
         data: {
           items: result.items,
-          pagination: result.pagination
+          pagination: normalizePagination(result.pagination)
         }
       };
     } catch (error) {
