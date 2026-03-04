@@ -41,14 +41,15 @@ export class OrderServiceImpl implements IOrderService {
 
     // Enrich items with product data and validate availability
     const enrichedItems = await this.productService.enrichOrderItems(request.items);
-    
-    // Calculate pricing
-    const calculation = this.calculationService.calculateOrderTotal(
-      enrichedItems.map(item => ({ quantity: item.quantity, unitPrice: item.unitPrice }))
-    );
 
     // Parse order type (returns lowercase for DB)
     const orderType: string = parseOrderType(request.type);
+    
+    // Calculate pricing
+    const calculation = this.calculationService.calculateOrderTotal(
+      enrichedItems.map(item => ({ quantity: item.quantity, unitPrice: item.unitPrice })),
+      orderType as 'buy' | 'sell'
+    );
 
     // Generate order ID
     const orderId = uuidv4();

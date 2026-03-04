@@ -5,24 +5,25 @@
  */
 
 import { ICalculationService } from "../ICalculationService";
-import { CalculationResult, CalculationItem, TaxLocation } from "../types/CalculationTypes";
+import { CalculationResult, CalculationItem, TaxLocation, OrderTypeValue } from "../types/CalculationTypes";
 
 export class CalculationServiceMock implements ICalculationService {
   /**
    * Calculate order total with fixed mock values
    */
-  calculateOrderTotal(items: CalculationItem[]): CalculationResult {
+  calculateOrderTotal(items: CalculationItem[], orderType: OrderTypeValue = 'buy'): CalculationResult {
     const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    const taxes = orderType === 'sell' ? 0 : 8.5;
     
     return {
       subtotal,
       fees: {
-        processing: 10.0,
-        shipping: 5.0,
+        processing: 10,
+        shipping: 5,
         insurance: 2.5
       },
-      taxes: 8.5,
-      totalAmount: subtotal + 26.0 // subtotal + all fees + taxes
+      taxes,
+      totalAmount: subtotal + 17.5 + taxes // subtotal + all fees + taxes
     };
   }
 
@@ -30,14 +31,14 @@ export class CalculationServiceMock implements ICalculationService {
    * Calculate fixed processing fee
    */
   calculateProcessingFee(_subtotal: number): number {
-    return 10.0;
+    return 10;
   }
 
   /**
    * Calculate fixed shipping cost
    */
   calculateShippingCost(_items: CalculationItem[], _shippingMethod?: string): number {
-    return 5.0;
+    return 5;
   }
 
   /**
@@ -50,7 +51,7 @@ export class CalculationServiceMock implements ICalculationService {
   /**
    * Calculate fixed taxes
    */
-  calculateTaxes(_subtotal: number, _location?: TaxLocation): number {
-    return 8.5;
+  calculateTaxes(_subtotal: number, _location?: TaxLocation, orderType: OrderTypeValue = 'buy'): number {
+    return orderType === 'sell' ? 0 : 8.5;
   }
 }

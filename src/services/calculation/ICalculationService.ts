@@ -5,13 +5,13 @@
  * fees, taxes, and pricing computations.
  */
 
-import { CalculationResult, CalculationItem, TaxLocation } from './types/CalculationTypes';
+import { CalculationResult, CalculationItem, TaxLocation, OrderTypeValue } from './types/CalculationTypes';
 
 export interface ICalculationService {
   /**
    * Calculate order totals including fees and taxes
    */
-  calculateOrderTotal(items: CalculationItem[]): CalculationResult;
+  calculateOrderTotal(items: CalculationItem[], orderType?: OrderTypeValue): CalculationResult;
 
   /**
    * Calculate processing fees based on subtotal
@@ -31,5 +31,5 @@ export interface ICalculationService {
   /**
    * Calculate taxes based on order details and location
    */
-  calculateTaxes(subtotal: number, location?: TaxLocation): number;
+  calculateTaxes(subtotal: number, location?: TaxLocation, orderType?: OrderTypeValue): number;
 }

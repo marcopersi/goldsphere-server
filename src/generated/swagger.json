@@ -5071,6 +5071,12 @@
 					"status": {
 						"type": "string"
 					},
+					"orderNumber": {
+						"type": "string"
+					},
+					"currency": {
+						"type": "string"
+					},
 					"paymentStatus": {
 						"type": "string"
 					},
@@ -5081,6 +5087,10 @@
 						"type": "array"
 					},
 					"subtotal": {
+						"type": "number",
+						"format": "double"
+					},
+					"taxes": {
 						"type": "number",
 						"format": "double"
 					},
@@ -5113,9 +5123,12 @@
 					"userId",
 					"type",
 					"status",
+					"orderNumber",
+					"currency",
 					"paymentStatus",
 					"items",
 					"subtotal",
+					"taxes",
 					"totalAmount",
 					"user",
 					"custodyService",

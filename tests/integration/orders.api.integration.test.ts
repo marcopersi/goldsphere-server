@@ -914,6 +914,17 @@ describe("Orders API", () => {
         expect(response.body).toHaveProperty('success', true);
         expect(response.body).toHaveProperty('data');
         expect(response.body.data).toHaveProperty('id', orderId);
+        expect(response.body.data).toHaveProperty('orderNumber');
+        expect(response.body.data).toHaveProperty('userId');
+        expect(response.body.data).toHaveProperty('status');
+        expect(response.body.data).toHaveProperty('type');
+        expect(response.body.data).toHaveProperty('items');
+        expect(response.body.data).toHaveProperty('subtotal');
+        expect(response.body.data).toHaveProperty('taxes');
+        expect(response.body.data).toHaveProperty('totalAmount');
+        expect(response.body.data).toHaveProperty('currency');
+        expect(response.body.data).toHaveProperty('createdAt');
+        expect(response.body.data).toHaveProperty('updatedAt');
       } finally {
         await pool.query('DELETE FROM order_items WHERE orderid = $1', [orderId]);
         await pool.query('DELETE FROM orders WHERE id = $1', [orderId]);
@@ -921,7 +932,7 @@ describe("Orders API", () => {
     });
 
     it('should return 404 for non-existent order', async () => {
-      const response = await request(app)
+      await request(app)
         .get('/api/orders/00000000-0000-0000-0000-000000000000/detailed')
         .set('Authorization', `Bearer ${authToken}`)
         .expect(404);

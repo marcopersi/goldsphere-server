@@ -102,9 +102,12 @@ interface DetailedOrderData {
   userId: string;
   type: string;
   status: string;
+  orderNumber: string;
+  currency: string;
   paymentStatus: string;
   items: OrderItemResponse[];
   subtotal: number;
+  taxes: number;
   totalAmount: number;
   user: DetailedOrderUserResponse;
   custodyService: DetailedOrderCustodyServiceResponse | null;
@@ -798,16 +801,20 @@ export class OrdersController extends Controller {
 
       // Calculate totals
       const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+      const taxes = 0;
 
       const detailedOrder: DetailedOrderData = {
         id: firstRow.order_id,
         userId: firstRow.order_user_id,
         type: firstRow.order_type,
         status: firstRow.order_status,
+        orderNumber: `ORD-${firstRow.order_id.slice(0, 8).toUpperCase()}`,
+        currency: firstRow.product_currency || firstRow.custody_service_currency || 'CHF',
         paymentStatus: firstRow.payment_status,
         items,
         subtotal,
-        totalAmount: subtotal,
+        taxes,
+        totalAmount: subtotal + taxes,
         user: {
           email: firstRow.user_email || null
         },

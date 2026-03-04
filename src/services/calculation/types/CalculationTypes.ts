@@ -45,3 +45,5 @@ export interface TaxLocation {
   city?: string;
   postalCode?: string;
 }
+
+export type OrderTypeValue = 'buy' | 'sell';

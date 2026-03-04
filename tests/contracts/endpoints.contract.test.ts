@@ -70,14 +70,15 @@ describe('Endpoint contracts', () => {
 
   const assertDetailedOrderContract = (order: any): void => {
     expect(order).toHaveProperty('id');
+    expect(order).toHaveProperty('orderNumber');
     expect(order).toHaveProperty('userId');
-    expect(order).toHaveProperty('type');
     expect(order).toHaveProperty('status');
-    expect(order).toHaveProperty('paymentStatus');
+    expect(order).toHaveProperty('type');
     expect(order).toHaveProperty('items');
     expect(order).toHaveProperty('subtotal');
+    expect(order).toHaveProperty('taxes');
     expect(order).toHaveProperty('totalAmount');
-    expect(order).toHaveProperty('user');
+    expect(order).toHaveProperty('currency');
     expect(order).toHaveProperty('createdAt');
     expect(order).toHaveProperty('updatedAt');
     expect(Array.isArray(order.items)).toBe(true);

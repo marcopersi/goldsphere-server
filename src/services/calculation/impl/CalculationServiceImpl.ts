@@ -8,7 +8,7 @@
  */
 
 import { ICalculationService } from "../ICalculationService";
-import { CalculationResult, CalculationConfig, CalculationItem, TaxLocation } from "../types/CalculationTypes";
+import { CalculationResult, CalculationConfig, CalculationItem, TaxLocation, OrderTypeValue } from "../types/CalculationTypes";
 
 export class CalculationServiceImpl implements ICalculationService {
   private readonly config: CalculationConfig;
@@ -26,7 +26,7 @@ export class CalculationServiceImpl implements ICalculationService {
   /**
    * Calculate order total with all fees and taxes
    */
-  calculateOrderTotal(items: CalculationItem[]): CalculationResult {
+  calculateOrderTotal(items: CalculationItem[], orderType: OrderTypeValue = 'buy'): CalculationResult {
     // Calculate subtotal
     const subtotal = this.calculateSubtotal(items);
     
@@ -40,7 +40,7 @@ export class CalculationServiceImpl implements ICalculationService {
     
     // Calculate taxes (on subtotal + fees)
     const taxableAmount = subtotal + processingFee + fees.shipping + fees.insurance;
-    const taxes = this.calculateTaxes(taxableAmount);
+    const taxes = this.calculateTaxes(taxableAmount, undefined, orderType);
     
     // Calculate total
     const totalAmount = subtotal + processingFee + fees.shipping + fees.insurance + taxes;
@@ -104,7 +104,11 @@ export class CalculationServiceImpl implements ICalculationService {
   /**
    * Calculate taxes based on order details and location
    */
-  calculateTaxes(subtotal: number, _location?: TaxLocation): number {
+  calculateTaxes(subtotal: number, _location?: TaxLocation, orderType: OrderTypeValue = 'buy'): number {
+    if (orderType === 'sell') {
+      return 0;
+    }
+
     return subtotal * this.config.taxRate;
   }
 
