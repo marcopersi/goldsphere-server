@@ -1,5 +1,15 @@
 # Documentation Index
 
+## OpenAPI / Swagger
+
+OpenAPI is generated exclusively by tsoa.
+
+- Source of truth: `src/generated/swagger.json`
+- Swagger UI (primary): `/docs`
+- Swagger UI (compatibility alias): `/api-docs`
+- OpenAPI JSON: `/api-spec.json`
+- OpenAPI YAML: `/api-spec.yaml`
+
 - [API Integration Guide](API_INTEGRATION_GUIDE.md)
 - [Backend](BACKEND.md)
 - [Backlog](BACKLOG.md)

@@ -5,7 +5,6 @@ import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import yaml from "js-yaml";
 import { getPool } from "./dbConfig";
-import { updateSwaggerSpec } from "./config/swagger";
 import { RegisterRoutes } from "./generated/routes";
 import * as tsoaSwaggerSpec from "./generated/swagger.json";
 import { rawBodyMiddleware } from "./middleware/webhookMiddleware";
@@ -17,6 +16,24 @@ import { AUTH_ERROR_CODES } from "./services/auth/contract/AuthErrorFactory";
 dotenv.config();
 
 const app = express();
+
+function getDynamicOpenApiSpec(req: any) {
+  const protocol = req.get('x-forwarded-proto') || req.protocol;
+  const host = req.get('host');
+  const baseUrl = `${protocol}://${host}/api`;
+  const spec = tsoaSwaggerSpec as any;
+
+  return {
+    ...spec,
+    servers: [
+      {
+        url: baseUrl,
+        description: 'Current server',
+      },
+      ...(spec.servers || []),
+    ],
+  };
+}
 
 // Middleware
 app.use(
@@ -121,7 +138,7 @@ app.get("/info", (req: any, res: any) => {
 
 // API spec endpoints (basic implementation)
 app.get("/api-spec", (req: any, res: any) => {
-  const spec = updateSwaggerSpec(req);
+  const spec = getDynamicOpenApiSpec(req);
   res.json(spec);
 });
 
@@ -148,12 +165,12 @@ app.use(
 
 app.get("/api-spec.json", (req: any, res: any) => {
   res.setHeader('Content-Type', 'application/json');
-  const spec = updateSwaggerSpec(req);
+  const spec = getDynamicOpenApiSpec(req);
   res.json(spec);
 });
 
 app.get("/api-spec.yaml", (req: any, res: any) => {
-  const spec = updateSwaggerSpec(req);
+  const spec = getDynamicOpenApiSpec(req);
   const yamlSpec = yaml.dump(spec, { noRefs: true });
   res.setHeader('Content-Type', 'application/x-yaml; charset=utf-8');
   res.send(yamlSpec);
@@ -162,8 +179,9 @@ app.get("/api-spec.yaml", (req: any, res: any) => {
 RegisterRoutes(app);
 
 app.get('/api-docs/swagger.json', (_req: any, res: any) => {
+  const spec = getDynamicOpenApiSpec(_req);
   res.setHeader('Content-Type', 'application/json');
-  res.json(tsoaSwaggerSpec);
+  res.json(spec);
 });
 
 // Swagger UI for tsoa-generated spec (accessible at /api-docs)

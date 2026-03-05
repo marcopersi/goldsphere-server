@@ -209,4 +209,6 @@ When API returns `401` for protected user endpoints:
 
 ## Local API Docs
 
-- Swagger UI: `http://localhost:8888/api-docs`
+- Swagger UI (primary): `http://localhost:8888/docs`
+- Swagger UI (compatibility alias): `http://localhost:8888/api-docs`
+- OpenAPI JSON: `http://localhost:8888/api-spec.json`

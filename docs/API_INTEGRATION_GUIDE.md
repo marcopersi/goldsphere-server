@@ -2,9 +2,11 @@
 
 **Version:** 1.0.0  
 **Base URL:** `http://localhost:8888/api`  
-**Documentation:** `http://localhost:8888/docs` (Swagger UI)  
+**Documentation:** `http://localhost:8888/docs` (Swagger UI, tsoa-generated OpenAPI)  
+**OpenAPI JSON:** `http://localhost:8888/api-spec.json`  
+**OpenAPI YAML:** `http://localhost:8888/api-spec.yaml`  
 **Target:** Frontend (React) & Mobile App Developers  
-**Last Updated:** 2026-01-10
+**Last Updated:** 2026-03-05
 
 ---
 

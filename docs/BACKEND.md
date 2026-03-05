@@ -278,6 +278,18 @@ npm run build
 - Routes validate against the generated schema, not the TypeScript interface
 - Without regeneration, you'll get `400 Bad Request` with "excess property" errors
 
+#### OpenAPI / Swagger Source of Truth
+
+OpenAPI documentation is generated exclusively by tsoa.
+
+- Generated spec file: `src/generated/swagger.json`
+- Primary UI endpoint: `/docs`
+- JSON spec endpoint: `/api-spec.json` (same tsoa spec with dynamic `servers` value)
+- YAML spec endpoint: `/api-spec.yaml`
+- Compatibility UI alias: `/api-docs`
+
+There is no additional `swagger-jsdoc` source anymore. Keep all API contract changes in controllers/types and regenerate tsoa artifacts.
+
 #### Union Types: Throw vs Return
 
 For many tsoa endpoints, throwing errors is the safest default. However, returning a typed error object with `this.setStatus(...)` is also valid when the controller method explicitly includes the error response type in its return union.
