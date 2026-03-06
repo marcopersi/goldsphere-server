@@ -33,6 +33,7 @@ export interface UserOperationResult<T> {
 export enum UserErrorCode {
   USER_NOT_FOUND = 'USER_NOT_FOUND',
   EMAIL_ALREADY_EXISTS = 'EMAIL_ALREADY_EXISTS',
+  USERNAME_ALREADY_EXISTS = 'USERNAME_ALREADY_EXISTS',
   INVALID_EMAIL_FORMAT = 'INVALID_EMAIL_FORMAT',
   INVALID_PASSWORD = 'INVALID_PASSWORD',
   USER_HAS_DEPENDENCIES = 'USER_HAS_DEPENDENCIES',
@@ -55,36 +56,48 @@ export interface UserWithDetails {
   verificationStatus: UserVerificationStatusEntity | null;
 }
 
+export interface UserProfileAddressInput {
+  title?: UserTitle | null;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: Date;
+  username?: string;
+  phone?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
+  address?: {
+    countryId?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+    state?: string | null;
+    street?: string | null;
+    houseNumber?: string | null;
+    addressLine2?: string | null;
+    poBox?: string | null;
+  };
+}
+
 /**
  * Input for creating a new user with password
  */
-export interface CreateUserInput {
+export interface CreateUserInput extends UserProfileAddressInput {
   email: string;
   password: string;
   role?: UserRole;
   termsVersion?: string;
   termsAcceptedAt?: Date;
-  // Optional profile data
-  title?: UserTitle | null;
-  firstName?: string;
-  lastName?: string;
-  birthDate?: Date;
 }
 
 /**
  * Input for updating user data
  */
-export interface UpdateUserInput {
+export interface UpdateUserInput extends UserProfileAddressInput {
   email?: string;
   password?: string;
   role?: UserRole;
   emailVerified?: boolean;
   identityVerified?: boolean;
-  // Optional profile data
-  title?: UserTitle | null;
-  firstName?: string;
-  lastName?: string;
-  birthDate?: Date;
 }
 
 export interface UpdateUserProfileInput {

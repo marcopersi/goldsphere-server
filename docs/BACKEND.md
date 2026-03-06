@@ -261,6 +261,34 @@ User write endpoints validate reference fields against live database state befor
 
 Validation happens in `src/controllers/user/UserController.validation.ts` and returns the standard `VALIDATION_ERROR` with `details.fields[]`.
 
+#### User Create/Update Payload Parity (POST vs PUT)
+
+`POST /api/users` and `PUT /api/users/{id}` now share the same profile/address payload model to prevent schema drift and excess-property errors with tsoa `throw-on-extras`.
+
+`POST /api/users` required fields:
+
+- `email`
+- `password`
+- `role`
+
+Optional shared profile/address fields accepted by both `POST` and `PUT`:
+
+- `title`, `firstName`, `lastName`, `birthDate`
+- `username` (persisted in `users.username`, unique, exposed in user responses)
+- `phone`, `gender`, `preferredCurrency`, `preferredPaymentMethod`
+- `address.countryId`, `address.postalCode`, `address.city`, `address.state`, `address.street`, `address.houseNumber`, `address.addressLine2`, `address.poBox`
+
+#### Transactional User Creation with Profile/Address
+
+User creation in `UserServiceImpl.createUser(...)` is atomic:
+
+- Creates `users` row
+- Optionally creates `user_profiles` row (when profile fields are provided)
+- Optionally creates primary `user_addresses` row (when address fields are provided)
+
+All three operations run inside a single repository transaction (`executeTransaction`).
+If profile/address persistence fails, the whole create operation is rolled back.
+
 #### Route Regeneration Required
 
 **CRITICAL**: After changing controller interfaces, you MUST regenerate tsoa routes:

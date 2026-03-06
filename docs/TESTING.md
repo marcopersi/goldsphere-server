@@ -168,3 +168,16 @@ All previously identified UUID mapping issues have been fixed:
 - ~~TransactionsController: productId not mapped to response~~ → **FIXED** (productId added to list mapper)
 - ~~OrdersController: product FK details missing from response~~ → **FIXED** (product details + custodyService in mapper, findById SQL enhanced)
 - ~~ProducersController: countryId present but no countryName~~ → **FIXED** (LEFT JOIN country on all CRUD endpoints)
+
+## User API Parity Regression Coverage (2026-03-06)
+
+To prevent drift between `POST /api/users` and `PUT /api/users/{id}`:
+
+- Integration tests in `tests/integration/users.api.integration.test.ts` now cover full shared payload creation via `POST /api/users` including profile/address fields.
+- Integration tests also cover profile/address updates through `PUT /api/users/{id}` using the same payload shape.
+- Unit tests in `tests/unit/userService.unit.test.ts` verify that `createUser()` persists user + profile + address in one request and that `updateUser()` applies the same shared fields.
+
+This regression set ensures:
+
+- No immediate `PUT` is required after a rich `POST` create.
+- Shared DTO changes remain synchronized between create and update flows.

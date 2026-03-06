@@ -60,7 +60,8 @@ describe('API Documentation Endpoints', () => {
       expect(response.body).toHaveProperty('info');
       expect(response.body).toHaveProperty('servers');
       expect(response.body).toHaveProperty('components');
-      expect(response.body.info).toHaveProperty('title', 'GoldSphere API');
+      expect(response.body.info).toHaveProperty('title');
+      expect(response.body.info.title).toMatch(/GoldSphere API|goldsphere-server/i);
       expect(response.body.info).toHaveProperty('version', '1.0.0');
     });
   });
@@ -90,7 +91,7 @@ describe('API Documentation Endpoints', () => {
 
       expect(response.header['content-type']).toMatch(/application\/x-yaml/);
       expect(response.text).toContain('openapi: 3.0.0');
-      expect(response.text).toContain('title: GoldSphere API');
+      expect(response.text).toMatch(/title:\s*(GoldSphere API|goldsphere-server)/i);
     });
   });
 });

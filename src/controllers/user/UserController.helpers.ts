@@ -18,6 +18,7 @@ export function mapErrorCodeToStatus(errorCode?: UserErrorCode): number {
     case UserErrorCode.USER_NOT_FOUND:
       return 404;
     case UserErrorCode.EMAIL_ALREADY_EXISTS:
+    case UserErrorCode.USERNAME_ALREADY_EXISTS:
     case UserErrorCode.USER_HAS_DEPENDENCIES:
     case UserErrorCode.USER_ALREADY_BLOCKED:
     case UserErrorCode.USER_NOT_BLOCKED:

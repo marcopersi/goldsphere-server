@@ -17,6 +17,7 @@ import { UserEntity, UserProfileEntity, UserAddressEntity, UserVerificationStatu
  */
 export interface CreateUserData {
   email: string;
+  username?: string | null;
   passwordHash: string;
   role?: UserRole;
   termsVersion?: string;
@@ -110,6 +111,7 @@ export interface CreateVerificationStatusData {
  */
 export interface UpdateUserData {
   email?: string;
+  username?: string | null;
   passwordHash?: string;
   role?: UserRole;
   emailVerified?: boolean;

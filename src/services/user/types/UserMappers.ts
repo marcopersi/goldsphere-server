@@ -52,6 +52,7 @@ export function mapUserEntity(row: UserDbRow): UserEntity {
   return {
     id: row.id,
     email: row.email,
+    username: row.username,
     passwordHash: row.passwordhash,
     role: role,
     emailVerified: row.email_verified,

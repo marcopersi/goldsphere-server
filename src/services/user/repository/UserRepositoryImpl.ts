@@ -5,7 +5,7 @@
  * Uses dependency injection for the database pool.
  */
 
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { IUserRepository, TransactionCallback } from './IUserRepository';
 import { AuditTrailUser, getAuditUser } from '../../../utils/auditTrail';
 import {
@@ -49,20 +49,21 @@ export class UserRepositoryImpl implements IUserRepository {
   // User CRUD Operations
   // =========================================================================
 
-  async createUser(userData: CreateUserData, authenticatedUser: AuditTrailUser): Promise<UserEntity> {
+  async createUser(userData: CreateUserData, authenticatedUser: AuditTrailUser, client?: PoolClient): Promise<UserEntity> {
     const role = userData.role ?? DEFAULT_USER_ROLE;
     const auditUser = authenticatedUser ? getAuditUser(authenticatedUser) : null;
 
     const query = auditUser
-      ? `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at, createdBy, updatedBy) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      ? `INSERT INTO users (email, username, passwordhash, role, email_verified, terms_version, terms_accepted_at, createdBy, updatedBy) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
          RETURNING *`
-      : `INSERT INTO users (email, passwordhash, role, email_verified, terms_version, terms_accepted_at) 
-         VALUES ($1, $2, $3, $4, $5, $6) 
+      : `INSERT INTO users (email, username, passwordhash, role, email_verified, terms_version, terms_accepted_at) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7) 
          RETURNING *`;
 
     const values = [
       userData.email,
+      userData.username ?? null,
       userData.passwordHash,
       role,
       false,
@@ -74,7 +75,8 @@ export class UserRepositoryImpl implements IUserRepository {
       values.push(auditUser.id, auditUser.id);
     }
 
-    const result = await this.pool.query<UserDbRow>(query, values);
+    const executor = client ?? this.pool;
+    const result = await executor.query<UserDbRow>(query, values);
 
     if (result.rows.length === 0) {
       throw new Error('Failed to create user');
@@ -168,6 +170,10 @@ export class UserRepositoryImpl implements IUserRepository {
       updates.push(`email = $${paramIndex++}`);
       values.push(data.email);
     }
+    if (data.username !== undefined) {
+      updates.push(`username = $${paramIndex++}`);
+      values.push(data.username);
+    }
     if (data.passwordHash !== undefined) {
       updates.push(`passwordhash = $${paramIndex++}`);
       values.push(data.passwordHash);
@@ -224,6 +230,16 @@ export class UserRepositoryImpl implements IUserRepository {
       : 'SELECT 1 FROM users WHERE email = $1';
     const params = excludeUserId ? [email, excludeUserId] : [email];
     
+    const result = await this.pool.query(query, params);
+    return result.rows.length > 0;
+  }
+
+  async usernameExists(username: string, excludeUserId?: string): Promise<boolean> {
+    const query = excludeUserId
+      ? 'SELECT 1 FROM users WHERE LOWER(username) = LOWER($1) AND id != $2'
+      : 'SELECT 1 FROM users WHERE LOWER(username) = LOWER($1)';
+    const params = excludeUserId ? [username, excludeUserId] : [username];
+
     const result = await this.pool.query(query, params);
     return result.rows.length > 0;
   }
@@ -302,8 +318,9 @@ export class UserRepositoryImpl implements IUserRepository {
   // User Profile Operations
   // =========================================================================
 
-  async createUserProfile(profileData: CreateUserProfileData): Promise<UserProfileEntity> {
-    const result = await this.pool.query<UserProfileDbRow>(
+  async createUserProfile(profileData: CreateUserProfileData, client?: PoolClient): Promise<UserProfileEntity> {
+    const executor = client ?? this.pool;
+    const result = await executor.query<UserProfileDbRow>(
       `INSERT INTO user_profiles (
         user_id, title, first_name, last_name, birth_date,
         phone, gender, preferred_currency, preferred_payment_method,
@@ -399,8 +416,9 @@ export class UserRepositoryImpl implements IUserRepository {
   // User Address Operations
   // =========================================================================
 
-  async createUserAddress(addressData: CreateUserAddressData): Promise<UserAddressEntity> {
-    const result = await this.pool.query<UserAddressDbRow>(
+  async createUserAddress(addressData: CreateUserAddressData, client?: PoolClient): Promise<UserAddressEntity> {
+    const executor = client ?? this.pool;
+    const result = await executor.query<UserAddressDbRow>(
       `INSERT INTO user_addresses 
        (
          user_id, countryid, postal_code, city, state, street,

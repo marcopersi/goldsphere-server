@@ -48,6 +48,9 @@ describe('Users API Integration Tests', () => {
       expect(response.body).toHaveProperty('data');
       expect(response.body).toHaveProperty('pagination');
       expect(Array.isArray(response.body.data)).toBe(true);
+      if (response.body.data.length > 0) {
+        expect(response.body.data[0]).toHaveProperty('username');
+      }
       expect(response.body.pagination).toHaveProperty('page');
       expect(response.body.pagination).toHaveProperty('limit');
       expect(response.body.pagination).toHaveProperty('total');
@@ -127,6 +130,8 @@ describe('Users API Integration Tests', () => {
       const newUser = {
         email: `test-${Date.now()}@example.com`,
         password: 'SecurePass123',
+        role: 'customer',
+        username: `create-user-${Date.now()}`,
       };
 
       const response = await request(app)
@@ -139,6 +144,7 @@ describe('Users API Integration Tests', () => {
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toHaveProperty('id');
       expect(response.body.data.email).toBe(newUser.email);
+      expect(response.body.data.username).toBe(newUser.username);
       expect(response.body.data.role).toBe('customer');
       expect(response.body.data).not.toHaveProperty('passwordHash');
       
@@ -170,6 +176,7 @@ describe('Users API Integration Tests', () => {
         .send({
           email: existingEmail,
           password: 'SecurePass123',
+          role: 'customer',
         })
         .expect(409);
 
@@ -183,6 +190,7 @@ describe('Users API Integration Tests', () => {
         .send({
           email: 'not-an-email',
           password: 'SecurePass123',
+          role: 'customer',
         })
         .expect(400);
 
@@ -196,6 +204,7 @@ describe('Users API Integration Tests', () => {
         .send({
           email: `weak-${Date.now()}@example.com`,
           password: 'weak',
+          role: 'customer',
         })
         .expect(400);
 
@@ -208,6 +217,7 @@ describe('Users API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           password: 'SecurePass123',
+          role: 'customer',
         })
         .expect(400);
 
@@ -220,10 +230,57 @@ describe('Users API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           email: `nopass-${Date.now()}@example.com`,
+          role: 'customer',
         })
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
+    });
+
+    it('should create user with full shared profile/address payload in a single request', async () => {
+      const countryResult = await getPool().query(`SELECT id FROM country WHERE isocode2 = 'DE' LIMIT 1`);
+      const countryId = countryResult.rows[0].id;
+
+      const payload = {
+        email: `full-create-${Date.now()}@example.com`,
+        password: 'SecurePass123',
+        role: 'customer',
+        title: 'Herr',
+        firstName: 'Create',
+        lastName: 'Full',
+        birthDate: '1990-03-06',
+        username: 'create.full',
+        phone: '+41795551234',
+        gender: 'male',
+        preferredCurrency: 'CHF',
+        preferredPaymentMethod: 'bank_transfer',
+        address: {
+          countryId,
+          postalCode: '8001',
+          city: 'Zürich',
+          state: 'ZH',
+          street: 'Bahnhofstrasse',
+          houseNumber: '10A',
+          poBox: 'Postfach 42',
+        },
+      };
+
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(payload)
+        .expect(201);
+
+      const detailsResponse = await request(app)
+        .get(`/api/users/${response.body.data.id}/details`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(detailsResponse.body.data.profile.firstName).toBe(payload.firstName);
+      expect(detailsResponse.body.data.profile.phone).toBe(payload.phone);
+      expect(detailsResponse.body.data.profile.preferredCurrency).toBe(payload.preferredCurrency);
+      expect(detailsResponse.body.data.address.city).toBe(payload.address.city);
+      expect(detailsResponse.body.data.address.houseNumber).toBe(payload.address.houseNumber);
     });
   });
 
@@ -240,6 +297,7 @@ describe('Users API Integration Tests', () => {
       expect(response.body).toHaveProperty('success', true);
       expect(response.body.data).toHaveProperty('id', createdUserId);
       expect(response.body.data).toHaveProperty('email');
+      expect(response.body.data).toHaveProperty('username');
       expect(response.body.data).not.toHaveProperty('passwordHash');
     });
 
@@ -275,6 +333,7 @@ describe('Users API Integration Tests', () => {
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toHaveProperty('user');
       expect(response.body.data.user.id).toBe(createdUserId);
+      expect(response.body.data.user).toHaveProperty('username');
       expect(response.body.data).toHaveProperty('profile');
       expect(response.body.data).toHaveProperty('address');
     });
@@ -393,6 +452,77 @@ describe('Users API Integration Tests', () => {
       expect(response.body.data.role).toBe('admin');
     });
 
+    it('should update username and expose it in GET endpoints', async () => {
+      expect(createdUserId).toBeDefined();
+      const newUsername = `updated-user-${Date.now()}`;
+
+      const updateResponse = await request(app)
+        .put(`/api/users/${createdUserId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ username: newUsername })
+        .expect(200);
+
+      expect(updateResponse.body.data.username).toBe(newUsername);
+
+      const getResponse = await request(app)
+        .get(`/api/users/${createdUserId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(getResponse.body.data.username).toBe(newUsername);
+
+      const detailsResponse = await request(app)
+        .get(`/api/users/${createdUserId}/details`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(detailsResponse.body.data.user.username).toBe(newUsername);
+    });
+
+    it('should update profile/address fields via PUT with shared payload shape', async () => {
+      expect(createdUserId).toBeDefined();
+
+      const countryResult = await getPool().query(`SELECT id FROM country WHERE isocode2 = 'CH' LIMIT 1`);
+      const countryId = countryResult.rows[0].id;
+
+      const payload = {
+        firstName: 'Updated',
+        lastName: 'Profile',
+        birthDate: '1991-11-20',
+        username: 'updated.profile',
+        phone: '+41795550000',
+        gender: 'female',
+        preferredCurrency: 'EUR',
+        preferredPaymentMethod: 'card',
+        address: {
+          countryId,
+          postalCode: '3000',
+          city: 'Bern',
+          state: 'BE',
+          street: 'Marktgasse',
+          houseNumber: '12',
+          poBox: 'PF 7',
+        },
+      };
+
+      await request(app)
+        .put(`/api/users/${createdUserId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(payload)
+        .expect(200);
+
+      const detailsResponse = await request(app)
+        .get(`/api/users/${createdUserId}/details`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(detailsResponse.body.data.profile.firstName).toBe(payload.firstName);
+      expect(detailsResponse.body.data.profile.phone).toBe(payload.phone);
+      expect(detailsResponse.body.data.profile.preferredPaymentMethod).toBe(payload.preferredPaymentMethod);
+      expect(detailsResponse.body.data.address.city).toBe(payload.address.city);
+      expect(detailsResponse.body.data.address.poBox).toBe(payload.address.poBox);
+    });
+
     it('should reject invalid email format on update', async () => {
       expect(createdUserId).toBeDefined();
       
@@ -438,6 +568,7 @@ describe('Users API Integration Tests', () => {
         .send({
           email: `delete-me-${Date.now()}@example.com`,
           password: 'SecurePass123',
+          role: 'customer',
         });
       userToDelete = response.body.data?.id;
     });
@@ -484,6 +615,7 @@ describe('Users API Integration Tests', () => {
         .send({
           email: '  trimmed@example.com  ',
           password: 'SecurePass123',
+          role: 'customer',
         })
         .expect(201);
 

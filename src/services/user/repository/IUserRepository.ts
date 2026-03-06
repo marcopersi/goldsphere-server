@@ -48,7 +48,7 @@ export interface IUserRepository {
   /**
    * Create a new user
    */
-  createUser(userData: CreateUserData, authenticatedUser: AuditTrailUser): Promise<UserEntity>;
+  createUser(userData: CreateUserData, authenticatedUser: AuditTrailUser, client?: PoolClient): Promise<UserEntity>;
   
   /**
    * Find user by ID
@@ -79,6 +79,11 @@ export interface IUserRepository {
    * Check if email exists
    */
   emailExists(email: string, excludeUserId?: string): Promise<boolean>;
+
+  /**
+   * Check if username exists
+   */
+  usernameExists(username: string, excludeUserId?: string): Promise<boolean>;
 
   // =========================================================================
   // User Account Management Operations
@@ -119,7 +124,7 @@ export interface IUserRepository {
   /**
    * Create user profile
    */
-  createUserProfile(profileData: CreateUserProfileData): Promise<UserProfileEntity>;
+  createUserProfile(profileData: CreateUserProfileData, client?: PoolClient): Promise<UserProfileEntity>;
   
   /**
    * Find user profile by user ID
@@ -138,7 +143,7 @@ export interface IUserRepository {
   /**
    * Create user address
    */
-  createUserAddress(addressData: CreateUserAddressData): Promise<UserAddressEntity>;
+  createUserAddress(addressData: CreateUserAddressData, client?: PoolClient): Promise<UserAddressEntity>;
   
   /**
    * Find user address by user ID (primary address)

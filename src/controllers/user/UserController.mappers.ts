@@ -14,6 +14,7 @@ export function mapUserResponse(user: UserEntity): UserResponse {
   return {
     id: user.id,
     email: user.email,
+    username: user.username,
     role: user.role,
     accountStatus: user.accountStatus,
     blockedAt: user.blockedAt,
@@ -29,6 +30,7 @@ export function mapBlockedUserResponse(user: UserEntity): BlockedUserResponse {
   return {
     id: user.id,
     email: user.email,
+    username: user.username,
     accountStatus: user.accountStatus || 'blocked',
     blockedAt: user.blockedAt,
     blockedBy: user.blockedBy,

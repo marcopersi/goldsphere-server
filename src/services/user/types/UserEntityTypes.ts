@@ -18,6 +18,7 @@ import { UserRole, UserTitle, EmailVerificationStatus, IdentityVerificationStatu
 export interface UserEntity {
   id: string;
   email: string;
+  username: string | null;
   passwordHash: string;
   role: UserRole;
   emailVerified: boolean;
@@ -131,6 +132,7 @@ export interface ConsentLogEntity {
 export interface UserDbRow {
   id: string;
   email: string;
+  username: string | null;
   passwordhash: string;
   role: string;
   email_verified: boolean;

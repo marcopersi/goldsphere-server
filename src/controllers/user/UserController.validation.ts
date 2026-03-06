@@ -125,3 +125,54 @@ export async function validateRoleAndTitleReferences(
 
   return buildValidationError('payload', validationResult.error || 'Reference validation failed');
 }
+
+export async function validateUserRequestReferences(
+  userService: IUserService,
+  payload: {
+    role?: string;
+    title?: string | null;
+    gender?: string | null;
+    preferredCurrency?: string | null;
+    preferredPaymentMethod?: string | null;
+    address?: { countryId?: string | null };
+  }
+): Promise<UserErrorResponse | null> {
+  const validationResult = await userService.validateReferenceData({
+    role: payload.role,
+    title: payload.title,
+    gender: payload.gender,
+    preferredCurrency: payload.preferredCurrency,
+    preferredPaymentMethod: payload.preferredPaymentMethod,
+    countryId: payload.address?.countryId,
+  });
+
+  if (validationResult.success) {
+    return null;
+  }
+
+  if (validationResult.error?.startsWith('Unsupported role value')) {
+    return buildValidationError('role', validationResult.error);
+  }
+
+  if (validationResult.error?.startsWith('Unsupported title value')) {
+    return buildValidationError('title', validationResult.error);
+  }
+
+  if (validationResult.error?.startsWith('Unsupported gender value')) {
+    return buildValidationError('gender', validationResult.error);
+  }
+
+  if (validationResult.error?.startsWith('Unsupported payment method')) {
+    return buildValidationError('preferredPaymentMethod', validationResult.error);
+  }
+
+  if (validationResult.error === 'Unknown currency code') {
+    return buildValidationError('preferredCurrency', validationResult.error);
+  }
+
+  if (validationResult.error === 'Unknown country ID') {
+    return buildValidationError('address.countryId', validationResult.error);
+  }
+
+  return buildValidationError('payload', validationResult.error || 'Reference validation failed');
+}

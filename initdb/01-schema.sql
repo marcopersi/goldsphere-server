@@ -30,6 +30,7 @@ CREATE TYPE unitOfMeasure as ENUM ('grams', 'troy_ounces', 'kilograms');
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT NOT NULL UNIQUE,
+    username TEXT UNIQUE,
     passwordHash TEXT NOT NULL,
     role VARCHAR(50) DEFAULT 'customer' CHECK (role IN ('customer', 'admin', 'user')),
     email_verified BOOLEAN DEFAULT FALSE,

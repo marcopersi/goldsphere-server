@@ -21,6 +21,8 @@ import {
   UserAddressEntity,
   UserVerificationStatusEntity,
   CreateUserData,
+  CreateUserProfileData,
+  CreateUserAddressData,
   UpdateUserData,
   UpdateUserProfileData,
   UpdateUserAddressData,
@@ -31,6 +33,7 @@ import {
   AccountStatus,
   UserErrorCode,
 } from '../../src/services/user';
+import { PoolClient } from 'pg';
 
 // Mock repository for testing
 class UserRepositoryMock implements IUserRepository {
@@ -47,6 +50,7 @@ class UserRepositoryMock implements IUserRepository {
     const existingUser: UserEntity = {
       id: 'existing-user-id',
       email: 'existing@example.com',
+      username: 'existing-user',
       passwordHash: '$2b$10$hashedpassword123',
       role: UserRole.CUSTOMER,
       emailVerified: true,
@@ -82,11 +86,12 @@ class UserRepositoryMock implements IUserRepository {
     this.profiles.set(profile.userId, profile);
   }
 
-  async createUser(userData: CreateUserData, _authenticatedUser: AuditTrailUser): Promise<UserEntity> {
+  async createUser(userData: CreateUserData, _authenticatedUser: AuditTrailUser, _client?: PoolClient): Promise<UserEntity> {
     const id = `user-${Date.now()}`;
     const user: UserEntity = {
       id,
       email: userData.email,
+      username: userData.username ?? null,
       passwordHash: userData.passwordHash,
       role: userData.role ?? UserRole.CUSTOMER,
       emailVerified: false,
@@ -178,6 +183,16 @@ class UserRepositoryMock implements IUserRepository {
     return false;
   }
 
+  async usernameExists(username: string, excludeUserId?: string): Promise<boolean> {
+    for (const user of this.users.values()) {
+      if ((user.username ?? '').toLowerCase() === username.toLowerCase()) {
+        if (excludeUserId && user.id === excludeUserId) continue;
+        return true;
+      }
+    }
+    return false;
+  }
+
   async blockUser(userId: string, blockedBy: string, reason: string, _authenticatedUser: AuditTrailUser): Promise<UserEntity | null> {
     const user = this.users.get(userId);
     if (!user) return null;
@@ -230,6 +245,26 @@ class UserRepositoryMock implements IUserRepository {
     );
   }
 
+  async createUserProfile(profileData: CreateUserProfileData, _client?: PoolClient): Promise<UserProfileEntity> {
+    const profile: UserProfileEntity = {
+      id: `profile-${Date.now()}`,
+      userId: profileData.userId,
+      title: profileData.title ?? null,
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      birthDate: profileData.birthDate,
+      phone: profileData.phone ?? null,
+      gender: profileData.gender ?? null,
+      preferredCurrency: profileData.preferredCurrency ?? null,
+      preferredPaymentMethod: profileData.preferredPaymentMethod ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.profiles.set(profile.userId, profile);
+    return profile;
+  }
+
   async findUserProfileByUserId(userId: string): Promise<UserProfileEntity | null> {
     return this.profiles.get(userId) ?? null;
   }
@@ -245,6 +280,27 @@ class UserRepositoryMock implements IUserRepository {
     };
     this.profiles.set(userId, updated);
     return updated;
+  }
+
+  async createUserAddress(addressData: CreateUserAddressData, _client?: PoolClient): Promise<UserAddressEntity> {
+    const address: UserAddressEntity = {
+      id: `address-${Date.now()}`,
+      userId: addressData.userId,
+      countryId: addressData.countryId ?? null,
+      postalCode: addressData.postalCode ?? null,
+      city: addressData.city ?? null,
+      state: addressData.state ?? null,
+      street: addressData.street ?? null,
+      houseNumber: addressData.houseNumber ?? null,
+      addressLine2: addressData.addressLine2 ?? null,
+      poBox: addressData.poBox ?? null,
+      isPrimary: addressData.isPrimary ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.addresses.set(address.userId, address);
+    return address;
   }
 
   async findUserAddressByUserId(userId: string): Promise<UserAddressEntity | null> {
@@ -285,8 +341,6 @@ class UserRepositoryMock implements IUserRepository {
   }
 
   // Stub methods for interface compliance
-  async createUserProfile(): Promise<UserProfileEntity> { throw new Error('Not implemented'); }
-  async createUserAddress(): Promise<UserAddressEntity> { throw new Error('Not implemented'); }
   async findUserAddressesByUserId(): Promise<UserAddressEntity[]> { return []; }
   async createUserVerificationStatus(): Promise<UserVerificationStatusEntity> { throw new Error('Not implemented'); }
   async updateVerificationStatus(): Promise<void> { return; }
@@ -392,6 +446,58 @@ describe('UserServiceImpl Unit Tests', () => {
       expect(result.success).toBe(true);
       expect(result.data!.role).toBe(UserRole.ADMIN);
     });
+
+    it('should persist username on create', async () => {
+      const result = await service.createUser(
+        {
+          email: 'username-create@example.com',
+          password: 'SecurePass123',
+          role: UserRole.CUSTOMER,
+          username: 'username-create',
+        },
+        testUser
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data!.username).toBe('username-create');
+    });
+
+    it('should create and persist profile and address fields in one request', async () => {
+      const result = await service.createUser(
+        {
+          email: 'fullpayload@example.com',
+          password: 'SecurePass123',
+          role: UserRole.CUSTOMER,
+          title: UserTitle.HERR,
+          firstName: 'Unit',
+          lastName: 'Create',
+          birthDate: new Date('1992-05-12'),
+          phone: '+41795550000',
+          gender: 'male',
+          preferredCurrency: 'CHF',
+          preferredPaymentMethod: 'bank_transfer',
+          address: {
+            countryId: 'country-1',
+            postalCode: '8001',
+            city: 'Zürich',
+            state: 'ZH',
+            street: 'Bahnhofstrasse',
+            houseNumber: '10A',
+            poBox: 'PF 42',
+          },
+        },
+        testUser
+      );
+
+      expect(result.success).toBe(true);
+
+      const details = await service.getUserWithDetails(result.data!.id);
+      expect(details.success).toBe(true);
+      expect(details.data!.profile?.firstName).toBe('Unit');
+      expect(details.data!.profile?.phone).toBe('+41795550000');
+      expect(details.data!.address?.city).toBe('Zürich');
+      expect(details.data!.address?.houseNumber).toBe('10A');
+    });
   });
 
   describe('getUserById()', () => {
@@ -490,6 +596,21 @@ describe('UserServiceImpl Unit Tests', () => {
       expect(result.errorCode).toBe(UserErrorCode.EMAIL_ALREADY_EXISTS);
     });
 
+    it('should reject duplicate username on create', async () => {
+      const result = await service.createUser(
+        {
+          email: 'duplicate-username@example.com',
+          password: 'SecurePass123',
+          role: UserRole.CUSTOMER,
+          username: 'existing-user',
+        },
+        testUser
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe(UserErrorCode.USERNAME_ALREADY_EXISTS);
+    });
+
     it('should return error for non-existent user', async () => {
       const result = await service.updateUser('non-existent-id', {
         email: 'new@example.com',
@@ -497,6 +618,53 @@ describe('UserServiceImpl Unit Tests', () => {
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe(UserErrorCode.USER_NOT_FOUND);
+    });
+
+    it('should update username', async () => {
+      const result = await service.updateUser(
+        'existing-user-id',
+        {
+          username: 'updated-username',
+        },
+        testUser
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data!.username).toBe('updated-username');
+    });
+
+    it('should update profile and address fields with shared update payload', async () => {
+      const result = await service.updateUser(
+        'existing-user-id',
+        {
+          firstName: 'Updated',
+          lastName: 'Person',
+          birthDate: new Date('1991-10-10'),
+          phone: '+41795551111',
+          gender: 'female',
+          preferredCurrency: 'EUR',
+          preferredPaymentMethod: 'card',
+          address: {
+            countryId: 'country-2',
+            postalCode: '3000',
+            city: 'Bern',
+            state: 'BE',
+            street: 'Marktgasse',
+            houseNumber: '12',
+            poBox: 'PF 7',
+          },
+        },
+        testUser
+      );
+
+      expect(result.success).toBe(true);
+
+      const details = await service.getUserWithDetails('existing-user-id');
+      expect(details.success).toBe(true);
+      expect(details.data!.profile?.firstName).toBe('Updated');
+      expect(details.data!.profile?.phone).toBe('+41795551111');
+      expect(details.data!.address?.city).toBe('Bern');
+      expect(details.data!.address?.poBox).toBe('PF 7');
     });
   });
 

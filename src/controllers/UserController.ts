@@ -42,6 +42,7 @@ import {
   toValidationErrorResponse,
   validateRoleAndTitleReferences,
   validatePatchProfileReferences,
+  validateUserRequestReferences,
 } from './user/UserController.validation';
 import type {
   BlockedUserResponse,
@@ -204,6 +205,7 @@ export class UserController extends Controller {
       data: {
         id: result.data.id,
         email: result.data.email,
+        username: result.data.username,
         role: result.data.role,
         emailVerified: result.data.emailVerified,
         createdAt: result.data.createdAt,
@@ -371,19 +373,23 @@ export class UserController extends Controller {
   ): Promise<SuccessResponseWrapper<UserResponse> | UserErrorResponse> {
     const { email, password, role } = body;
 
-    if (!email || !password) {
+    if (!email || !password || !role) {
       this.setStatus(400);
       return {
         success: false,
-        error: 'Email and password are required'
+        error: 'Email, password and role are required'
       };
     }
 
     const userService = getUserService();
 
-    const referenceValidation = await validateRoleAndTitleReferences(userService, {
+    const referenceValidation = await validateUserRequestReferences(userService, {
       role,
       title: body.title,
+      gender: body.gender,
+      preferredCurrency: body.preferredCurrency,
+      preferredPaymentMethod: body.preferredPaymentMethod,
+      address: body.address,
     });
     if (referenceValidation) {
       this.setStatus(400);
@@ -399,6 +405,12 @@ export class UserController extends Controller {
       firstName: body.firstName,
       lastName: body.lastName,
       birthDate: body.birthDate,
+      username: body.username,
+      phone: body.phone,
+      gender: body.gender,
+      preferredCurrency: body.preferredCurrency,
+      preferredPaymentMethod: body.preferredPaymentMethod,
+      address: body.address,
     }, authenticatedUser);
 
     if (!result.success) {
@@ -463,7 +475,13 @@ export class UserController extends Controller {
       body.title === undefined &&
       body.firstName === undefined &&
       body.lastName === undefined &&
-      body.birthDate === undefined
+      body.birthDate === undefined &&
+      body.username === undefined &&
+      body.phone === undefined &&
+      body.gender === undefined &&
+      body.preferredCurrency === undefined &&
+      body.preferredPaymentMethod === undefined &&
+      body.address === undefined
     ) {
       this.setStatus(400);
       return {
@@ -474,9 +492,13 @@ export class UserController extends Controller {
 
     const userService = getUserService();
 
-    const referenceValidation = await validateRoleAndTitleReferences(userService, {
+    const referenceValidation = await validateUserRequestReferences(userService, {
       role,
       title: body.title,
+      gender: body.gender,
+      preferredCurrency: body.preferredCurrency,
+      preferredPaymentMethod: body.preferredPaymentMethod,
+      address: body.address,
     });
     if (referenceValidation) {
       this.setStatus(400);
@@ -497,6 +519,12 @@ export class UserController extends Controller {
       firstName: body.firstName,
       lastName: body.lastName,
       birthDate: body.birthDate,
+      username: body.username,
+      phone: body.phone,
+      gender: body.gender,
+      preferredCurrency: body.preferredCurrency,
+      preferredPaymentMethod: body.preferredPaymentMethod,
+      address: body.address,
     }, authenticatedUser);
 
     if (!result.success) {

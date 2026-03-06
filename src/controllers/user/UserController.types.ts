@@ -7,6 +7,7 @@
 export interface UserResponse {
   id: string;
   email: string;
+  username?: string | null;
   role: string;
   accountStatus?: string;
   blockedAt?: Date | null;
@@ -67,26 +68,40 @@ export interface VerificationStatusData {
   identityStatus?: string;
 }
 
-export interface CreateUserRequest {
-  email: string;
-  password: string;
-  role?: string;
-  title?: string;
+export interface UserProfileAddressPayload {
+  title?: string | null;
   firstName?: string;
   lastName?: string;
   birthDate?: Date;
+  username?: string;
+  phone?: string | null;
+  gender?: string | null;
+  preferredCurrency?: string | null;
+  preferredPaymentMethod?: string | null;
+  address?: {
+    countryId?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+    state?: string | null;
+    street?: string | null;
+    houseNumber?: string | null;
+    addressLine2?: string | null;
+    poBox?: string | null;
+  };
 }
 
-export interface UpdateUserRequest {
+export interface CreateUserRequest extends UserProfileAddressPayload {
+  email: string;
+  password: string;
+  role: string;
+}
+
+export interface UpdateUserRequest extends UserProfileAddressPayload {
   email?: string;
   password?: string;
   role?: string;
   emailVerified?: boolean;
   identityVerified?: boolean;
-  title?: string | null;
-  firstName?: string;
-  lastName?: string;
-  birthDate?: Date;
 }
 
 export interface PatchUserProfileRequest {
@@ -127,6 +142,7 @@ export interface BlockUserRequest {
 export interface BlockedUserResponse {
   id: string;
   email: string;
+  username?: string | null;
   accountStatus: string;
   blockedAt?: Date | null;
   blockedBy?: string | null;

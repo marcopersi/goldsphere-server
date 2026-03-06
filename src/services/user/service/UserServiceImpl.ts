@@ -7,6 +7,7 @@
  */
 
 import bcrypt from 'bcrypt';
+import { PoolClient } from 'pg';
 import { IUserRepository } from '../repository/IUserRepository';
 import {
   IUserService,
@@ -79,39 +80,86 @@ export class UserServiceImpl implements IUserService {
         };
       }
 
+      if (input.username) {
+        const usernameExists = await this.userRepository.usernameExists(input.username.trim());
+        if (usernameExists) {
+          return {
+            success: false,
+            error: 'Username already exists',
+            errorCode: UserErrorCode.USERNAME_ALREADY_EXISTS,
+          };
+        }
+      }
+
       // Hash password
       const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
       // Create user data
       const userData: CreateUserData = {
         email: input.email.toLowerCase().trim(),
+        username: input.username?.trim() || null,
         passwordHash,
         role: input.role,
         termsVersion: input.termsVersion,
         termsAcceptedAt: input.termsAcceptedAt,
       };
 
-      const user = await this.userRepository.createUser(userData, authenticatedUser);
+      const user = await this.userRepository.executeTransaction(async (client) => {
+        const createdUser = await this.userRepository.createUser(userData, authenticatedUser, client);
 
-      // Create user profile if profile fields are provided
-      if (input.firstName && input.lastName && input.birthDate) {
-        try {
-          await this.userRepository.createUserProfile({
-            userId: user.id,
-            title: input.title || null,
-            firstName: input.firstName,
-            lastName: input.lastName,
-            birthDate: input.birthDate,
-          });
-        } catch (profileError) {
-          console.error('Error creating user profile:', profileError);
-          // Profile creation failed, but user was created
-          // We don't fail the entire operation
+        const hasProfileUpdates = this.hasProfileUpdates(input);
+        if (hasProfileUpdates) {
+          if (!input.firstName || !input.lastName || !input.birthDate) {
+            throw new Error('VALIDATION_ERROR: Missing required fields to create profile: firstName, lastName, birthDate');
+          }
+
+          await this.userRepository.createUserProfile(
+            {
+              userId: createdUser.id,
+              title: input.title ?? null,
+              firstName: input.firstName,
+              lastName: input.lastName,
+              birthDate: input.birthDate,
+              phone: input.phone ?? null,
+              gender: input.gender ?? null,
+              preferredCurrency: input.preferredCurrency ?? null,
+              preferredPaymentMethod: input.preferredPaymentMethod ?? null,
+            },
+            client
+          );
         }
-      }
+
+        if (this.hasAddressUpdates(input.address) && input.address) {
+          await this.userRepository.createUserAddress(
+            {
+              userId: createdUser.id,
+              countryId: input.address.countryId,
+              postalCode: input.address.postalCode,
+              city: input.address.city,
+              state: input.address.state,
+              street: input.address.street,
+              houseNumber: input.address.houseNumber,
+              addressLine2: input.address.addressLine2,
+              poBox: input.address.poBox,
+              isPrimary: true,
+            },
+            client
+          );
+        }
+
+        return createdUser;
+      });
 
       return { success: true, data: user };
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith('VALIDATION_ERROR:')) {
+        return {
+          success: false,
+          error: error.message.replace('VALIDATION_ERROR: ', ''),
+          errorCode: UserErrorCode.VALIDATION_ERROR,
+        };
+      }
+
       console.error('Error creating user:', error);
       return {
         success: false,
@@ -267,6 +315,9 @@ export class UserServiceImpl implements IUserService {
       if (input.email) {
         updateData.email = input.email.toLowerCase().trim();
       }
+      if (input.username !== undefined) {
+        updateData.username = input.username?.trim() || null;
+      }
       if (input.password) {
         updateData.passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
       }
@@ -280,6 +331,17 @@ export class UserServiceImpl implements IUserService {
         updateData.identityVerified = input.identityVerified;
       }
 
+      if (input.username) {
+        const usernameTaken = await this.userRepository.usernameExists(input.username.trim(), id);
+        if (usernameTaken) {
+          return {
+            success: false,
+            error: 'Username already exists',
+            errorCode: UserErrorCode.USERNAME_ALREADY_EXISTS,
+          };
+        }
+      }
+
       const updatedUser = await this.userRepository.updateUser(id, updateData, authenticatedUser);
 
       if (!updatedUser) {
@@ -290,35 +352,19 @@ export class UserServiceImpl implements IUserService {
         };
       }
 
-      // Update user profile if profile fields are provided
-      if (input.title || input.firstName || input.lastName || input.birthDate) {
-        try {
-          const existingProfile = await this.userRepository.findUserProfileByUserId(id);
-          
-          if (existingProfile) {
-            // Update existing profile
-            const profileUpdateData: any = {};
-            if (input.title !== undefined) profileUpdateData.title = input.title;
-            if (input.firstName !== undefined) profileUpdateData.firstName = input.firstName;
-            if (input.lastName !== undefined) profileUpdateData.lastName = input.lastName;
-            if (input.birthDate !== undefined) profileUpdateData.birthDate = input.birthDate;
-            
-            await this.userRepository.updateUserProfile(id, profileUpdateData);
-          } else if (input.firstName && input.lastName && input.birthDate) {
-            // Create profile if all required fields are present
-            await this.userRepository.createUserProfile({
-              userId: id,
-              title: input.title || null,
-              firstName: input.firstName,
-              lastName: input.lastName,
-              birthDate: input.birthDate,
-            });
-          }
-        } catch (profileError) {
-          console.error('Error updating user profile:', profileError);
-          // Profile update failed, but user was updated
-          // We don't fail the entire operation
+      if (this.hasProfileUpdates(input)) {
+        const profileResult = await this.upsertProfile(id, input);
+        if (!profileResult.success) {
+          return {
+            success: false,
+            error: profileResult.error,
+            errorCode: profileResult.errorCode,
+          };
         }
+      }
+
+      if (this.hasAddressUpdates(input.address) && input.address) {
+        await this.upsertAddress(id, input.address);
       }
 
       return { success: true, data: updatedUser };
@@ -408,9 +454,12 @@ export class UserServiceImpl implements IUserService {
 
   private async upsertProfile(
     userId: string,
-    input: UpdateUserProfileInput
+    input: UpdateUserProfileInput,
+    client?: PoolClient
   ): Promise<UserOperationResult<UserWithDetails>> {
-    const existingProfile = await this.userRepository.findUserProfileByUserId(userId);
+    const existingProfile = client
+      ? null
+      : await this.userRepository.findUserProfileByUserId(userId);
 
     if (existingProfile) {
       await this.userRepository.updateUserProfile(userId, {
@@ -444,7 +493,7 @@ export class UserServiceImpl implements IUserService {
       gender: input.gender ?? null,
       preferredCurrency: input.preferredCurrency ?? null,
       preferredPaymentMethod: input.preferredPaymentMethod ?? null,
-    });
+    }, client);
 
     return { success: true };
   }

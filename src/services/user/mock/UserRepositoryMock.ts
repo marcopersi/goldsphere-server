@@ -43,6 +43,7 @@ export class UserRepositoryMock implements IRegistrationRepository {
     const user1: UserEntity = {
       id: 'user-001',
       email: 'test@example.com',
+      username: 'test-user',
       passwordHash: '$2b$10$hashedpassword',
       role: UserRole.CUSTOMER,
       emailVerified: true,
@@ -100,6 +101,7 @@ export class UserRepositoryMock implements IRegistrationRepository {
     const user: UserEntity = {
       id,
       email: userData.email,
+      username: userData.username ?? null,
       passwordHash: userData.passwordHash,
       role: userData.role ?? UserRole.CUSTOMER,
       emailVerified: false,
