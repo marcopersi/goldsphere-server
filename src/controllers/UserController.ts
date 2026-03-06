@@ -700,7 +700,7 @@ export class UserController extends Controller {
   }
 
   /**
-   * Delete user (with dependency check)
+   * Delete user (hard delete with cascading dependencies)
    * @summary Delete user
    * @param id User UUID
    */
@@ -708,7 +708,6 @@ export class UserController extends Controller {
   @SuccessResponse(200, 'User deleted')
   @Response<UserErrorResponse>(400, 'Invalid user ID')
   @Response<UserErrorResponse>(404, 'User not found')
-  @Response<UserErrorResponse>(409, 'User has dependencies')
   public async deleteUser(
     @Path() id: string
   ): Promise<{ success: true; message: string } | UserErrorResponse> {

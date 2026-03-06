@@ -7519,19 +7519,9 @@
 								}
 							}
 						}
-					},
-					"409": {
-						"description": "User has dependencies",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/UserErrorResponse"
-								}
-							}
-						}
 					}
 				},
-				"description": "Delete user (with dependency check)",
+				"description": "Delete user (hard delete with cascading dependencies)",
 				"summary": "Delete user",
 				"tags": [
 					"Users"

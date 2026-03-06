@@ -554,20 +554,6 @@ export class UserServiceImpl implements IUserService {
         };
       }
 
-      // Check for dependencies
-      const [hasOrders, hasPortfolios] = await Promise.all([
-        this.userRepository.hasOrders(id),
-        this.userRepository.hasPortfolios(id),
-      ]);
-
-      if (hasOrders || hasPortfolios) {
-        return {
-          success: false,
-          error: 'Cannot delete user with existing orders or portfolios',
-          errorCode: UserErrorCode.USER_HAS_DEPENDENCIES,
-        };
-      }
-
       const deleted = await this.userRepository.deleteUser(id);
 
       if (!deleted) {
