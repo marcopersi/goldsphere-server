@@ -353,6 +353,7 @@ class UserRepositoryMock implements IUserRepository {
 
 describe('UserServiceImpl Unit Tests', () => {
   const testUser: AuditTrailUser = { id: 'test-user-id', email: 'test@example.com', role: 'admin' };
+  const nonAdminUser: AuditTrailUser = { id: 'customer-id', email: 'customer@example.com', role: 'customer' };
   let service: UserServiceImpl;
   let mockRepo: UserRepositoryMock;
 
@@ -445,6 +446,17 @@ describe('UserServiceImpl Unit Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data!.role).toBe(UserRole.ADMIN);
+    });
+
+    it('should reject admin role assignment by non-admin actor', async () => {
+      const result = await service.createUser({
+        email: 'blocked-admin-create@example.com',
+        password: 'SecurePass123',
+        role: UserRole.ADMIN,
+      }, nonAdminUser);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe(UserErrorCode.UNAUTHORIZED);
     });
 
     it('should persist username on create', async () => {
@@ -631,6 +643,19 @@ describe('UserServiceImpl Unit Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data!.username).toBe('updated-username');
+    });
+
+    it('should reject role change by non-admin actor', async () => {
+      const result = await service.updateUser(
+        'existing-user-id',
+        {
+          role: UserRole.ADMIN,
+        },
+        nonAdminUser
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe(UserErrorCode.UNAUTHORIZED);
     });
 
     it('should update profile and address fields with shared update payload', async () => {

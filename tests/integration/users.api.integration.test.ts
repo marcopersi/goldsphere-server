@@ -25,6 +25,15 @@ async function loginAsAdmin(): Promise<string> {
   return response.body.data.accessToken;
 }
 
+async function loginWithCredentials(email: string, password: string): Promise<string> {
+  const response = await request(app)
+    .post('/api/auth/login')
+    .send({ email, password })
+    .expect(200);
+
+  return response.body.data.accessToken;
+}
+
 beforeAll(async () => {
   await setupTestDatabase();
   app = (await import('../../src/app')).default;
@@ -281,6 +290,36 @@ describe('Users API Integration Tests', () => {
       expect(detailsResponse.body.data.profile.preferredCurrency).toBe(payload.preferredCurrency);
       expect(detailsResponse.body.data.address.city).toBe(payload.address.city);
       expect(detailsResponse.body.data.address.houseNumber).toBe(payload.address.houseNumber);
+    });
+
+    it('should reject non-admin user creating an admin account', async () => {
+      const customerEmail = `customer-creator-${Date.now()}@example.com`;
+      const customerPassword = 'SecurePass123';
+
+      await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          email: customerEmail,
+          password: customerPassword,
+          role: 'customer',
+          firstName: 'Role',
+          lastName: 'Tester',
+          birthDate: '1991-01-01',
+        })
+        .expect(201);
+
+      const customerToken = await loginWithCredentials(customerEmail, customerPassword);
+
+      await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({
+          email: `escalation-attempt-${Date.now()}@example.com`,
+          password: 'SecurePass123',
+          role: 'admin',
+        })
+        .expect(403);
     });
   });
 
@@ -545,6 +584,40 @@ describe('Users API Integration Tests', () => {
         .expect(409);
 
       expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject non-admin role escalation to admin', async () => {
+      const customerEmail = `role-escalation-${Date.now()}@example.com`;
+      const customerPassword = 'SecurePass123';
+
+      const createResponse = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          email: customerEmail,
+          password: customerPassword,
+          role: 'customer',
+          firstName: 'Role',
+          lastName: 'Escalation',
+          birthDate: '1992-02-02',
+        })
+        .expect(201);
+
+      const customerId = createResponse.body.data.id;
+      const customerToken = await loginWithCredentials(customerEmail, customerPassword);
+
+      await request(app)
+        .put(`/api/users/${customerId}`)
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({ role: 'admin' })
+        .expect(403);
+
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: customerEmail, password: customerPassword })
+        .expect(200);
+
+      expect(loginResponse.body.data.user.role).toBe('customer');
     });
 
     it('should return 404 for non-existent user', async () => {

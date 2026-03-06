@@ -51,6 +51,14 @@ export class UserServiceImpl implements IUserService {
     authenticatedUser: AuditTrailUser
   ): Promise<UserOperationResult<UserEntity>> {
     try {
+      if (input.role === UserRole.ADMIN && authenticatedUser.role !== UserRole.ADMIN) {
+        return {
+          success: false,
+          error: 'Only admins can assign the admin role',
+          errorCode: UserErrorCode.UNAUTHORIZED,
+        };
+      }
+
       // Validate email format
       if (!this.validateEmailFormat(input.email)) {
         return {
@@ -274,6 +282,14 @@ export class UserServiceImpl implements IUserService {
           success: false,
           error: 'User not found',
           errorCode: UserErrorCode.USER_NOT_FOUND,
+        };
+      }
+
+      if (input.role !== undefined && authenticatedUser.role !== UserRole.ADMIN) {
+        return {
+          success: false,
+          error: 'Only admins can change user roles',
+          errorCode: UserErrorCode.UNAUTHORIZED,
         };
       }
 

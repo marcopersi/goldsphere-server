@@ -372,12 +372,21 @@ export class UserController extends Controller {
     @Request() request: ExpressRequest
   ): Promise<SuccessResponseWrapper<UserResponse> | UserErrorResponse> {
     const { email, password, role } = body;
+    const authenticatedUser = requireAuthenticatedUser(request);
 
     if (!email || !password || !role) {
       this.setStatus(400);
       return {
         success: false,
         error: 'Email, password and role are required'
+      };
+    }
+
+    if (role === 'admin' && authenticatedUser.role !== 'admin') {
+      this.setStatus(403);
+      return {
+        success: false,
+        error: 'Only admins can assign the admin role'
       };
     }
 
@@ -396,7 +405,6 @@ export class UserController extends Controller {
       return referenceValidation;
     }
 
-    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await userService.createUser({
       email,
       password,
@@ -490,6 +498,16 @@ export class UserController extends Controller {
       };
     }
 
+    const authenticatedUser = requireAuthenticatedUser(request);
+
+    if (role !== undefined && authenticatedUser.role !== 'admin') {
+      this.setStatus(403);
+      return {
+        success: false,
+        error: 'Only admins can change user roles'
+      };
+    }
+
     const userService = getUserService();
 
     const referenceValidation = await validateUserRequestReferences(userService, {
@@ -505,7 +523,6 @@ export class UserController extends Controller {
       return referenceValidation;
     }
 
-    const authenticatedUser = requireAuthenticatedUser(request);
     const result = await userService.updateUser(id, {
       email,
       password,
